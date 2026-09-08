@@ -34,6 +34,9 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  flutter_secure_storage: ^11.0.0
+  http: ^1.6.0
+  file_selector: ^1.0.3
 
 dev_dependencies:
   flutter_test:
@@ -56,6 +59,28 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - .env
+    - lib/psgc-address-data/data/list-of-all-regions.json
+    - lib/psgc-address-data/data/0100000000-region-i-ilocos-region/
+    - lib/psgc-address-data/data/0200000000-region-ii-cagayan-valley/
+    - lib/psgc-address-data/data/0300000000-region-iii-central-luzon/
+    - lib/psgc-address-data/data/0400000000-region-iv-a-calabarzon/
+    - lib/psgc-address-data/data/0500000000-region-v-bicol-region/
+    - lib/psgc-address-data/data/0600000000-region-vi-western-visayas/
+    - lib/psgc-address-data/data/0700000000-region-vii-central-visayas/
+    - lib/psgc-address-data/data/0800000000-region-viii-eastern-visayas/
+    - lib/psgc-address-data/data/0900000000-region-ix-zamboanga-peninsula/
+    - lib/psgc-address-data/data/1000000000-region-x-northern-mindanao/
+    - lib/psgc-address-data/data/1100000000-region-xi-davao-region/
+    - lib/psgc-address-data/data/1200000000-region-xii-soccsksargen/
+    - lib/psgc-address-data/data/1300000000-national-capital-region-ncr/
+    - lib/psgc-address-data/data/1400000000-cordillera-administrative-region-car/
+    - lib/psgc-address-data/data/1600000000-region-xiii-caraga/
+    - lib/psgc-address-data/data/1700000000-mimaropa-region/
+    - lib/psgc-address-data/data/1800000000-negros-island-region-nir/
+    - lib/psgc-address-data/data/1900000000-bangsamoro-autonomous-region-in-muslim-mindanao-barmm/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
