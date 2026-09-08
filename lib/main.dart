@@ -10,14 +10,13 @@ import 'features/auth/data/auth_repository.dart';
 import 'features/auth/presentation/auth_controller.dart';
 import 'features/dashboard/data/dashboard_repository.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  final config = await AppConfig.load();
+
   final tokenStorage = SecureTokenStorage();
-  final apiClient = ApiClient(
-    config: AppConfig.fromEnvironment,
-    tokenStorage: tokenStorage,
-  );
+  final apiClient = ApiClient(config: config, tokenStorage: tokenStorage);
   final authController = AuthController(
     authRepository: ApiAuthRepository(
       client: apiClient,
