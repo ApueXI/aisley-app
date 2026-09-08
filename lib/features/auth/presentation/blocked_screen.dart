@@ -96,12 +96,14 @@ class SecureStorageFailureScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final platformHint = Theme.of(context).platform == TargetPlatform.linux
+        ? ' On Linux, unlock the default Secret Service keyring and try again.'
+        : '';
     return _StatusMessageScreen(
       icon: Icons.security_outlined,
       title: 'Secure session storage unavailable',
       message:
-          authController.errorMessage ??
-          'The app cannot safely read or update your session on this device.',
+          '${authController.errorMessage ?? 'The app cannot safely read or update your session on this device.'}$platformHint',
       actionLabel: 'Try again',
       onAction: authController.retry,
     );

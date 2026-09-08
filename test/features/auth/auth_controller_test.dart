@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:aisley_app/core/networking/api_client.dart';
+import 'package:aisley_app/core/security/token_storage.dart';
 import 'package:aisley_app/features/auth/data/auth_repository.dart';
 import 'package:aisley_app/features/auth/domain/auth_models.dart';
 import 'package:aisley_app/features/auth/presentation/auth_controller.dart';
@@ -65,6 +66,23 @@ void main() {
       expect(controller.status, AuthStatus.recoverableNetworkFailure);
       expect(authRepository.tokenCleared, isFalse);
     });
+
+    test('shows a safe failure when secure storage cannot be read', () async {
+      final authRepository = FakeAuthRepository()
+        ..storedTokenError = TokenStorageException(
+          'read',
+          StateError('secret service unavailable'),
+        );
+      final controller = AuthController(
+        authRepository: authRepository,
+        dashboardRepository: FakeDashboardRepository(),
+      );
+
+      await controller.initialize();
+
+      expect(controller.status, AuthStatus.secureStorageFailure);
+      expect(controller.courier, isNull);
+    });
   });
 }
 
@@ -75,9 +93,16 @@ class FakeAuthRepository implements AuthRepository {
   String? lastEmail;
   Object? loginError;
   Object? currentCourierError;
+  Object? storedTokenError;
 
   @override
-  Future<bool> hasStoredToken() async => hasToken;
+  Future<bool> hasStoredToken() async {
+    final error = storedTokenError;
+    if (error != null) {
+      throw error;
+    }
+    return hasToken;
+  }
 
   @override
   Future<CourierIdentity> login({

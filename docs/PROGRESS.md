@@ -16,7 +16,9 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Implemented the Flutter Courier auth slice: environment-configured API client, secure Sanctum token storage, login/session restore/logout, explicit approval and network failure states, and protected dashboard-scaffold loading with no fabricated operational data. Verified with `flutter analyze` and `flutter test` (9 tests passed).
 - Added `.env.example`-based API configuration loading so local runs can use `API_BASE_URL` without a `--dart-define`; the real `.env` remains ignored and is bundled only for local builds.
 - Upgraded `flutter_secure_storage` to `11.0.0` (Linux plugin `3.0.2`) to resolve Clang deprecation errors on Linux desktop; verified with `flutter analyze`, `flutter test`, and `flutter build linux --debug`.
-- Updated the Linux runner to show its GTK window immediately and opt out of Impeller, avoiding an unmapped window when the renderer produces no first frame under Sway.
+- Updated the Linux runner to show its GTK window immediately so Sway receives a mapped node without waiting for a first Flutter frame.
+- Added a visible startup bootstrap and deferred secure-session initialization until after the first Flutter frame, so asynchronous `.env` and keyring work cannot blank the Linux surface.
+- Added a Linux Secret Service preflight and bounded secure-storage operations so a missing or locked keyring reaches the explicit storage-failure screen instead of blocking the Flutter surface.
 - Added a corrected `AGENTS.md` documentation lookup table using this repository's actual workflow, domain, design, feature, and location-contract paths.
 
 ## 2026-09-08

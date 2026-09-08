@@ -80,11 +80,27 @@ class CheckingSessionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Semantics(
-          liveRegion: true,
-          label: 'Checking your Courier session',
-          child: CircularProgressIndicator(),
+      body: SafeArea(
+        child: Center(
+          child: Semantics(
+            liveRegion: true,
+            label: 'Checking your Courier session',
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: CircularProgressIndicator(strokeWidth: 3),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Checking your Courier session…',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
