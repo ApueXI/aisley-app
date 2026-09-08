@@ -14,6 +14,22 @@ backend: External Laravel API
 - This project must not edit Laravel controllers, migrations, models, React apps, Next.js code, or backend environment files. Backend changes belong in the Aisley repository.
 - The app serves Couriers only. Customer, Seller, Admin, and Logistics screens, credentials, and workflows do not belong here.
 
+## Where to look
+
+| If the task involves... | Read |
+| --- | --- |
+| Documentation authority, current Courier implementation boundary, or canonical-document order | `docs/README.md` |
+| What the product or Courier role is supposed to do, shared scope, or acceptance requirements | `docs/requirements.md` and the relevant sections of `docs/domain/Courier.md` / `docs/domain/Logistics.md` |
+| Folder structure, Flutter architecture, API integration, security, testing, or how components connect | `docs/architecture.md` |
+| Step-by-step user flows, state transitions, approval logic, or order/logistics lifecycle | `docs/workspace.md` |
+| What is already built, the backend contract snapshot, or deferred work | `docs/PROGRESS.md` |
+| Courier or Logistics domain design and role context | `docs/domain/Courier.md` and `docs/domain/Logistics.md` |
+| Courier frontend design, color scheme, layout, interaction, accessibility, or client behavior | `docs/design-courier.md` |
+| Courier feature implementation or change | The matching file under `docs/features/courier/<feature>/` — currently `auth/spec.md` or a planning `specs.md` |
+| Address, location, geocoding, GPS, coordinates, maps, or map pins | The relevant sections of `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, and `docs/design-courier.md`; no standalone maps-location contract currently exists |
+| File or image upload | `docs/references/file-upload-requirements.md` |
+| Courier registration or approval | `docs/references/user-registration-requirements.md`, `docs/references/file-upload-requirements.md`, and `docs/features/courier/auth/spec.md` |
+
 ## Read before changing code
 
 - Read the copied `docs/features/courier/auth/spec.md` and `docs/domain/Courier.md` before implementing Courier work.
