@@ -24,7 +24,7 @@ void main() {
     expect(find.text('Create your Courier account'), findsOneWidget);
     expect(find.text('Logistics organization'), findsOneWidget);
     expect(find.text('Required evidence'), findsOneWidget);
-    expect(find.textContaining('no map pin is required'), findsOneWidget);
+    expect(find.textContaining('No map pin is required'), findsOneWidget);
   });
 
   testWidgets('Courier can sign in and reach the dashboard skeleton', (

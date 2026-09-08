@@ -6,7 +6,9 @@ import 'package:flutter/services.dart';
 
 import '../../../core/networking/api_client.dart';
 import '../../../core/networking/api_contract_exception.dart';
+import '../data/psgc_address_data_source.dart';
 import '../domain/auth_models.dart';
+import '../domain/psgc_address_models.dart';
 import 'auth_controller.dart';
 
 const _maxEvidenceBytes = 10 * 1024 * 1024;
@@ -31,6 +33,7 @@ class RegistrationScreen extends StatefulWidget {
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _psgcDataSource = PsgcAddressDataSource();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _middleNameController = TextEditingController();
@@ -49,7 +52,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final _postalCodeController = TextEditingController();
 
   List<LogisticsOption> _organizations = const <LogisticsOption>[];
+  List<PsgcRegion> _psgcRegions = const <PsgcRegion>[];
   LogisticsOption? _organization;
+  PsgcRegion? _psgcRegion;
+  PsgcAddressNode? _psgcRegionTree;
+  PsgcAddressNode? _psgcProvince;
+  PsgcAddressNode? _psgcCity;
+  PsgcAddressNode? _psgcBarangay;
   String? _sex;
   String? _vehicleType;
   DateTime? _birthDate;
@@ -57,9 +66,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   RegistrationUpload? _vehicleRegistration;
   Map<String, List<String>> _fieldErrors = const <String, List<String>>{};
   String? _optionsError;
+  String? _psgcError;
   String? _submissionError;
   RegistrationResult? _result;
   bool _isLoadingOrganizations = true;
+  bool _isLoadingPsgc = true;
+  bool _isLoadingPsgcRegion = false;
+  bool _useManualAddress = false;
   bool _isSubmitting = false;
   int _submissionSerial = 0;
   VoidCallback? _cancelUpload;
@@ -68,6 +81,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   void initState() {
     super.initState();
     unawaited(_loadOrganizations());
+    unawaited(_loadPsgcRegions());
   }
 
   @override
@@ -126,6 +140,177 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             'The service returned an unexpected Logistics list. Please retry.';
       });
     }
+  }
+
+  Future<void> _loadPsgcRegions() async {
+    try {
+      final regions = await _psgcDataSource.loadRegions();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _psgcRegions = regions;
+        _isLoadingPsgc = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isLoadingPsgc = false;
+        _useManualAddress = true;
+        _psgcError = 'The bundled address directory is unavailable. Manual address entry is available.';
+      });
+    }
+  }
+
+  Future<void> _selectPsgcRegion(PsgcRegion? region) async {
+    setState(() {
+      _psgcRegion = region;
+      _psgcRegionTree = null;
+      _psgcProvince = null;
+      _psgcCity = null;
+      _psgcBarangay = null;
+      _psgcError = null;
+      _isLoadingPsgcRegion = region != null;
+      _regionController.text = region?.name ?? '';
+      _provinceController.clear();
+      _cityMunicipalityController.clear();
+      _barangayController.clear();
+    });
+
+    if (region == null) {
+      return;
+    }
+
+    try {
+      final tree = await _psgcDataSource.loadRegion(region);
+      if (!mounted || _psgcRegion?.code != region.code) {
+        return;
+      }
+      setState(() {
+        _psgcRegionTree = tree;
+        _isLoadingPsgcRegion = false;
+      });
+    } catch (_) {
+      if (!mounted || _psgcRegion?.code != region.code) {
+        return;
+      }
+      setState(() {
+        _isLoadingPsgcRegion = false;
+        _useManualAddress = true;
+        _psgcError = 'This region could not be opened from the bundled directory. Manual address entry is available.';
+      });
+    }
+  }
+
+  void _selectPsgcProvince(PsgcAddressNode? province) {
+    setState(() {
+      _psgcProvince = province;
+      _psgcCity = null;
+      _psgcBarangay = null;
+      _provinceController.text = province?.name ?? '';
+      _cityMunicipalityController.clear();
+      _barangayController.clear();
+    });
+  }
+
+  void _selectPsgcCity(PsgcAddressNode? city) {
+    setState(() {
+      _psgcCity = city;
+      _psgcBarangay = null;
+      _cityMunicipalityController.text = city?.name ?? '';
+      _barangayController.clear();
+    });
+  }
+
+  void _selectPsgcBarangay(PsgcAddressNode? barangay) {
+    setState(() {
+      _psgcBarangay = barangay;
+      _barangayController.text = barangay?.name ?? '';
+    });
+  }
+
+  List<PsgcAddressNode> get _psgcProvinceOptions {
+    return _psgcRegionTree?.children
+            .where((node) => node.geographicLevel == 'province')
+            .toList(growable: false) ??
+        const <PsgcAddressNode>[];
+  }
+
+  List<PsgcAddressNode> get _psgcCityOptions {
+    final parent = _psgcProvince ?? _psgcRegionTree;
+    return parent?.children
+            .where(
+              (node) =>
+                  node.geographicLevel == 'city' ||
+                  node.geographicLevel == 'municipality',
+            )
+            .toList(growable: false) ??
+        const <PsgcAddressNode>[];
+  }
+
+  List<PsgcAddressNode> get _psgcBarangayOptions {
+    final city = _psgcCity;
+    if (city == null) {
+      return const <PsgcAddressNode>[];
+    }
+    return _findBarangays(city);
+  }
+
+  List<PsgcAddressNode> _findBarangays(PsgcAddressNode node) {
+    if (node.geographicLevel == 'barangay') {
+      return <PsgcAddressNode>[node];
+    }
+    final barangays = <PsgcAddressNode>[];
+    for (final child in node.children) {
+      barangays.addAll(_findBarangays(child));
+    }
+    return barangays;
+  }
+
+  bool _validatePsgcAddress() {
+    if (_useManualAddress) {
+      return true;
+    }
+    if (_isLoadingPsgc || _isLoadingPsgcRegion) {
+      setState(() {
+        _submissionError = 'Wait for the address directory to finish loading, or choose manual address entry.';
+      });
+      return false;
+    }
+    if (_psgcRegion == null || _psgcRegionTree == null) {
+      setState(() {
+        _submissionError = 'Select a region from the address directory.';
+      });
+      return false;
+    }
+    if (_psgcProvinceOptions.isNotEmpty && _psgcProvince == null) {
+      setState(() {
+        _submissionError = 'Select a province from the address directory.';
+      });
+      return false;
+    }
+    if (_provinceController.text.trim().isEmpty) {
+      setState(() {
+        _submissionError = 'Enter the province for this address.';
+      });
+      return false;
+    }
+    if (_psgcCity == null) {
+      setState(() {
+        _submissionError =
+            'Select a city or municipality from the address directory.';
+      });
+      return false;
+    }
+    if (_psgcBarangay == null) {
+      setState(() {
+        _submissionError = 'Select a barangay from the address directory.';
+      });
+      return false;
+    }
+    return true;
   }
 
   Future<void> _pickBirthDate() async {
@@ -228,6 +413,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     });
 
     if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    if (!_validatePsgcAddress()) {
       return;
     }
 
@@ -527,7 +716,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     _sectionHeading(
                       context,
                       'Address',
-                      'Use PSGC spelling when known. These fields are the manual fallback and are submitted as labels; no map pin is required.',
+                      'Search the bundled PSGC directory from Region through Barangay, or switch to manual labels when needed. No map pin is required.',
                     ),
                     _textField(
                       controller: _addressLine1Controller,
@@ -547,41 +736,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       serverKey: 'address.address_line_2',
                     ),
                     const SizedBox(height: 14),
-                    _twoColumn(
-                      _textField(
-                        controller: _regionController,
-                        label: 'Region',
-                        validator: (value) =>
-                            _required(value, 'Enter your region.'),
-                        serverKey: 'address.region',
-                      ),
-                      _textField(
-                        controller: _provinceController,
-                        label: 'Province',
-                        validator: (value) =>
-                            _required(value, 'Enter your province.'),
-                        serverKey: 'address.province',
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    _twoColumn(
-                      _textField(
-                        controller: _cityMunicipalityController,
-                        label: 'City / municipality',
-                        validator: (value) => _required(
-                          value,
-                          'Enter your city or municipality.',
-                        ),
-                        serverKey: 'address.city_municipality',
-                      ),
-                      _textField(
-                        controller: _barangayController,
-                        label: 'Barangay',
-                        validator: (value) =>
-                            _required(value, 'Enter your barangay.'),
-                        serverKey: 'address.barangay',
-                      ),
-                    ),
+                    _buildAddressDirectory(context),
                     const SizedBox(height: 14),
                     _textField(
                       controller: _postalCodeController,
@@ -755,7 +910,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               child: CircularProgressIndicator(strokeWidth: 2.5),
             ),
             SizedBox(width: 12),
-            Text('Loading active Logistics organizations…'),
+            Expanded(child: Text('Loading active Logistics organizations…')),
           ],
         ),
       );
@@ -821,6 +976,252 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           : (value) => setState(() => _organization = value),
       validator: (value) =>
           value == null ? 'Select a Logistics organization.' : null,
+    );
+  }
+
+  Widget _buildAddressDirectory(BuildContext context) {
+    if (_useManualAddress) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_psgcError != null) _addressNotice(context, _psgcError!),
+          _manualAddressFields(),
+          if (_psgcRegions.isNotEmpty)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _isSubmitting
+                    ? null
+                    : () => setState(() {
+                        _useManualAddress = false;
+                        _psgcError = null;
+                      }),
+                icon: const Icon(Icons.search),
+                label: const Text('Use searchable PSGC directory'),
+              ),
+            ),
+        ],
+      );
+    }
+
+    if (_isLoadingPsgc) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text('Loading the bundled PSGC address directory…'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final children = <Widget>[
+      _psgcDropdown<PsgcRegion>(
+        fieldKey: 'address.region',
+        label: 'Region',
+        icon: Icons.map_outlined,
+        options: _psgcRegions,
+        selected: _psgcRegion,
+        labelFor: (region) => region.name,
+        onSelected: _selectPsgcRegion,
+      ),
+    ];
+
+    if (_isLoadingPsgcRegion) {
+      children.addAll(const <Widget>[
+        SizedBox(height: 14),
+        LinearProgressIndicator(),
+      ]);
+    } else if (_psgcRegionTree != null) {
+      final provinceOptions = _psgcProvinceOptions;
+      if (provinceOptions.isNotEmpty) {
+        children.addAll(<Widget>[
+          const SizedBox(height: 14),
+          _psgcDropdown<PsgcAddressNode>(
+            fieldKey: 'address.province',
+            label: 'Province',
+            options: provinceOptions,
+            selected: _psgcProvince,
+            labelFor: (province) => province.name,
+            onSelected: _selectPsgcProvince,
+          ),
+        ]);
+      } else {
+        children.addAll(<Widget>[
+          const SizedBox(height: 14),
+          _textField(
+            controller: _provinceController,
+            label: 'Province / administrative area',
+            hint: 'Enter the province label used for this region',
+            validator: (value) =>
+                _required(value, 'Enter the province for this address.'),
+            serverKey: 'address.province',
+          ),
+        ]);
+      }
+
+      final cityOptions = _psgcCityOptions;
+      if (cityOptions.isNotEmpty) {
+        children.addAll(<Widget>[
+          const SizedBox(height: 14),
+          _psgcDropdown<PsgcAddressNode>(
+            fieldKey: 'address.city_municipality',
+            label: 'City / municipality',
+            options: cityOptions,
+            selected: _psgcCity,
+            labelFor: (city) => city.name,
+            onSelected: _selectPsgcCity,
+          ),
+        ]);
+      } else {
+        children.addAll(<Widget>[
+          const SizedBox(height: 14),
+          _textField(
+            controller: _cityMunicipalityController,
+            label: 'City / municipality',
+            validator: (value) =>
+                _required(value, 'Enter your city or municipality.'),
+            serverKey: 'address.city_municipality',
+          ),
+        ]);
+      }
+
+      if (_psgcCity != null && _psgcBarangayOptions.isNotEmpty) {
+        children.addAll(<Widget>[
+          const SizedBox(height: 14),
+          _psgcDropdown<PsgcAddressNode>(
+            fieldKey: 'address.barangay',
+            label: 'Barangay',
+            options: _psgcBarangayOptions,
+            selected: _psgcBarangay,
+            labelFor: (barangay) => barangay.name,
+            onSelected: _selectPsgcBarangay,
+          ),
+        ]);
+      } else if (_psgcCity != null) {
+        children.addAll(<Widget>[
+          const SizedBox(height: 14),
+          _textField(
+            controller: _barangayController,
+            label: 'Barangay',
+            validator: (value) => _required(value, 'Enter your barangay.'),
+            serverKey: 'address.barangay',
+          ),
+        ]);
+      } else {
+        children.add(
+          const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: Text('Select a city or municipality to search barangays.'),
+          ),
+        );
+      }
+    }
+
+    children.addAll(<Widget>[
+      const SizedBox(height: 4),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: _isSubmitting
+              ? null
+              : () => setState(() => _useManualAddress = true),
+          icon: const Icon(Icons.edit_outlined),
+          label: const Text('Use manual address entry instead'),
+        ),
+      ),
+    ]);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
+    );
+  }
+
+  Widget _manualAddressFields() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _twoColumn(
+          _textField(
+            controller: _regionController,
+            label: 'Region',
+            validator: (value) => _required(value, 'Enter your region.'),
+            serverKey: 'address.region',
+          ),
+          _textField(
+            controller: _provinceController,
+            label: 'Province',
+            validator: (value) => _required(value, 'Enter your province.'),
+            serverKey: 'address.province',
+          ),
+        ),
+        const SizedBox(height: 14),
+        _twoColumn(
+          _textField(
+            controller: _cityMunicipalityController,
+            label: 'City / municipality',
+            validator: (value) =>
+                _required(value, 'Enter your city or municipality.'),
+            serverKey: 'address.city_municipality',
+          ),
+          _textField(
+            controller: _barangayController,
+            label: 'Barangay',
+            validator: (value) => _required(value, 'Enter your barangay.'),
+            serverKey: 'address.barangay',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _psgcDropdown<T>({
+    required String fieldKey,
+    required String label,
+    required List<T> options,
+    required T? selected,
+    required String Function(T) labelFor,
+    required ValueChanged<T?> onSelected,
+    IconData? icon,
+  }) {
+    return DropdownMenu<T>(
+      key: ValueKey<String>(
+        '$fieldKey-${selected == null ? '' : labelFor(selected)}',
+      ),
+      enabled: !_isSubmitting && options.isNotEmpty,
+      width: double.infinity,
+      menuHeight: 360,
+      label: Text(label),
+      hintText: options.isEmpty ? 'No options available' : 'Type to search',
+      errorText: _serverError(fieldKey),
+      enableFilter: true,
+      enableSearch: true,
+      initialSelection: selected,
+      leadingIcon: icon == null ? null : Icon(icon),
+      dropdownMenuEntries: options
+          .map(
+            (option) =>
+                DropdownMenuEntry<T>(value: option, label: labelFor(option)),
+          )
+          .toList(growable: false),
+      onSelected: onSelected,
+    );
+  }
+
+  Widget _addressNotice(BuildContext context, String message) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(message, style: TextStyle(color: scheme.onSurfaceVariant)),
     );
   }
 
