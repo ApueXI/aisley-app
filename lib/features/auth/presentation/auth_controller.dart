@@ -68,6 +68,17 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  Future<List<LogisticsOption>> fetchLogisticsOptions({String? search}) {
+    return _authRepository.fetchLogisticsOptions(search: search);
+  }
+
+  Future<RegistrationResult> register(
+    CourierRegistrationRequest request, {
+    void Function(void Function() cancel)? onCancel,
+  }) {
+    return _authRepository.register(request, onCancel: onCancel);
+  }
+
   Future<void> signIn({required String email, required String password}) async {
     if (status == AuthStatus.authenticating) {
       return;

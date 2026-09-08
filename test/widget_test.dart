@@ -8,6 +8,25 @@ import 'package:aisley_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:aisley_app/features/dashboard/domain/dashboard_models.dart';
 
 void main() {
+  testWidgets('Courier can open the registration form from sign in', (
+    WidgetTester tester,
+  ) async {
+    final controller = AuthController(
+      authRepository: _FakeAuthRepository(),
+      dashboardRepository: _FakeDashboardRepository(),
+    );
+    await controller.initialize();
+
+    await tester.pumpWidget(CourierApp(authController: controller));
+    await tester.tap(find.text('New Courier? Register here'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Create your Courier account'), findsOneWidget);
+    expect(find.text('Logistics organization'), findsOneWidget);
+    expect(find.text('Required evidence'), findsOneWidget);
+    expect(find.textContaining('no map pin is required'), findsOneWidget);
+  });
+
   testWidgets('Courier can sign in and reach the dashboard skeleton', (
     WidgetTester tester,
   ) async {
@@ -58,6 +77,21 @@ class _FakeAuthRepository implements AuthRepository {
 
   @override
   Future<bool> hasStoredToken() async => false;
+
+  @override
+  Future<List<LogisticsOption>> fetchLogisticsOptions({String? search}) async {
+    return const <LogisticsOption>[
+      LogisticsOption(id: 'logistics-1', businessName: 'Aisley Express'),
+    ];
+  }
+
+  @override
+  Future<RegistrationResult> register(
+    CourierRegistrationRequest request, {
+    void Function(void Function() cancel)? onCancel,
+  }) async {
+    throw UnimplementedError();
+  }
 
   @override
   Future<CourierIdentity> login({

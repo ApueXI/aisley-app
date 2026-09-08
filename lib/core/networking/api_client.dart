@@ -48,6 +48,67 @@ class ApiClient {
     );
   }
 
+  Future<http.Response> postMultipart(
+    String path, {
+    required Map<String, String> fields,
+    required Map<String, String> filePaths,
+    bool authenticated = false,
+    void Function(void Function() cancel)? onCancel,
+  }) async {
+    final uri = _config.endpoint(path);
+    final headers = <String, String>{'Accept': 'application/json'};
+
+    if (authenticated) {
+      final token = await _tokenStorage.read();
+      if (token == null || token.isEmpty) {
+        throw const ApiException(
+          statusCode: 401,
+          code: 'UNAUTHENTICATED',
+          message: 'A valid session is required.',
+        );
+      }
+      headers['Authorization'] = 'Bearer $token';
+    }
+
+    final request = http.MultipartRequest('POST', uri)
+      ..headers.addAll(headers)
+      ..fields.addAll(fields);
+    final uploadClient = onCancel == null ? null : http.Client();
+    final requestClient = uploadClient ?? _client;
+    onCancel?.call(uploadClient!.close);
+
+    try {
+      for (final entry in filePaths.entries) {
+        request.files.add(
+          await http.MultipartFile.fromPath(entry.key, entry.value),
+        );
+      }
+
+      final streamedResponse = await requestClient
+          .send(request)
+          .timeout(requestTimeout);
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return response;
+      }
+
+      throw ApiException.fromResponse(response);
+    } on ApiException {
+      rethrow;
+    } on TokenStorageException {
+      rethrow;
+    } on TimeoutException {
+      throw const ApiException.network('The request timed out.');
+    } on SocketException {
+      throw const ApiException.network('The service could not be reached.');
+    } on http.ClientException {
+      throw const ApiException.network('The service could not be reached.');
+    } finally {
+      uploadClient?.close();
+    }
+  }
+
   Future<http.Response> _request({
     required String method,
     required String path,

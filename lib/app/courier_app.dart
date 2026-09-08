@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/auth/presentation/blocked_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
+import '../features/auth/presentation/registration_screen.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
 
 class CourierApp extends StatelessWidget {
@@ -22,13 +23,21 @@ class CourierApp extends StatelessWidget {
   }
 }
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({required this.authController, super.key});
 
   final AuthController authController;
 
   @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  bool _showRegistration = false;
+
+  @override
   Widget build(BuildContext context) {
+    final authController = widget.authController;
     return AnimatedBuilder(
       animation: authController,
       builder: (context, child) {
@@ -36,10 +45,18 @@ class AuthGate extends StatelessWidget {
           AuthStatus.checkingSession => const CheckingSessionScreen(
             key: ValueKey('checking-session'),
           ),
-          AuthStatus.signedOut || AuthStatus.authenticating => LoginScreen(
-            key: const ValueKey('login'),
-            authController: authController,
-          ),
+          AuthStatus.signedOut || AuthStatus.authenticating =>
+            _showRegistration
+                ? RegistrationScreen(
+                    key: const ValueKey('registration'),
+                    authController: authController,
+                    onSignIn: _showSignIn,
+                  )
+                : LoginScreen(
+                    key: const ValueKey('login'),
+                    authController: authController,
+                    onRegister: _showRegistrationScreen,
+                  ),
           AuthStatus.authenticated => DashboardScreen(
             key: const ValueKey('dashboard'),
             authController: authController,
@@ -71,6 +88,24 @@ class AuthGate extends StatelessWidget {
         };
       },
     );
+  }
+
+  void _showRegistrationScreen() {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _showRegistration = true;
+    });
+  }
+
+  void _showSignIn() {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _showRegistration = false;
+    });
   }
 }
 

@@ -129,6 +129,151 @@ class CourierIdentity {
   String? get hubName => logistics?.hubName;
 }
 
+class LogisticsOption {
+  const LogisticsOption({required this.id, required this.businessName});
+
+  final String id;
+  final String businessName;
+
+  factory LogisticsOption.fromJson(Map<String, dynamic> json) {
+    final id = json['id'];
+    final businessName = json['business_name'];
+    if (id is! String ||
+        id.isEmpty ||
+        businessName is! String ||
+        businessName.trim().isEmpty) {
+      throw const ApiContractException('logistics_option');
+    }
+
+    return LogisticsOption(id: id, businessName: businessName.trim());
+  }
+}
+
+class RegistrationUpload {
+  const RegistrationUpload({
+    required this.path,
+    required this.fileName,
+    required this.sizeInBytes,
+  });
+
+  final String path;
+  final String fileName;
+  final int sizeInBytes;
+}
+
+class CourierRegistrationRequest {
+  const CourierRegistrationRequest({
+    required this.firstName,
+    required this.lastName,
+    this.middleName,
+    required this.contactNumber,
+    required this.sex,
+    required this.birthDate,
+    required this.email,
+    required this.password,
+    required this.passwordConfirmation,
+    required this.logisticsOrganizationId,
+    required this.vehicleType,
+    required this.plateNumber,
+    required this.addressLine1,
+    this.addressLine2,
+    required this.barangay,
+    required this.cityMunicipality,
+    required this.province,
+    required this.region,
+    required this.postalCode,
+    required this.governmentId,
+    required this.vehicleRegistration,
+  });
+
+  final String firstName;
+  final String lastName;
+  final String? middleName;
+  final String contactNumber;
+  final String sex;
+  final DateTime birthDate;
+  final String email;
+  final String password;
+  final String passwordConfirmation;
+  final String logisticsOrganizationId;
+  final String vehicleType;
+  final String plateNumber;
+  final String addressLine1;
+  final String? addressLine2;
+  final String barangay;
+  final String cityMunicipality;
+  final String province;
+  final String region;
+  final String postalCode;
+  final RegistrationUpload governmentId;
+  final RegistrationUpload vehicleRegistration;
+
+  Map<String, String> get fields {
+    final values = <String, String>{
+      'first_name': firstName.trim(),
+      'last_name': lastName.trim(),
+      'contact_number': contactNumber.trim(),
+      'sex': sex,
+      'birth_date': _formatDate(birthDate),
+      'email': email.trim().toLowerCase(),
+      'password': password,
+      'password_confirmation': passwordConfirmation,
+      'logistics_organization_id': logisticsOrganizationId,
+      'vehicle_type': vehicleType,
+      'plate_number': plateNumber.trim(),
+      'address[address_line_1]': addressLine1.trim(),
+      'address[barangay]': barangay.trim(),
+      'address[city_municipality]': cityMunicipality.trim(),
+      'address[province]': province.trim(),
+      'address[region]': region.trim(),
+      'address[postal_code]': postalCode.trim(),
+    };
+
+    final middleNameValue = middleName?.trim() ?? '';
+    if (middleNameValue.isNotEmpty) {
+      values['middle_name'] = middleNameValue;
+    }
+
+    final addressLine2Value = addressLine2?.trim() ?? '';
+    if (addressLine2Value.isNotEmpty) {
+      values['address[address_line_2]'] = addressLine2Value;
+    }
+
+    return values;
+  }
+
+  Map<String, String> get filePaths => <String, String>{
+    'government_id': governmentId.path,
+    'vehicle_registration': vehicleRegistration.path,
+  };
+}
+
+class RegistrationResult {
+  const RegistrationResult({required this.message, required this.courier});
+
+  final String message;
+  final CourierIdentity courier;
+
+  factory RegistrationResult.fromJson(Map<String, dynamic> json) {
+    final message = json['message'];
+    final courierJson = json['courier'];
+    if (message is! String || courierJson is! Map<String, dynamic>) {
+      throw const ApiContractException('registration.response');
+    }
+
+    return RegistrationResult(
+      message: message,
+      courier: CourierIdentity.fromJson(courierJson),
+    );
+  }
+}
+
+String _formatDate(DateTime date) {
+  final month = date.month.toString().padLeft(2, '0');
+  final day = date.day.toString().padLeft(2, '0');
+  return '${date.year}-$month-$day';
+}
+
 String? _displayName(Object? value) {
   if (value is String && value.trim().isNotEmpty) {
     return value;

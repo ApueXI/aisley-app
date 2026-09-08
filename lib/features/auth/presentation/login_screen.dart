@@ -3,9 +3,14 @@ import 'package:flutter/material.dart';
 import 'auth_controller.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({required this.authController, super.key});
+  const LoginScreen({
+    required this.authController,
+    required this.onRegister,
+    super.key,
+  });
 
   final AuthController authController;
+  final VoidCallback onRegister;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -156,6 +161,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                     )
                                   : const Text('Sign in'),
                             ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextButton(
+                            onPressed: isSubmitting ? null : widget.onRegister,
+                            child: const Text('New Courier? Register here'),
                           ),
                           const SizedBox(height: 18),
                           Text(

@@ -30,3 +30,10 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Courier Dashboard remains a mobile scaffold; operational task and notification endpoints are not yet available.
 - Re-sync these documents whenever the Laravel API contract, DTOs, or status rules change.
 - Replaced the starter root README with Aisley Courier purpose, clone/configuration instructions, Linux desktop usage, and documented browser/Windows setup and limitations without changing runtime behavior.
+
+## 2026-09-08
+
+- Added the Courier registration path beside sign-in, including Logistics organization discovery, exact multipart registration fields, server field-error display, password clearing before retries, and a pending-approval result without creating a session.
+- Added cross-platform evidence selection for `government_id` and `vehicle_registration` with JPEG/JPG/PNG/WebP, strict under-10-MiB, and image-signature convenience checks; upload progress, cancellation, retry, and privacy-safe error states are shown while Laravel remains authoritative.
+- Added multipart/API model and repository contract tests plus registration navigation coverage. The repository has no bundled PSGC dataset, so this implementation uses the documented complete manual address fallback and does not fabricate cascading region data.
+- Verification: `flutter analyze`, `flutter test` (14 tests passed), and `flutter build linux --debug`.

@@ -8,6 +8,13 @@ import '../domain/auth_models.dart';
 abstract interface class AuthRepository {
   Future<bool> hasStoredToken();
 
+  Future<List<LogisticsOption>> fetchLogisticsOptions({String? search});
+
+  Future<RegistrationResult> register(
+    CourierRegistrationRequest request, {
+    void Function(void Function() cancel)? onCancel,
+  });
+
   Future<CourierIdentity> login({
     required String email,
     required String password,
@@ -35,6 +42,49 @@ class ApiAuthRepository implements AuthRepository {
   Future<bool> hasStoredToken() async {
     final token = await _tokenStorage.read();
     return token != null && token.isNotEmpty;
+  }
+
+  @override
+  Future<List<LogisticsOption>> fetchLogisticsOptions({String? search}) async {
+    final normalizedSearch = search?.trim();
+    final response = await _client.get(
+      '/courier/auth/logistics-options',
+      queryParameters: normalizedSearch == null || normalizedSearch.isEmpty
+          ? null
+          : <String, String>{'search': normalizedSearch},
+    );
+    final payload = _decodeObject(response.body);
+    final data = payload?['data'];
+    if (data is! List) {
+      throw const ApiContractException('logistics_options.data');
+    }
+
+    final options = <LogisticsOption>[];
+    for (final item in data) {
+      if (item is! Map<String, dynamic>) {
+        throw const ApiContractException('logistics_options.item');
+      }
+      options.add(LogisticsOption.fromJson(item));
+    }
+    return options;
+  }
+
+  @override
+  Future<RegistrationResult> register(
+    CourierRegistrationRequest request, {
+    void Function(void Function() cancel)? onCancel,
+  }) async {
+    final response = await _client.postMultipart(
+      '/courier/auth/register',
+      fields: request.fields,
+      filePaths: request.filePaths,
+      onCancel: onCancel,
+    );
+    final payload = _decodeObject(response.body);
+    if (payload == null) {
+      throw const ApiContractException('registration.response');
+    }
+    return RegistrationResult.fromJson(payload);
   }
 
   @override

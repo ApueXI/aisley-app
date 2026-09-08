@@ -105,6 +105,19 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<List<LogisticsOption>> fetchLogisticsOptions({String? search}) async {
+    return const <LogisticsOption>[];
+  }
+
+  @override
+  Future<RegistrationResult> register(
+    CourierRegistrationRequest request, {
+    void Function(void Function() cancel)? onCancel,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<CourierIdentity> login({
     required String email,
     required String password,
