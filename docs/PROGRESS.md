@@ -41,4 +41,5 @@ This is the progress log for the external Courier Flutter application. It is sep
 ## 2026-09-08
 
 - Integrated the provided `lib/psgc-address-data` Q2 2026 hierarchy into registration as bundled, searchable Region → Province → City/Municipality → Barangay selectors, including NCR/sub-municipality barangay traversal and a manual fallback when data is unavailable or incomplete.
+- Expanded the Linux setup guide with `gnome-keyring`, `libsecret` runtime requirements, session startup guidance, and secure-storage troubleshooting for `flutter_secure_storage`.
 - Added PSGC asset/data-source parsing and hierarchy coverage; registration still submits only the documented address labels and does not send PSGC codes or coordinates.

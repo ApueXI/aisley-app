@@ -66,8 +66,30 @@ On Ubuntu/Debian, install the Flutter Linux and secure-storage prerequisites:
 sudo apt-get update
 sudo apt-get install -y \
   clang cmake ninja-build pkg-config libgtk-3-dev libstdc++-12-dev \
-  libsecret-1-dev libjsoncpp-dev
+  libsecret-1-0 libsecret-1-dev gnome-keyring libjsoncpp-dev
 ```
+
+### Linux secure storage and keyring
+
+The app uses `flutter_secure_storage` for its bearer token. Linux needs both
+the `libsecret` runtime/development packages and a running Secret Service
+provider such as GNOME Keyring. Installing only the development package may
+allow compilation but still cause secure-storage errors when the app starts.
+
+After installing the packages, log out and back in so the desktop session can
+start and unlock the keyring before running the app. On a non-GNOME session or
+window manager, make sure its session startup provides a D-Bus user session and
+starts a Secret Service provider. If the app reports that secure storage is
+unavailable, check the session keyring before troubleshooting the API:
+
+```bash
+gnome-keyring-daemon --start --components=secrets
+flutter run -d linux
+```
+
+Do not replace secure storage with plaintext files, ordinary preferences, or
+hard-coded tokens. See the [`flutter_secure_storage_linux` requirements](https://pub.dev/documentation/flutter_secure_storage_linux/latest/)
+for platform-specific alternatives and package details.
 
 Enable and verify Linux desktop support:
 
