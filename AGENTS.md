@@ -5,113 +5,234 @@ status: Active
 backend: External Laravel API
 ---
 
-# Courier Flutter Project Rules
+# AGENTS-COURIER.md
 
-## Scope and boundaries
+> Portable rules for the external Courier Flutter project. Copy this file into
+> the Flutter repository root and rename it to `AGENTS.md` if desired. Paths
+> below are relative to that Flutter project, not to the Laravel repository.
 
-- This project is the external Flutter/Dart mobile application for the Courier role. Courier UI belongs here; do not build a Courier web dashboard in the Laravel repository.
-- The Laravel API in the Aisley repository is the backend source of truth. Do not duplicate authorization, order status transitions, Logistics ownership, or inventory logic in the app.
-- This project must not edit Laravel controllers, migrations, models, React apps, Next.js code, or backend environment files. Backend changes belong in the Aisley repository.
-- The app serves Couriers only. Customer, Seller, Admin, and Logistics screens, credentials, and workflows do not belong here.
+## Overview
 
-## Where to look
+The Courier application is a Flutter/Dart mobile client for the AISLEY Laravel
+API. It is a separate project from the Laravel monorepo and must not contain
+Laravel, React, Next.js, Tailwind, or browser-dashboard implementation.
 
-| If the task involves... | Read |
-| --- | --- |
-| Documentation authority, current Courier implementation boundary, or canonical-document order | `docs/README.md` |
-| What the product or Courier role is supposed to do, shared scope, or acceptance requirements | `docs/requirements.md` and the relevant sections of `docs/domain/Courier.md` / `docs/domain/Logistics.md` |
-| Folder structure, Flutter architecture, API integration, security, testing, or how components connect | `docs/architecture.md` |
-| Step-by-step user flows, state transitions, approval logic, or order/logistics lifecycle | `docs/workspace.md` |
-| What is already built, the backend contract snapshot, or deferred work | `docs/PROGRESS.md` |
-| Courier or Logistics domain design and role context | `docs/domain/Courier.md` and `docs/domain/Logistics.md` |
-| Courier frontend design, color scheme, layout, interaction, accessibility, or client behavior | `docs/design-courier.md` |
-| Courier feature implementation or change | The matching file under `docs/features/courier/<feature>/` — currently `auth/spec.md` or a planning `specs.md` |
-| Address, location, geocoding, GPS, coordinates, maps, or map pins | The relevant sections of `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, and `docs/design-courier.md`; no standalone maps-location contract currently exists |
-| File or image upload | `docs/references/file-upload-requirements.md` |
-| Courier registration or approval | `docs/references/user-registration-requirements.md`, `docs/references/file-upload-requirements.md`, and `docs/features/courier/auth/spec.md` |
+Courier is one of AISLEY's roles alongside Customer, Seller, Admin, and
+Logistics. Courier screens, mobile networking, secure token storage, local
+mobile state, and accessibility belong here. The Laravel API remains the
+authority for identity, authorization, ownership, status transitions, data
+privacy, and operational eligibility.
+
+The copied `docs/` contract is a snapshot. The Laravel repository and its
+implemented API are authoritative when the snapshot and server disagree.
+
+## Git branch and commit rules
+
+When implementing a feature, create and switch to a feature branch derived
+from the current Flutter branch before changing files. Use a descriptive branch
+name such as `feature/courier-auth-screen`.
+
+After the requested feature is complete and verified, commit with a
+descriptive conventional message, for example:
+
+```text
+feat: add courier authentication flow
+```
+
+Do not commit secret files, generated credentials, local device data, or
+unrelated changes. Keep commits focused on the current Flutter feature.
+
+## Rules for every prompt
+
+1. Read `docs/PROGRESS.md` first. Identify the latest Flutter work and the
+   backend contract version before starting a new task.
+2. Read `docs/features/courier/rules.md` and the matching Courier feature
+   specification completely before implementing or revising that feature.
+3. Follow the existing Flutter/Dart architecture, null-safety settings, state
+   management, routing, networking, and design system. Do not add packages or
+   frameworks without explicit approval.
+4. Courier is mobile-only. Do not create a web page, React component, browser
+   cookie flow, or Laravel source file in this project.
+5. Treat the authenticated Courier, approved Logistics affiliation, and sole
+   operational hub as server-derived facts. Never let the client choose a
+   different Courier, organization, hub, reviewer, role, ability, or status.
+6. Send the documented Sanctum bearer token as
+   `Authorization: Bearer <token>`. Store it only in OS secure storage such as
+   Keychain/Keystore through the project's approved Flutter package.
+7. Never log, persist in ordinary app storage, place in URLs, or include in
+   analytics a password, bearer token, token hash, reset token, or secret key.
+8. Never read, print, copy, commit, or modify secret-bearing `.env` files such
+   as `.env`, `.env.local`, or `.env.production`. Use only `.env.example`,
+   redacted values, or the project's approved non-secret build configuration.
+9. Never place API credentials, storage keys, private provider keys, or reset
+   tokens in Dart source, assets, logs, screenshots, fixtures, or commits.
+10. Read the shared contract before relying on a field, route, status, or
+    permission. If it is absent or contradictory, stop at a safe scaffold and
+    report the contract gap instead of inventing behavior.
+11. Keep first-mile and final-mile assignments independent. Completing a
+    Seller-to-hub task never grants a hub-to-Customer task.
+12. Preserve the MVP boundary of one Courier affiliation and one operational
+    hub per Logistics organization. Do not add sub-hub selectors or staff
+    account assumptions.
+13. Use the server's lowercase `snake_case` values for API status comparisons
+    and human-readable labels only for presentation. Do not introduce legacy
+    uppercase source values as client authority.
+14. Offline data may be displayed as bounded stale information, but offline
+    mode must never bypass server authorization or submit acceptance, pickup,
+    scan, delivery, or completion actions.
+15. Keep Customer, Seller, Admin, Logistics, and Courier data separated. Show
+    only the minimum Buyer/Seller/address information required by the active
+    authorized task.
+16. Update this project's `docs/PROGRESS.md` by appending a dated entry after a
+    completed feature or meaningful contract synchronization. Never rewrite or
+    delete prior entries.
+17. Stay in scope. Do not refactor unrelated screens, rename shared packages,
+    or change the Laravel repository from a Flutter task.
 
 ## Read before changing code
 
-- Read the copied `docs/features/courier/auth/spec.md` and `docs/domain/Courier.md` before implementing Courier work.
-- For registration or approval work, also read `docs/references/user-registration-requirements.md` and `docs/references/file-upload-requirements.md`.
-- For pickup, delivery, scanning, routing, proof, chat, offline, or earnings work, read the matching Courier feature spec and the relevant Courier/shared sections of `docs/requirements.md`, `docs/workspace.md`, and `docs/schema.md`.
-- Relevant shared sections include authentication, authorization, Logistics affiliation, order flow, and status rules. Treat the backend repository versions as authoritative.
-- The order/logistics decision worksheet is background history, not an implementation authority.
-- If a matching spec or API endpoint does not exist, stop at a scaffold or report the contract gap. Do not invent fields, statuses, permissions, or endpoints.
-- Record the backend API version or commit used by this app and update the copied contract when the backend changes.
-- Automatically update `docs/PROGRESS.md` in the same task after implementation, test, backend-contract, or material project-documentation changes. Add a dated, concise entry describing what actually changed, update the backend/API snapshot when relevant, and include verification performed. Do not add progress noise for read-only reviews or claim work that was not completed.
-- For Flutter UI work, read `docs/design-courier.md` before changing screens, layout, styling, accessibility, or interaction behavior.
+- Read the latest `docs/PROGRESS.md` entry and record the backend/API version
+  used by the Flutter change.
+- Read `docs/features/courier/rules.md` and the exact matching feature spec.
+  Existing specs may use either `spec.md` or `specs.md`; preserve the path.
+- Read `docs/features/courier/design-courier.md` when it is present before
+  changing screen layout, styling, interaction, animation, or accessibility.
+- Read the Courier-related sections of copied `docs/requirements.md`,
+  `docs/workspace.md`, `docs/schema.md`, and `docs/domains/Courier.md`.
+- Read `docs/domains/Logistics.md` when affiliation, hub, assignment, parcel,
+  or Logistics authority is involved.
+- Read `docs/references/user-registration-requirements.md` for registration or
+  approval work.
+- Read `docs/references/file-upload-requirements.md` for ID, OR/CR, profile,
+  proof, or any other image/file upload.
+- Read copied API endpoint notes or contract-version records when available.
 
-## Git commit & branch rules
+## Specification and contract rules
 
-### Feature branching & commits
+- Treat the Laravel implementation, migrations, API tests, and current
+  backend `PROGRESS.md` as evidence of what exists.
+- Treat the copied feature spec as the client contract only after it identifies
+  whether each behavior is implemented, scaffold-only, planned, or unavailable.
+- A copied Flutter spec may add Dart/UI implementation notes, but it must not
+  change server permissions, ownership, fields, statuses, or transitions.
+- Do not use `docs/order-logistics-flow-decisions.md` as an API authority. It is
+  historical rationale; accepted rules belong in the canonical shared docs.
+- Keep every Courier feature spec between **200 and 230 physical lines**,
+  including headings, blank lines, frontmatter, code blocks, and checklists.
+- Reach that range with real endpoint examples, state/error behavior, privacy,
+  tests, and Flutter handoff details. Do not add repetition as filler.
+- Preserve useful acceptance criteria and open decisions. Mark a criterion
+  complete only when code, a contract, or a test proves it.
+- When a material endpoint, field, permission, or status changes, increment the
+  spec version, update the Flutter copy, and record the new backend/API version.
 
-- When implementing a new feature, first create and switch to a new branch derived from the current active branch before making feature changes.
-- Format feature branches as `feature/short-commit-title`, using a concise lowercase kebab-case title.
-- After the feature is completed and verified, automatically commit the feature changes with a descriptive Conventional Commit message formatted as `feat: concise summary of changes`.
-- Inspect the worktree before branching and committing. Preserve unrelated user changes and do not include them in the feature commit.
-- Do not create a feature branch or commit for read-only reviews, planning-only responses, or documentation-only policy changes unless the user explicitly requests it.
+## API consumption rules
 
-## Flutter code and dependency rules
+- Use only exact documented `/api/v1/...` paths, HTTP methods, content types,
+  field names, response envelopes, and error codes.
+- For every consumed endpoint, the spec must provide authentication, role and
+  affiliation gates, ownership scope, request fields, prohibited fields,
+  response DTO/nullability, errors, retry/idempotency, pagination, ordering,
+  and cache behavior.
+- Treat `implemented`, `scaffold-only`, `planned`, and `unavailable` as
+  different states. A draft or conceptual route is not callable.
+- The current Courier Dashboard scaffold may return unavailable sections with
+  a truthful freshness state. Render that state; do not replace it with fake
+  tasks, notifications, counts, or statuses.
+- `GET /api/v1/courier/auth/me` is an identity check. Do not treat it as an
+  operational task feed or as proof that a pending Courier is approved.
+- A `401` clears the local session and returns to sign-in. A `403` maps to the
+  documented pending, rejected, suspended, deactivated, or invalid-affiliation
+  state without exposing another account's existence.
+- A `409` is a server conflict, `422` is validation, `429` honors
+  `Retry-After`, and timeout/offline/5xx responses are recoverable failures,
+  not authoritative empty results.
+- Send idempotency keys only when the endpoint contract requires them. Never
+  retry a mutation blindly after an uncertain response.
+- Keep private responses out of shared caches. Clear account-scoped cached data
+  on logout, account denial, affiliation invalidation, or account switching.
 
-- Follow the Flutter/Dart version pinned by this project and inspect `pubspec.yaml` before adding packages.
-- Keep networking, JSON models, secure token storage, repositories, state/controllers, and widgets separated. Use one API client rather than issuing ad-hoc HTTP calls from screens.
-- Keep the API base URL environment-specific. Never hard-code production credentials, API tokens, signing keys, or private service URLs.
-- Add only dependencies that are necessary and compatible with the project. Prefer existing shared utilities and established Flutter patterns over duplicate abstractions.
-- Keep API models tolerant of additive fields but fail safely when required fields or status values are unknown. Do not silently map an unknown server status to a successful state.
+## Authentication and registration
 
-## Current Courier API contract
+- Use the documented Courier routes: organization options, multipart register,
+  bearer login, generic forgot-password, `/me`, and current-token logout.
+- Send `device_name` during login. Do not send client `role`, `abilities`,
+  `status`, `hub_id`, `reviewer_id`, or owner identifiers.
+- Store the login token once in secure storage and attach it to later requests;
+  never return it from app state, logs, `/me`, crash reports, or analytics.
+- Model checking-session, signed-out, submitting, pending-approval, rejected,
+  active, suspended, deactivated, invalid-affiliation, offline, timeout, and
+  retrying states explicitly.
+- Registration uses exact multipart keys, including nested address keys and
+  `government_id`/`vehicle_registration` file parts. Preserve field values
+  after recoverable validation errors but clear password values before retry.
+- Client file checks are convenience only. The server enforces JPEG/JPG, PNG,
+  or WebP and a strict size below 10 MiB; never claim success before persistence.
+- Courier registration currently uses bundled PSGC/manual address fields and
+  does not require coordinates or a map pin. Do not add Geoapify or map work
+  unless the matching spec explicitly approves it.
+- Logistics, not the Courier app, approves the affiliation. The app displays
+  the resulting state and does not provide reviewer controls.
 
-- Use the versioned API prefix `/api/v1` and HTTPS outside local development.
-- `GET /api/v1/courier/auth/logistics-options` returns active Logistics organizations with safe `id` and `business_name` fields. Optional `search` is server-filtered and the current response is bounded to 50 results.
-- `POST /api/v1/courier/auth/register` is multipart. Current fields are the personal fields, `logistics_organization_id`, `vehicle_type`, `plate_number`, nested `address[...]` values, `government_id`, and `vehicle_registration`.
-- `POST /api/v1/courier/auth/login` accepts `email`, `password`, and a client-generated `device_name`. The client must not send `role`, `abilities`, hub IDs, or reviewer fields.
-- Successful login returns a plain-text Sanctum token once. Store it only in OS secure storage and send it as `Authorization: Bearer <token>`.
-- `GET /api/v1/courier/auth/me` returns the authenticated Courier identity, profile summary, affiliation status, organization name, and hub name. It is available only after the account and affiliation are approved.
-- `POST /api/v1/courier/auth/logout` revokes the current token. Clear local authentication state only after handling the server response or a confirmed invalid session.
-- `POST /api/v1/courier/auth/forgot-password` currently returns a generic response only. There is no completed reset-token or notification flow; do not create a reset screen against an unimplemented route.
-- Logistics approval endpoints are used by the Logistics application, not by the Courier app. A Courier cannot approve itself or another Courier.
+## Operational and dashboard boundary
 
-## Authentication and security
+- Do not implement live task, parcel, scan, waybill, assignment, proof,
+  notification, route, or delivery mutations until the shared operational
+  schema and endpoint contract are implemented by Laravel.
+- A Dashboard may display safe read-only sections for notifications, available
+  tasks, active tasks, and freshness only when the API marks them usable.
+- Dashboard card taps navigate to the owning feature. Opening a card must not
+  accept, assign, scan, pick up, deliver, or complete a task.
+- Treat one Delivery Task as one parcel movement for one leg unless a revised
+  contract explicitly introduces a route/run/manifest batch.
+- Do not infer detailed physical states from generic Order statuses such as
+  `assigned` or `picked_up`.
+- Do not assume a Courier can accept multiple active tasks, perform batching,
+  or share a route until the server contract defines capacity and task grouping.
+- Route optimization, map rendering, background push, WebSockets, earnings,
+  chat, incidents, and full offline synchronization require their own specs.
 
-- The app must never trust client role, account status, affiliation status, organization, hub, assignment, or token ability as authority. Render access from server responses.
-- Keep explicit auth states: checking session, signed out, pending approval, approved/authenticated, rejected, suspended/deactivated, and recoverable network failure.
-- Registration returns a pending application. Preserve a local pending state for the user, but do not treat `/me` as a pending-status endpoint: pending Couriers are denied by protected middleware. Cross-device approval status requires a future backend status or notification contract.
-- Handle `401` as invalid/expired authentication, `403` as status or affiliation denial, `422` as validation or generic login failure, and `429` as throttling. Preserve useful server error codes without exposing private review notes.
-- Never log passwords, bearer tokens, document bytes, raw storage paths, full addresses, or private API responses. Redact sensitive values in crash reports and analytics.
-- Use TLS certificate validation, secure storage, short-lived in-memory token copies, and platform logout/clear-data behavior. Do not store tokens in ordinary preferences, SQLite, files, or URLs.
-- Authentication requires network access. Offline mode must not bypass approval, refresh tokens, submit registrations silently, or perform protected actions against stale permissions.
+## Privacy, accessibility, and reliability
 
-## Registration, address, and evidence
+- Never display or persist raw storage paths, private evidence, token hashes,
+  payment credentials, reviewer notes, or unnecessary Buyer/Seller PII.
+- Use authorized, server-provided delivery URLs or identifiers for private
+  assets; never construct blob URLs from filenames or IDs.
+- Provide visible loading, empty, unavailable, forbidden, stale, partial,
+  retry, success, and offline states. Do not represent a failed request as an
+  empty list.
+- Provide semantic labels, visible focus, readable status text, sufficient
+  touch targets, and non-color-only indicators for every interactive screen.
+- Deduplicate refresh/event results by server identifiers and ignore obsolete
+  responses. A notification or network failure must not undo a committed state.
+- Keep local snapshots bounded and encrypted where permitted by the contract;
+  delete them on logout or account-scope changes.
 
-- Mirror server validation for required names, contact number, sex, birth date, email, password confirmation, vehicle type (`motorcycle`, `car`, or `van`), and plate number. Client validation improves UX; the API remains authoritative.
-- Calculate/display age only as a convenience from `birth_date`; never submit age as an authority.
-- Let the applicant select an eligible Logistics organization, but never expose a hub/sub-hub selector. The API derives the organization's sole operational hub.
-- Encode address fields using the agreed nested names: `address_line_1`, optional `address_line_2`, `barangay`, `city_municipality`, `province`, `region`, and `postal_code` under the multipart `address` object. Country is server-owned as `Philippines`.
-- Use a Dart-compatible bundled PSGC dataset for Region → Province → City/Municipality → Barangay selectors and retain a complete manual fallback. Do not import the JavaScript `@aisley/psgc-address-data` package directly into Flutter.
-- Current Courier registration does not capture coordinates or require a map/geocoder. Do not add Geoapify, Mapbox, or map pins without an approved backend contract; if exact pinning is later approved, preserve manually reviewed PSGC/address fields as authoritative.
-- Prevalidate `government_id` and `vehicle_registration` as JPEG/JPG, PNG, or WebP images strictly under 10 MiB. The server repeats MIME, signature, decode, and ownership checks; never claim a client validation is sufficient.
-- Show upload progress, retryable network errors, and cancellation safely. Do not automatically replay a multipart registration after an uncertain response without user confirmation; duplicate-email handling is server-owned.
+## Testing and handoff gate
 
-## Logistics and delivery boundaries
+- Run `flutter analyze` and the relevant `flutter test` targets before handoff.
+- Test JSON parsing, nullable fields, multipart field names, secure-storage
+  failures, token expiry, `401/403/409/422/429`, timeout, offline, retry, and
+  logout behavior.
+- Test that unavailable/scaffold API sections do not create fake operational
+  cards or enable mutation buttons.
+- Add widget/accessibility tests for loading, empty, unavailable, forbidden,
+  stale, partial, error, and success states.
+- Mocks and fixtures support deterministic tests but cannot replace verification
+  against the documented Laravel API when an endpoint is implemented.
+- Before handoff, verify spec line count, endpoint paths, backend commit/API
+  version, copied-document synchronization, privacy rules, and progress entry.
+- Record the backend commit/API version and Flutter change in this project's
+  `docs/PROGRESS.md`; update it whenever the backend contract changes.
+- If a required backend endpoint, migration, status, or permission is missing,
+  stop at a scaffold and report the gap instead of implementing a guess.
 
-- Logistics approves or rejects the Courier affiliation. Admin may separately suspend, restore, or deactivate the account; Admin approval is not required for the affiliation in the MVP.
-- A Courier has one current Logistics affiliation, and that organization has one operational hub in the MVP. The app must not display or create sub-hubs or alternate affiliations.
-- First-mile and final-mile assignments are independent. Completing a Seller pickup never automatically grants final-mile work; the same or a different Courier may receive a separately offered task.
-- Shipment, Parcel, Waybill, Scan, Delivery Task, assignment, proof-of-delivery, routing, and earnings endpoints are deferred until the shared operational schema and transition contract are approved. Do not build production actions against guessed APIs.
-- Do not infer physical delivery milestones from generic `OrderStatus` values. When operational endpoints exist, use the server's explicit task states and append-only event history.
+## Safe command boundary
 
-## UI and accessibility
-
-- Build mobile-first screens with semantic labels, screen-reader announcements, sufficient contrast, visible focus/pressed states, large touch targets, and text that remains usable with system font scaling.
-- Every network-backed screen needs loading, empty, validation, unauthorized, offline/retry, and success states appropriate to the endpoint. Never fabricate counts, approval decisions, tasks, routes, or delivery history.
-- Keep pending/rejected/disabled explanations clear without exposing private reviewer reasons or another user's data. Do not let UI visibility imply API permission.
-- Keep sensitive data out of screenshots, clipboard actions, deep links, analytics events, and notification previews unless explicitly approved.
-
-## Testing and delivery
-
-- Add unit tests for validators, multipart field names, JSON parsing, status mapping, auth-state transitions, and secure-storage error handling.
-- Add integration/contract tests against the Laravel API for logistics discovery, registration, login, `me`, logout, token denial, role isolation, file limits, and server error codes. Mocks may support deterministic unit tests but must not replace API contract verification.
-- Test revoked/expired tokens, pending/rejected/suspended accounts, inactive Logistics organizations, duplicate submissions, network timeouts, app restarts, secure-storage failure, and out-of-order responses.
-- Do not use production credentials or real registration evidence in tests. Keep fixtures synthetic and delete temporary files securely.
-- Follow the Flutter project's branch, review, formatting, analyzer, and test commands. A backend API change requires a documented contract update before the Flutter client adopts it.
+- Run commands only within the Flutter project directory.
+- Do not run commands that modify the Laravel repository, other repositories,
+  system settings, global packages, or files outside the project.
+- Do not use `sudo` or destructive commands unless the user explicitly scopes
+  and approves the exact action.
+- Do not include shell output containing environment values, tokens, private
+  URLs, device credentials, or uploaded evidence in an issue or commit.
