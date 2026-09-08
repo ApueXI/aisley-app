@@ -4,8 +4,8 @@ This is the progress log for the external Courier Flutter application. It is sep
 
 ## Backend contract snapshot
 
-- **Backend commit:** `d817a10` (verify again before release or after backend changes)
-- **Current API surface:** Courier Logistics discovery, registration, login, generic password-recovery response, `/me`, current-token logout, and the read-only Courier dashboard scaffold.
+- **Backend commit:** `678618b` for the Courier account-management contract (verify again before release or after backend changes)
+- **Current API surface:** Courier Logistics discovery, registration, login, generic password-recovery response, `/me`, current-token logout, read-only account management, and the read-only Courier dashboard scaffold.
 - **Deferred:** Shipment, Parcel, Waybill, Scan, Delivery Task, assignment, proof-of-delivery, routing, chat, earnings, and offline synchronization APIs.
 
 ## 2026-09-08
@@ -48,3 +48,11 @@ This is the progress log for the external Courier Flutter application. It is sep
 
 - Added the Android runner and release build configuration, including compile SDK 37 and Android Gradle Plugin 9.1.1 required by `flutter_secure_storage` 11.0.0; set the Android app label to `Aisley`.
 - Verification: `flutter build apk --release` completed successfully locally.
+
+## 2026-09-09
+
+- Implemented the Flutter Courier account-management slice against backend commit `678618b` / API version `courier-account-management-v1`: private account read, allow-listed profile editing, and current-password password change.
+- Added explicit loading, validation, forbidden, signed-out, retryable network, secure-storage, and success handling; account data is cleared on logout, authorization denial, and password-session revocation.
+- Kept email, status, sex, birth date, derived age, Logistics affiliation, sole hub, vehicle, photo, and other authority fields read-only. Successful password changes clear secure session state and return to sign-in.
+- Added bearer/JSON contract tests, idempotency-key coverage for profile saves, password field privacy assertions, controller failure-state tests, and account accessibility/widget coverage.
+- Verification: `flutter analyze` and `flutter test` pass.

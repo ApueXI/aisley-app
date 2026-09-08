@@ -4,7 +4,7 @@ system: AISLEY
 type: Design Guide
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active — authentication first; delivery UI follows approved API contracts
+status: Active — authentication and account management implemented; delivery UI follows approved API contracts
 ---
 
 # Courier Mobile Design Guide
@@ -13,7 +13,7 @@ status: Active — authentication first; delivery UI follows approved API contra
 
 This guide applies to the external Flutter Courier application. It does not define the Customer storefront or the React Admin, Seller, or Logistics dashboards. Courier UI is implemented in the Flutter project; the Laravel repository provides the API and remains authoritative for identity, approval, ownership, and operational state.
 
-The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, and a generic password-recovery response. Shipment, pickup, delivery, scanning, routing, proof-of-delivery, earnings, and offline task screens remain deferred until their API contracts are approved.
+The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, and Phase 1 account management. Shipment, pickup, delivery, scanning, routing, proof-of-delivery, earnings, and offline task screens remain deferred until their API contracts are approved.
 
 ## Design goals
 
@@ -87,6 +87,12 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 - Use explicit states for checking session, signed out, authenticated, pending, rejected, suspended/deactivated, invalid affiliation, and recoverable network failure.
 - The current `/me` endpoint is protected and succeeds only for an approved active Courier. Do not use it as a pending-status endpoint; cross-device approval refresh requires a future backend contract.
 - The current forgot-password response is generic and does not complete a reset flow. Do not present a reset form until the backend endpoint and notification contract exist.
+
+### Account management
+
+- Show the authenticated Courier's private account projection and keep email, status, legal identity fields, affiliation, and sole hub read-only.
+- Allow only the documented first name, middle name, last name, and contact number profile edits. Keep unsaved profile text local during recoverable failures and show field-level server validation.
+- Require current password confirmation before a password change. Clear password fields after every attempt and explain that a successful change revokes all sessions and returns to sign-in.
 
 ## Status, error, and network presentation
 

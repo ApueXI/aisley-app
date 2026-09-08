@@ -9,13 +9,11 @@ import '../security/token_storage.dart';
 
 class ApiClient {
   ApiClient({
-    required AppConfig config,
-    required TokenStorage tokenStorage,
+    required this._config,
+    required this._tokenStorage,
     http.Client? client,
     this.requestTimeout = const Duration(seconds: 20),
-  }) : _config = config,
-       _tokenStorage = tokenStorage,
-       _client = client ?? http.Client();
+  }) : _client = client ?? http.Client();
 
   final AppConfig _config;
   final TokenStorage _tokenStorage;
@@ -39,12 +37,44 @@ class ApiClient {
     String path, {
     Map<String, Object?> body = const <String, Object?>{},
     bool authenticated = false,
+    Map<String, String>? headers,
   }) {
     return _request(
       method: 'POST',
       path: path,
       body: jsonEncode(body),
       authenticated: authenticated,
+      requestHeaders: headers,
+    );
+  }
+
+  Future<http.Response> patchJson(
+    String path, {
+    Map<String, Object?> body = const <String, Object?>{},
+    bool authenticated = false,
+    Map<String, String>? headers,
+  }) {
+    return _request(
+      method: 'PATCH',
+      path: path,
+      body: jsonEncode(body),
+      authenticated: authenticated,
+      requestHeaders: headers,
+    );
+  }
+
+  Future<http.Response> putJson(
+    String path, {
+    Map<String, Object?> body = const <String, Object?>{},
+    bool authenticated = false,
+    Map<String, String>? headers,
+  }) {
+    return _request(
+      method: 'PUT',
+      path: path,
+      body: jsonEncode(body),
+      authenticated: authenticated,
+      requestHeaders: headers,
     );
   }
 
@@ -115,12 +145,16 @@ class ApiClient {
     required bool authenticated,
     String? body,
     Map<String, String>? queryParameters,
+    Map<String, String>? requestHeaders,
   }) async {
     final uri = _config.endpoint(path, queryParameters);
     final headers = <String, String>{
       'Accept': 'application/json',
       if (body != null) 'Content-Type': 'application/json',
     };
+    if (requestHeaders != null) {
+      headers.addAll(requestHeaders);
+    }
 
     if (authenticated) {
       final token = await _tokenStorage.read();
@@ -141,6 +175,14 @@ class ApiClient {
         'POST' =>
           await _client
               .post(uri, headers: headers, body: body)
+              .timeout(requestTimeout),
+        'PATCH' =>
+          await _client
+              .patch(uri, headers: headers, body: body)
+              .timeout(requestTimeout),
+        'PUT' =>
+          await _client
+              .put(uri, headers: headers, body: body)
               .timeout(requestTimeout),
         _ => throw StateError('Unsupported HTTP method: $method'),
       };
@@ -173,10 +215,9 @@ class ApiException implements Exception {
     this.retryAfter,
   });
 
-  const ApiException.network(String message)
+  const ApiException.network(this.message)
     : statusCode = null,
       code = 'NETWORK_ERROR',
-      message = message,
       fieldErrors = const <String, List<String>>{},
       retryAfter = null;
 

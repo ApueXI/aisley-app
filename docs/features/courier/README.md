@@ -4,14 +4,14 @@ system: AISLEY
 type: Feature Index
 role: Courier / Rider
 platform: Flutter / Dart
-status: Auth implemented; operational features deferred
+status: Auth and account management implemented; operational features deferred
 ---
 
 # Courier feature index
 
 ## Implementation rule
 
-`auth/spec.md` is the only Courier feature specification in this bundle that describes a currently implemented API. The remaining Courier specifications are planning drafts copied for future design work. They are not endpoint contracts and must not be used to invent Flutter requests, response fields, statuses, providers, or offline behavior.
+`auth/spec.md` and the Phase 1 `account-management/specs.md` describe currently implemented APIs. The remaining Courier specifications are planning drafts copied for future design work. They are not endpoint contracts and must not be used to invent Flutter requests, response fields, statuses, providers, or offline behavior.
 
 Before implementing any non-auth feature, the backend must first provide:
 
@@ -30,6 +30,9 @@ Until then, implement only a truthful scaffold or unavailable state. Do not fabr
 - `POST /api/v1/courier/auth/forgot-password` (generic response only)
 - `GET /api/v1/courier/auth/me` (authenticated)
 - `POST /api/v1/courier/auth/logout` (authenticated)
+- `GET /api/v1/courier/account` (authenticated)
+- `PATCH /api/v1/courier/account/profile` (authenticated)
+- `PUT /api/v1/courier/account/password` (authenticated)
 
 All other routes shown in the draft files are conceptual placeholders. They are not implemented merely because they appear in a specification.
 
@@ -43,4 +46,4 @@ All other routes shown in the draft files are conceptual placeholders. They are 
 
 ## Draft files
 
-The following files remain backlog material: Accept Delivery Requests, Account Management, Chat/Messaging, Complete Delivery, Dashboard, Delivery History, Deliver Order, Incident Reporting, Pick Up Order, Profit Dashboard, and Proof of Delivery. Revise each against the real API before implementation.
+The following files remain backlog material: Accept Delivery Requests, Chat/Messaging, Complete Delivery, Dashboard, Delivery History, Deliver Order, Incident Reporting, Pick Up Order, Profit Dashboard, and Proof of Delivery. Revise each against the real API before implementation.

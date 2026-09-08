@@ -4,8 +4,8 @@ system: AISLEY
 type: Client Architecture
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active — authentication client first; operational delivery client deferred
-backend_contract_commit: d817a10
+status: Active — authentication and account client; operational delivery client deferred
+backend_contract_commit: 678618b
 ---
 
 # Scope
@@ -16,7 +16,7 @@ The Laravel API remains the source of truth for identity, approval, role access,
 
 ## Current implementation boundary
 
-The backend currently exposes Courier authentication only:
+The backend currently exposes Courier authentication and Phase 1 account management:
 
 - `GET /api/v1/courier/auth/logistics-options`
 - `POST /api/v1/courier/auth/register`
@@ -24,6 +24,9 @@ The backend currently exposes Courier authentication only:
 - `POST /api/v1/courier/auth/forgot-password` (generic response only)
 - `GET /api/v1/courier/auth/me` (authenticated)
 - `POST /api/v1/courier/auth/logout` (authenticated)
+- `GET /api/v1/courier/account` (authenticated)
+- `PATCH /api/v1/courier/account/profile` (authenticated)
+- `PUT /api/v1/courier/account/password` (authenticated)
 
 Shipment, Parcel, Waybill, Scan, Delivery Task, assignment, proof-of-delivery, routing, chat, earnings, and offline synchronization endpoints are not currently available. The app may provide an honest scaffold or unavailable state for those capabilities, but must not fabricate jobs or call conceptual routes from draft specifications.
 
@@ -44,6 +47,10 @@ lib/
 │       ├── data/         # DTOs, multipart requests, repository
 │       ├── domain/       # Auth state and validation rules
 │       └── presentation/ # Login, registration, pending, and session screens
+│   └── account/
+│       ├── data/         # Account DTOs and authenticated repository
+│       ├── domain/       # Private account projection
+│       └── presentation/ # Account form and password/session controls
 └── main.dart
 test/
 ├── unit/

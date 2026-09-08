@@ -37,11 +37,13 @@ class CourierProfile {
   const CourierProfile({
     required this.firstName,
     required this.lastName,
+    this.middleName,
     this.age,
   });
 
   final String firstName;
   final String lastName;
+  final String? middleName;
   final int? age;
 
   factory CourierProfile.fromJson(Map<String, dynamic> json) {
@@ -53,8 +55,14 @@ class CourierProfile {
 
     final rawAge = json['age'];
     final age = rawAge is int ? rawAge : int.tryParse(rawAge?.toString() ?? '');
+    final middleName = json['middle_name'];
 
-    return CourierProfile(firstName: firstName, lastName: lastName, age: age);
+    return CourierProfile(
+      firstName: firstName,
+      lastName: lastName,
+      middleName: middleName is String ? middleName : null,
+      age: age,
+    );
   }
 
   String get displayName => '$firstName $lastName'.trim();

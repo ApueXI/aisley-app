@@ -9,7 +9,7 @@ abstract interface class DashboardRepository {
 }
 
 class ApiDashboardRepository implements DashboardRepository {
-  ApiDashboardRepository({required ApiClient client}) : _client = client;
+  ApiDashboardRepository({required this._client});
 
   final ApiClient _client;
 

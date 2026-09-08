@@ -25,14 +25,9 @@ source_coverage: requirements.md, workspace.md, schema.md, Courier.md, Logistics
 - Current foundation: Courier registration, Logistics affiliation approval, bearer login, /me, logout, profile, address, vehicle, and token tables exist.
 - Implemented foundation: the Laravel controller, Form Requests, resource, service, routes, throttle, and focused contract tests are present.
 - The three Phase 1 endpoints are available only through the protected `/api/v1/courier` bearer-token boundary.
-- This document is the callable backend contract for the implemented Phase 1 slice; Flutter must still be synchronized to it.
+- This document is the callable backend contract for the implemented Phase 1 slice; the Flutter client is synchronized to it.
 
-Request flow:
-sign in and store bearer token
-→ GET /api/v1/courier/account
-→ view or edit allowed profile fields
-→ PATCH profile, or PUT password
-→ server validates and returns the current account
+Request flow: sign in and store bearer token → GET /api/v1/courier/account → view or edit allowed profile fields → PATCH profile, or PUT password → server validates and returns the current account
 
 Account Management begins only after Courier access is active. It does not approve registration, change Logistics affiliation, assign work, or alter shipment state.
 
@@ -214,8 +209,8 @@ Example request:
 - Request tests must cover 401, 403, 422, 429, malformed JSON, duplicate keys, and oversized strings.
 - Flutter tests must cover JSON parsing, secure-storage failure, form validation, no-store refresh, 401 logout, 403 messages, timeout, offline recovery, and accessible announcements.
 - The route, controller, request, resource, service, and focused Laravel tests were added together; no endpoint was exposed before validation.
-- Focused Laravel tests and PHP formatting pass; Flutter analyzer/tests remain the external client's handoff work.
-- Synchronize this spec to the Flutter project before implementing its Account screen.
+- Focused Laravel tests and PHP formatting pass; Flutter analyzer/tests pass for the external client's Account screen handoff.
+- This copied contract is synchronized to the Flutter project and its Account screen implementation.
 - Append the implementation summary to docs/PROGRESS.md.
 
 ### Deferred decisions
@@ -232,5 +227,4 @@ Example request:
 - Shared identity, address, vehicle, affiliation, hub, and auth rules come from requirements.md, workspace.md, schema.md, Courier.md, and Logistics.md.
 - Courier bearer-token and Flutter boundaries come from courier/auth/spec.md and courier/rules.md.
 - File or image upload work must first adopt docs/references/file-upload-requirements.md.
-- Historical order-logistics decisions cannot authorize this feature or create operational records.
-- This Phase 1 contract is standalone, and its three endpoints are available after the protected API tests pass.
+- Historical order-logistics decisions cannot authorize this feature or create operational records; this Phase 1 contract is standalone, and its three endpoints are available after the protected API tests pass.
