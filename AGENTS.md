@@ -23,7 +23,18 @@ backend: External Laravel API
 - The order/logistics decision worksheet is background history, not an implementation authority.
 - If a matching spec or API endpoint does not exist, stop at a scaffold or report the contract gap. Do not invent fields, statuses, permissions, or endpoints.
 - Record the backend API version or commit used by this app and update the copied contract when the backend changes.
+- Automatically update `docs/PROGRESS.md` in the same task after implementation, test, backend-contract, or material project-documentation changes. Add a dated, concise entry describing what actually changed, update the backend/API snapshot when relevant, and include verification performed. Do not add progress noise for read-only reviews or claim work that was not completed.
 - For Flutter UI work, read `docs/design-courier.md` before changing screens, layout, styling, accessibility, or interaction behavior.
+
+## Git commit & branch rules
+
+### Feature branching & commits
+
+- When implementing a new feature, first create and switch to a new branch derived from the current active branch before making feature changes.
+- Format feature branches as `feature/short-commit-title`, using a concise lowercase kebab-case title.
+- After the feature is completed and verified, automatically commit the feature changes with a descriptive Conventional Commit message formatted as `feat: concise summary of changes`.
+- Inspect the worktree before branching and committing. Preserve unrelated user changes and do not include them in the feature commit.
+- Do not create a feature branch or commit for read-only reviews, planning-only responses, or documentation-only policy changes unless the user explicitly requests it.
 
 ## Flutter code and dependency rules
 

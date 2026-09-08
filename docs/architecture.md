@@ -104,7 +104,7 @@ Follow [`design-courier.md`](design-courier.md). Use mobile-first layouts, syste
 - Unit-test validation, multipart field names, PSGC cascading, JSON parsing, status mapping, auth transitions, and secure-storage failures.
 - Add API contract tests for Logistics discovery, registration, login, `/me`, logout, role isolation, approval denial, upload limits, and error codes.
 - Mocks may support deterministic unit/widget tests but cannot replace API verification.
-- Record the backend commit or API version used by the app in `docs/PROGRESS.md`. Recheck the contract before adopting any backend change.
+- Automatically record the backend commit or API version used by the app in `docs/PROGRESS.md` whenever implementation or contract work changes. Recheck the contract before adopting any backend change.
 
 ## Canonical documents
 

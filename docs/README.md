@@ -18,4 +18,4 @@ Only Courier authentication is currently available. Use `docs/features/courier/a
 
 ## Synchronization
 
-The bundle was checked against backend commit `d817a10` on 2026-09-08. Update `docs/PROGRESS.md` whenever the Flutter client adopts a new backend API version or contract change.
+The bundle was checked against backend commit `d817a10` on 2026-09-08. The agent must automatically update `docs/PROGRESS.md` in the same task after implementation, test, backend-contract, or material project-documentation changes. Record the actual change and verification; do not add entries for read-only reviews or unfinished work.
