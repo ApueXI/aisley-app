@@ -26,3 +26,4 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Courier authentication includes registration, Logistics approval states, bearer-token login, `/me`, logout, and recovery entry behavior.
 - Courier Dashboard remains a mobile scaffold; operational task and notification endpoints are not yet available.
 - Re-sync these documents whenever the Laravel API contract, DTOs, or status rules change.
+- Replaced the starter root README with Aisley Courier purpose, clone/configuration instructions, Linux desktop usage, and documented browser/Windows setup and limitations without changing runtime behavior.
