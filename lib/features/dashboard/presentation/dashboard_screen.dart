@@ -4,17 +4,20 @@ import '../../account/presentation/account_controller.dart';
 import '../../account/presentation/account_screen.dart';
 import '../../auth/domain/auth_models.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../policy/presentation/policy_controller.dart';
 import '../domain/dashboard_models.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
     required this.authController,
     this.accountController,
+    this.policyController,
     super.key,
   });
 
   final AuthController authController;
   final AccountController? accountController;
+  final PolicyController? policyController;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -83,6 +86,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         builder: (_) => AccountScreen(
           authController: widget.authController,
           accountController: accountController,
+          policyController: widget.policyController,
         ),
       ),
     );

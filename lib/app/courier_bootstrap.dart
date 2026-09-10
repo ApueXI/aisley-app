@@ -10,6 +10,8 @@ import '../features/account/presentation/account_controller.dart';
 import '../features/auth/data/auth_repository.dart';
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/dashboard/data/dashboard_repository.dart';
+import '../features/policy/data/policy_repository.dart';
+import '../features/policy/presentation/policy_controller.dart';
 import 'courier_app.dart';
 
 class CourierBootstrapApp extends StatefulWidget {
@@ -22,6 +24,7 @@ class CourierBootstrapApp extends StatefulWidget {
 class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
   AuthController? _authController;
   AccountController? _accountController;
+  PolicyController? _policyController;
   bool _hasStartupError = false;
 
   @override
@@ -45,19 +48,27 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
       final tokenStorage = SecureTokenStorage();
       final apiClient = ApiClient(config: config, tokenStorage: tokenStorage);
       late final AccountController accountController;
+      late final PolicyController policyController;
       final authController = AuthController(
         authRepository: ApiAuthRepository(
           client: apiClient,
           tokenStorage: tokenStorage,
         ),
         dashboardRepository: ApiDashboardRepository(client: apiClient),
-        onSessionEnded: () => accountController.clear(),
+        onSessionEnded: () {
+          accountController.clear();
+          policyController.clear();
+        },
       );
       accountController = AccountController(
         accountRepository: ApiAccountRepository(client: apiClient),
         onAuthFailure: authController.handleAccountAuthFailure,
         onPasswordChanged: authController.handlePasswordChanged,
         onAccountUpdated: authController.updateIdentityFromAccount,
+      );
+      policyController = PolicyController(
+        policyApi: ApiPolicyRepository(client: apiClient),
+        onAuthFailure: authController.handlePolicyAuthFailure,
       );
 
       if (!mounted) {
@@ -67,6 +78,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
       setState(() {
         _authController = authController;
         _accountController = accountController;
+        _policyController = policyController;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -91,6 +103,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
       return CourierApp(
         authController: authController,
         accountController: _accountController,
+        policyController: _policyController,
       );
     }
 

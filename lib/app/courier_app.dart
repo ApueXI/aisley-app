@@ -6,16 +6,19 @@ import '../features/auth/presentation/blocked_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/registration_screen.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
+import '../features/policy/presentation/policy_controller.dart';
 
 class CourierApp extends StatelessWidget {
   const CourierApp({
     required this.authController,
     this.accountController,
+    this.policyController,
     super.key,
   });
 
   final AuthController authController;
   final AccountController? accountController;
+  final PolicyController? policyController;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +30,7 @@ class CourierApp extends StatelessWidget {
       home: AuthGate(
         authController: authController,
         accountController: accountController,
+        policyController: policyController,
       ),
     );
   }
@@ -36,11 +40,13 @@ class AuthGate extends StatefulWidget {
   const AuthGate({
     required this.authController,
     this.accountController,
+    this.policyController,
     super.key,
   });
 
   final AuthController authController;
   final AccountController? accountController;
+  final PolicyController? policyController;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -75,6 +81,7 @@ class _AuthGateState extends State<AuthGate> {
             key: const ValueKey('dashboard'),
             authController: authController,
             accountController: widget.accountController,
+            policyController: widget.policyController,
           ),
           AuthStatus.pendingApproval => BlockedAccessScreen.pending(
             key: const ValueKey('pending-approval'),

@@ -4,7 +4,7 @@ system: AISLEY
 type: Feature Index
 role: Courier / Rider
 platform: Flutter / Dart
-status: Auth and account management implemented; operational features deferred
+status: Auth, account management, and policy consent implemented; operational features deferred
 ---
 
 # Courier feature index
@@ -36,6 +36,11 @@ Until then, implement only a truthful scaffold or unavailable state. Do not fabr
 - `POST /api/v1/courier/account/profile-photo` (authenticated multipart upload)
 - `GET /api/v1/courier/account/profile-photo` (authenticated private stream)
 - `DELETE /api/v1/courier/account/profile-photo` (authenticated idempotent removal)
+- `GET /api/v1/platform/policies/{type}` (public current Terms/Privacy read)
+- `GET /api/v1/platform/policies/{type}/history` (public published history)
+- `GET /api/v1/platform/policies/{type}/history/{version}` (public exact history read)
+- `GET /api/v1/policy-consent/status` (authenticated Courier status)
+- `POST /api/v1/policy-consent/{type}/versions/{version}/accept` (authenticated exact-version acceptance)
 
 All other routes shown in the draft files are conceptual placeholders. They are not implemented merely because they appear in a specification.
 

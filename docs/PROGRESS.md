@@ -4,8 +4,8 @@ This is the progress log for the external Courier Flutter application. It is sep
 
 ## Backend contract snapshot
 
-- **Backend commit:** `20afd9f` for the Courier account-management and profile-photo contract (API version `courier-account-management-v1`)
-- **Current API surface:** Courier Logistics discovery, registration, login, generic password-recovery response, `/me`, current-token logout, account profile/password management, private profile-photo upload/retrieval/removal, and the read-only Courier dashboard scaffold.
+- **Backend commit:** `c3b9cad` for the Courier policy-viewing/consent contract, with account/profile-photo behavior at `20afd9f` (API version `courier-account-management-v1` plus the platform-policy contract)
+- **Current API surface:** Courier Logistics discovery, registration, login, generic password-recovery response, `/me`, current-token logout, account profile/password management, private profile-photo upload/retrieval/removal, public Terms/Privacy reads and history, authenticated policy status/acceptance, and the read-only Courier dashboard scaffold.
 - **Deferred:** Shipment, Parcel, Waybill, Scan, Delivery Task, assignment, proof-of-delivery, routing, chat, earnings, and offline synchronization APIs.
 
 ## 2026-09-08
@@ -64,3 +64,10 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Added under-10-MB JPEG/JPG/PNG/WebP picker checks, signature convenience validation, in-memory preview, upload progress/cancellation, server field-error handling, missing-photo fallback, confirmed refresh, and uncertain-response reconciliation.
 - Updated the account feature tests and copied Courier architecture/design/index documentation for the released photo routes. The local `.env` and other secret-bearing files remain untouched.
 - Verification: focused account tests and full `flutter test` pass; `flutter analyze` and `flutter build linux --debug` are run before handoff.
+
+## 2026-09-10
+
+- Implemented the Courier policy-viewing and consent client against backend commit `c3b9cad`: public current/history/exact reads for Terms of Service and Privacy Policy, private status, and exact-current-version acceptance with bearer auth.
+- Added typed policy parsing, bounded in-memory public caching, explicit loading/consent/accepted/stale/forbidden/rate-limit/timeout/offline/retry states, 401 auth-boundary handling, uncertain-acceptance reconciliation, and account/settings navigation.
+- Added safe plain-text current and historical document screens, explicit confirmation checkboxes, localized timestamps, accessibility labels, and no published-version/partial-failure states. Draft/Internal Rules content is not requested or rendered.
+- Added repository, model, controller, and widget contract tests for exact paths, headers, body, envelopes, caching, stale versions, 401, unknown acceptance results, and accessible consent controls.

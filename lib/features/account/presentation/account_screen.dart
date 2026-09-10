@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 
 import '../../auth/domain/auth_models.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../policy/presentation/policy_controller.dart';
+import '../../policy/presentation/policy_screen.dart';
 import '../domain/account_models.dart';
 import 'account_controller.dart';
 
@@ -18,11 +20,13 @@ class AccountScreen extends StatefulWidget {
   const AccountScreen({
     required this.authController,
     required this.accountController,
+    this.policyController,
     super.key,
   });
 
   final AuthController authController;
   final AccountController accountController;
+  final PolicyController? policyController;
 
   @override
   State<AccountScreen> createState() => _AccountScreenState();
@@ -680,6 +684,21 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
+  Future<void> _openPolicy() async {
+    final policyController = widget.policyController;
+    if (policyController == null || !mounted) {
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PolicyScreen(
+          authController: widget.authController,
+          policyController: policyController,
+        ),
+      ),
+    );
+  }
+
   Widget _buildAccountForm(BuildContext context, CourierAccount account) {
     final controller = widget.accountController;
     final scheme = Theme.of(context).colorScheme;
@@ -694,6 +713,21 @@ class _AccountScreenState extends State<AccountScreen> {
           profilePhotoBytes:
               _pendingProfilePhoto?.bytes ?? controller.profilePhoto?.bytes,
         ),
+        if (widget.policyController != null) ...[
+          const SizedBox(height: 16),
+          Card(
+            child: ListTile(
+              minVerticalPadding: 14,
+              leading: const Icon(Icons.policy_outlined),
+              title: const Text('Policy & consent'),
+              subtitle: const Text(
+                'Read the current Terms of Service and Privacy Policy.',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _openPolicy,
+            ),
+          ),
+        ],
         if (isLoading) ...[
           const SizedBox(height: 12),
           const LinearProgressIndicator(),
