@@ -1,5 +1,29 @@
+import 'dart:typed_data';
+
 import '../../../core/networking/api_contract_exception.dart';
 import '../../auth/domain/auth_models.dart';
+
+class ProfilePhotoSelection {
+  const ProfilePhotoSelection({
+    required this.path,
+    required this.fileName,
+    required this.bytes,
+  });
+
+  /// The temporary local path used only for the multipart upload.
+  final String path;
+  final String fileName;
+  final Uint8List bytes;
+
+  int get sizeInBytes => bytes.length;
+}
+
+class ProfilePhotoData {
+  const ProfilePhotoData({required this.bytes, required this.contentType});
+
+  final Uint8List bytes;
+  final String contentType;
+}
 
 class CourierAccount {
   const CourierAccount({

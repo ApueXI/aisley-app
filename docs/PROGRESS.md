@@ -4,8 +4,8 @@ This is the progress log for the external Courier Flutter application. It is sep
 
 ## Backend contract snapshot
 
-- **Backend commit:** `678618b` for the Courier account-management contract (verify again before release or after backend changes)
-- **Current API surface:** Courier Logistics discovery, registration, login, generic password-recovery response, `/me`, current-token logout, read-only account management, and the read-only Courier dashboard scaffold.
+- **Backend commit:** `20afd9f` for the Courier account-management and profile-photo contract (API version `courier-account-management-v1`)
+- **Current API surface:** Courier Logistics discovery, registration, login, generic password-recovery response, `/me`, current-token logout, account profile/password management, private profile-photo upload/retrieval/removal, and the read-only Courier dashboard scaffold.
 - **Deferred:** Shipment, Parcel, Waybill, Scan, Delivery Task, assignment, proof-of-delivery, routing, chat, earnings, and offline synchronization APIs.
 
 ## 2026-09-08
@@ -56,3 +56,11 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Kept email, status, sex, birth date, derived age, Logistics affiliation, sole hub, vehicle, photo, and other authority fields read-only. Successful password changes clear secure session state and return to sign-in.
 - Added bearer/JSON contract tests, idempotency-key coverage for profile saves, password field privacy assertions, controller failure-state tests, and account accessibility/widget coverage.
 - Verification: `flutter analyze` and `flutter test` pass.
+
+## 2026-09-10
+
+- Updated the Flutter Courier account-management implementation to backend commit `20afd9f` / API version `courier-account-management-v1`, adding authenticated profile-photo upload, private bearer-token retrieval, replacement, and idempotent removal.
+- Added server-URL validation so only the configured API origin and `/api/v1` private resource paths can be used for profile photos; no public/blob/storage URL or browser-cookie flow is introduced.
+- Added under-10-MB JPEG/JPG/PNG/WebP picker checks, signature convenience validation, in-memory preview, upload progress/cancellation, server field-error handling, missing-photo fallback, confirmed refresh, and uncertain-response reconciliation.
+- Updated the account feature tests and copied Courier architecture/design/index documentation for the released photo routes. The local `.env` and other secret-bearing files remain untouched.
+- Verification: focused account tests and full `flutter test` pass; `flutter analyze` and `flutter build linux --debug` are run before handoff.

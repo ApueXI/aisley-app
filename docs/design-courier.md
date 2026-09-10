@@ -92,6 +92,9 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 
 - Show the authenticated Courier's private account projection and keep email, status, legal identity fields, affiliation, and sole hub read-only.
 - Allow only the documented first name, middle name, last name, and contact number profile edits. Keep unsaved profile text local during recoverable failures and show field-level server validation.
+- Allow profile-photo selection only when the server capability flag is true. Show the JPEG/JPG/PNG/WebP and under-10-MB policy before opening the picker, keep the local preview separate from the saved private photo, and show upload progress, cancellation, retry, missing-photo fallback, and server rejection states.
+- Fetch the saved profile photo through the authenticated private URL with the bearer token; never use a browser-style public URL, raw storage path, or unauthenticated network image widget. Confirm success only after the server response and private refresh succeed.
+- Confirm photo removal and reconcile uncertain upload/removal responses with a fresh account/photo read. Do not queue photo writes offline or expose the original filename as storage identity.
 - Require current password confirmation before a password change. Clear password fields after every attempt and explain that a successful change revokes all sessions and returns to sign-in.
 
 ## Status, error, and network presentation

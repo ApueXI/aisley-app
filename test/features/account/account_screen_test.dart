@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:aisley_app/core/networking/api_client.dart';
 import 'package:aisley_app/features/account/data/account_repository.dart';
 import 'package:aisley_app/features/account/domain/account_models.dart';
 import 'package:aisley_app/features/account/presentation/account_controller.dart';
@@ -71,6 +72,27 @@ class _FakeAccountRepository implements AccountRepository {
     required String password,
     required String passwordConfirmation,
   }) async {}
+
+  @override
+  Future<CourierAccount> uploadProfilePhoto({
+    required ProfilePhotoSelection selection,
+    String? idempotencyKey,
+    void Function(void Function() cancel)? onCancel,
+  }) async {
+    return CourierAccount.fromJson(_accountJson);
+  }
+
+  @override
+  Future<ProfilePhotoData> fetchProfilePhoto(String profilePhotoUrl) async {
+    throw const ApiException(
+      statusCode: 404,
+      code: 'NOT_FOUND',
+      message: 'missing',
+    );
+  }
+
+  @override
+  Future<void> deleteProfilePhoto() async {}
 }
 
 class _FakeAuthRepository implements AuthRepository {
@@ -140,7 +162,7 @@ const _accountJson = <String, dynamic>{
   },
   'security': <String, dynamic>{
     'email_editable': false,
-    'profile_photo_editable': false,
+    'profile_photo_editable': true,
     'password_change_requires_current_password': true,
   },
 };

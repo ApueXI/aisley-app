@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:aisley_app/core/networking/api_client.dart';
@@ -96,12 +98,84 @@ void main() {
     expect(authFailure?.statusCode, 401);
     expect(controller.account, isNull);
   });
+
+  test(
+    'confirms an uploaded photo only after private refresh succeeds',
+    () async {
+      final repository = _FakeAccountRepository()
+        ..account = CourierAccount.fromJson(_photoAccountJson)
+        ..photoUploadResult = CourierAccount.fromJson(_photoAccountJson)
+        ..photoData = ProfilePhotoData(
+          bytes: Uint8List.fromList(<int>[1, 2, 3]),
+          contentType: 'image/png',
+        );
+      final controller = AccountController(accountRepository: repository);
+
+      await controller.loadAccount();
+      final uploaded = await controller.uploadProfilePhoto(
+        ProfilePhotoSelection(
+          path: '/tmp/courier.png',
+          fileName: 'courier.png',
+          bytes: Uint8List.fromList(<int>[1, 2, 3]),
+        ),
+      );
+
+      expect(uploaded, isTrue);
+      expect(controller.profilePhotoStatus, ProfilePhotoStatus.available);
+      expect(controller.profilePhoto?.contentType, 'image/png');
+      expect(controller.profilePhotoSuccessMessage, contains('updated'));
+    },
+  );
+
+  test('reconciles an uncertain photo upload without blind replay', () async {
+    final repository = _FakeAccountRepository()
+      ..photoUploadError = const ApiException.network('timed out');
+    final controller = AccountController(accountRepository: repository);
+
+    await controller.loadAccount();
+    final uploaded = await controller.uploadProfilePhoto(
+      ProfilePhotoSelection(
+        path: '/tmp/courier.png',
+        fileName: 'courier.png',
+        bytes: Uint8List.fromList(<int>[1, 2, 3]),
+      ),
+    );
+
+    expect(uploaded, isFalse);
+    expect(repository.fetchCount, 2);
+    expect(controller.profilePhotoStatus, ProfilePhotoStatus.retryableFailure);
+    expect(controller.profilePhotoErrorMessage, contains('uncertain'));
+  });
+
+  test(
+    'confirms idempotent photo removal from the refreshed account',
+    () async {
+      final repository = _FakeAccountRepository()
+        ..account = CourierAccount.fromJson(_photoAccountJson)
+        ..deleteResult = CourierAccount.fromJson(_accountJson);
+      final controller = AccountController(accountRepository: repository);
+
+      await controller.loadAccount();
+      final removed = await controller.deleteProfilePhoto();
+
+      expect(removed, isTrue);
+      expect(controller.profilePhotoStatus, ProfilePhotoStatus.missing);
+      expect(controller.profilePhoto, isNull);
+      expect(controller.profilePhotoSuccessMessage, contains('removed'));
+    },
+  );
 }
 
 class _FakeAccountRepository implements AccountRepository {
-  final account = CourierAccount.fromJson(_accountJson);
+  CourierAccount account = CourierAccount.fromJson(_accountJson);
   Object? fetchError;
   Object? profileError;
+  Object? photoUploadError;
+  Object? photoError;
+  Object? photoDeleteError;
+  CourierAccount? photoUploadResult;
+  CourierAccount? deleteResult;
+  ProfilePhotoData? photoData;
   int fetchCount = 0;
 
   @override
@@ -135,6 +209,48 @@ class _FakeAccountRepository implements AccountRepository {
     required String password,
     required String passwordConfirmation,
   }) async {}
+
+  @override
+  Future<CourierAccount> uploadProfilePhoto({
+    required ProfilePhotoSelection selection,
+    String? idempotencyKey,
+    void Function(void Function() cancel)? onCancel,
+  }) async {
+    final error = photoUploadError;
+    if (error != null) {
+      throw error;
+    }
+    return photoUploadResult ?? account;
+  }
+
+  @override
+  Future<ProfilePhotoData> fetchProfilePhoto(String profilePhotoUrl) async {
+    final error = photoError;
+    if (error != null) {
+      throw error;
+    }
+    final loadedPhoto = photoData;
+    if (loadedPhoto != null) {
+      return loadedPhoto;
+    }
+    throw const ApiException(
+      statusCode: 404,
+      code: 'NOT_FOUND',
+      message: 'missing',
+    );
+  }
+
+  @override
+  Future<void> deleteProfilePhoto() async {
+    final error = photoDeleteError;
+    if (error != null) {
+      throw error;
+    }
+    final refreshed = deleteResult;
+    if (refreshed != null) {
+      account = refreshed;
+    }
+  }
 }
 
 const _accountJson = <String, dynamic>{
@@ -159,7 +275,34 @@ const _accountJson = <String, dynamic>{
   },
   'security': <String, dynamic>{
     'email_editable': false,
-    'profile_photo_editable': false,
+    'profile_photo_editable': true,
+    'password_change_requires_current_password': true,
+  },
+};
+
+const _photoAccountJson = <String, dynamic>{
+  'id': 'courier-1',
+  'email': 'courier@example.com',
+  'role': 'courier',
+  'status': 'active',
+  'profile': <String, dynamic>{
+    'first_name': 'Ana',
+    'middle_name': null,
+    'last_name': 'Santos',
+    'contact_number': '09171234567',
+    'sex': 'female',
+    'birth_date': '1999-01-01',
+    'age': 27,
+    'profile_photo_url': '/api/v1/courier/account/profile-photo?v=photo-1',
+  },
+  'affiliation': <String, dynamic>{
+    'status': 'approved',
+    'organization_name': 'Aisley Express',
+    'hub_name': 'Main Hub',
+  },
+  'security': <String, dynamic>{
+    'email_editable': false,
+    'profile_photo_editable': true,
     'password_change_requires_current_password': true,
   },
 };

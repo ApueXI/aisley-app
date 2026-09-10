@@ -33,6 +33,9 @@ Until then, implement only a truthful scaffold or unavailable state. Do not fabr
 - `GET /api/v1/courier/account` (authenticated)
 - `PATCH /api/v1/courier/account/profile` (authenticated)
 - `PUT /api/v1/courier/account/password` (authenticated)
+- `POST /api/v1/courier/account/profile-photo` (authenticated multipart upload)
+- `GET /api/v1/courier/account/profile-photo` (authenticated private stream)
+- `DELETE /api/v1/courier/account/profile-photo` (authenticated idempotent removal)
 
 All other routes shown in the draft files are conceptual placeholders. They are not implemented merely because they appear in a specification.
 

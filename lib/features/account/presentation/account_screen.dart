@@ -1,9 +1,18 @@
+import 'dart:typed_data';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../../auth/domain/auth_models.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../domain/account_models.dart';
 import 'account_controller.dart';
+
+const _maxProfilePhotoBytes = 10 * 1024 * 1024;
+const _profilePhotoTypeGroup = XTypeGroup(
+  label: 'Profile photos',
+  extensions: <String>['jpg', 'jpeg', 'png', 'webp'],
+);
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({
@@ -33,6 +42,10 @@ class _AccountScreenState extends State<AccountScreen> {
   bool _obscureCurrentPassword = true;
   bool _obscureNewPassword = true;
   bool _obscurePasswordConfirmation = true;
+  ProfilePhotoSelection? _pendingProfilePhoto;
+  String? _profilePhotoSelectionError;
+  bool _isPickingProfilePhoto = false;
+  VoidCallback? _cancelProfilePhotoUpload;
 
   @override
   void initState() {
@@ -269,6 +282,404 @@ class _AccountScreenState extends State<AccountScreen> {
     );
   }
 
+  Widget _buildProfilePhotoSection(
+    BuildContext context,
+    CourierAccount account,
+  ) {
+    final controller = widget.accountController;
+    final scheme = Theme.of(context).colorScheme;
+    final pendingPhoto = _pendingProfilePhoto;
+    final displayedBytes =
+        pendingPhoto?.bytes ?? controller.profilePhoto?.bytes;
+    final isPhotoBusy = controller.isProfilePhotoBusy;
+    final photoError =
+        controller.profilePhotoFieldError('photo') ??
+        controller.profilePhotoErrorMessage ??
+        _profilePhotoSelectionError;
+    final canEdit = account.security.profilePhotoEditable;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.photo_camera_outlined, color: scheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Profile photo',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'JPEG, JPG, PNG, or WebP under 10 MB.',
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: scheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (displayedBytes != null)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _ProfilePhotoPreview(bytes: displayedBytes),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: pendingPhoto == null
+                        ? Text(
+                            'Current private profile photo',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Local preview — upload to save it to your account.',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                pendingPhoto.fileName,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              Text(
+                                _formatFileSize(pendingPhoto.sizeInBytes),
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: scheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                  ),
+                ],
+              )
+            else if (controller.profilePhotoStatus ==
+                ProfilePhotoStatus.loading)
+              Semantics(
+                liveRegion: true,
+                label: 'Loading your private profile photo',
+                child: const LinearProgressIndicator(),
+              )
+            else
+              Text(
+                'No profile photo is set.',
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+            if (controller.profilePhotoStatus ==
+                ProfilePhotoStatus.uploading) ...[
+              const SizedBox(height: 14),
+              Semantics(
+                liveRegion: true,
+                label: 'Uploading your profile photo',
+                child: const LinearProgressIndicator(),
+              ),
+              const SizedBox(height: 8),
+              Text('Uploading…', style: Theme.of(context).textTheme.bodySmall),
+            ],
+            if (controller.profilePhotoStatus ==
+                ProfilePhotoStatus.deleting) ...[
+              const SizedBox(height: 14),
+              Semantics(
+                liveRegion: true,
+                label: 'Removing your profile photo',
+                child: const LinearProgressIndicator(),
+              ),
+            ],
+            if (photoError != null) ...[
+              const SizedBox(height: 14),
+              _AccountBanner(message: photoError, isError: true),
+            ],
+            if (controller.profilePhotoSuccessMessage != null) ...[
+              const SizedBox(height: 14),
+              _AccountBanner(
+                message: controller.profilePhotoSuccessMessage!,
+                isError: false,
+              ),
+            ],
+            if (canEdit) ...[
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  if (pendingPhoto != null)
+                    FilledButton.icon(
+                      onPressed: isPhotoBusy ? null : _uploadProfilePhoto,
+                      icon: const Icon(Icons.cloud_upload_outlined),
+                      label: const Text('Upload photo'),
+                    )
+                  else
+                    OutlinedButton.icon(
+                      onPressed: isPhotoBusy || _isPickingProfilePhoto
+                          ? null
+                          : _pickProfilePhoto,
+                      icon: const Icon(Icons.add_a_photo_outlined),
+                      label: Text(
+                        displayedBytes == null
+                            ? 'Choose photo'
+                            : 'Replace photo',
+                      ),
+                    ),
+                  if (pendingPhoto != null)
+                    TextButton(
+                      onPressed: isPhotoBusy ? null : _discardPendingPhoto,
+                      child: const Text('Discard'),
+                    ),
+                  if (pendingPhoto == null && displayedBytes != null)
+                    TextButton.icon(
+                      onPressed: isPhotoBusy ? null : _removeProfilePhoto,
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Remove'),
+                    ),
+                  if (pendingPhoto == null &&
+                      controller.profilePhotoStatus ==
+                          ProfilePhotoStatus.retryableFailure)
+                    TextButton.icon(
+                      onPressed: isPhotoBusy ? null : _retryProfilePhoto,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry photo'),
+                    ),
+                  if (controller.profilePhotoStatus ==
+                          ProfilePhotoStatus.uploading &&
+                      _cancelProfilePhotoUpload != null)
+                    TextButton.icon(
+                      onPressed: _cancelProfilePhotoUploadRequest,
+                      icon: const Icon(Icons.close),
+                      label: const Text('Cancel upload'),
+                    ),
+                ],
+              ),
+            ] else ...[
+              const SizedBox(height: 12),
+              Text(
+                'Profile photo changes are not available for this account.',
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickProfilePhoto() async {
+    if (_isPickingProfilePhoto ||
+        widget.accountController.isBusy ||
+        widget.accountController.account?.security.profilePhotoEditable !=
+            true) {
+      return;
+    }
+
+    setState(() {
+      _isPickingProfilePhoto = true;
+      _profilePhotoSelectionError = null;
+    });
+
+    try {
+      final file = await openFile(
+        acceptedTypeGroups: const <XTypeGroup>[_profilePhotoTypeGroup],
+      );
+      if (file == null) {
+        return;
+      }
+
+      final fileName = file.name.trim().isEmpty
+          ? _fileNameFromPath(file.path)
+          : file.name.trim();
+      if (!_isAllowedProfilePhotoName(fileName)) {
+        _setProfilePhotoSelectionError(
+          'Choose a JPEG, JPG, PNG, or WebP image.',
+        );
+        return;
+      }
+      if (file.path.trim().isEmpty) {
+        _setProfilePhotoSelectionError(
+          'The selected photo could not be opened. Choose it again.',
+        );
+        return;
+      }
+
+      final fileSize = await file.length();
+      if (fileSize >= _maxProfilePhotoBytes) {
+        _setProfilePhotoSelectionError(
+          'The photo must be under 10 MB (10,485,760 bytes).',
+        );
+        return;
+      }
+
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty || bytes.length >= _maxProfilePhotoBytes) {
+        _setProfilePhotoSelectionError(
+          'The photo must be under 10 MB (10,485,760 bytes).',
+        );
+        return;
+      }
+      if (!_hasSupportedImageSignature(bytes)) {
+        _setProfilePhotoSelectionError(
+          'The selected file does not look like a supported image.',
+        );
+        return;
+      }
+
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _pendingProfilePhoto = ProfilePhotoSelection(
+          path: file.path,
+          fileName: fileName,
+          bytes: Uint8List.fromList(bytes),
+        );
+        _profilePhotoSelectionError = null;
+      });
+    } catch (_) {
+      _setProfilePhotoSelectionError(
+        'The photo could not be opened. Choose a supported image and try again.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPickingProfilePhoto = false;
+        });
+      }
+    }
+  }
+
+  void _setProfilePhotoSelectionError(String message) {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _profilePhotoSelectionError = message;
+    });
+  }
+
+  Future<void> _uploadProfilePhoto() async {
+    final selection = _pendingProfilePhoto;
+    if (selection == null || widget.accountController.isBusy) {
+      return;
+    }
+
+    setState(() {
+      _cancelProfilePhotoUpload = null;
+      _profilePhotoSelectionError = null;
+    });
+
+    final uploaded = await widget.accountController.uploadProfilePhoto(
+      selection,
+      onCancel: (cancel) {
+        if (mounted) {
+          setState(() {
+            _cancelProfilePhotoUpload = cancel;
+          });
+        }
+      },
+    );
+
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _cancelProfilePhotoUpload = null;
+      if (uploaded) {
+        _pendingProfilePhoto = null;
+      }
+    });
+    await _closeIfSessionEnded();
+  }
+
+  void _cancelProfilePhotoUploadRequest() {
+    final cancel = _cancelProfilePhotoUpload;
+    if (cancel == null) {
+      return;
+    }
+    setState(() {
+      _cancelProfilePhotoUpload = null;
+    });
+    cancel();
+  }
+
+  Future<void> _discardPendingPhoto() async {
+    final shouldDiscard = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Discard selected photo?'),
+          content: const Text('The local preview will be removed.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Keep'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Discard'),
+            ),
+          ],
+        );
+      },
+    );
+    if (shouldDiscard == true && mounted) {
+      setState(() {
+        _pendingProfilePhoto = null;
+        _profilePhotoSelectionError = null;
+      });
+    }
+  }
+
+  Future<void> _removeProfilePhoto() async {
+    final shouldRemove = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Remove profile photo?'),
+          content: const Text(
+            'This removes the private photo from your Courier account.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Remove photo'),
+            ),
+          ],
+        );
+      },
+    );
+    if (shouldRemove != true || !mounted) {
+      return;
+    }
+
+    await widget.accountController.deleteProfilePhoto();
+    if (mounted) {
+      await _closeIfSessionEnded();
+    }
+  }
+
+  Future<void> _retryProfilePhoto() async {
+    await widget.accountController.loadProfilePhoto();
+    if (mounted) {
+      await _closeIfSessionEnded();
+    }
+  }
+
   Widget _buildAccountForm(BuildContext context, CourierAccount account) {
     final controller = widget.accountController;
     final scheme = Theme.of(context).colorScheme;
@@ -278,7 +689,11 @@ class _AccountScreenState extends State<AccountScreen> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 36),
       children: [
-        _AccountHeader(account: account),
+        _AccountHeader(
+          account: account,
+          profilePhotoBytes:
+              _pendingProfilePhoto?.bytes ?? controller.profilePhoto?.bytes,
+        ),
         if (isLoading) ...[
           const SizedBox(height: 12),
           const LinearProgressIndicator(),
@@ -291,6 +706,8 @@ class _AccountScreenState extends State<AccountScreen> {
           const SizedBox(height: 16),
           _AccountBanner(message: controller.successMessage!, isError: false),
         ],
+        const SizedBox(height: 20),
+        _buildProfilePhotoSection(context, account),
         const SizedBox(height: 24),
         Text(
           'Personal information',
@@ -535,9 +952,10 @@ class _AccountScreenState extends State<AccountScreen> {
 }
 
 class _AccountHeader extends StatelessWidget {
-  const _AccountHeader({required this.account});
+  const _AccountHeader({required this.account, this.profilePhotoBytes});
 
   final CourierAccount account;
+  final Uint8List? profilePhotoBytes;
 
   @override
   Widget build(BuildContext context) {
@@ -555,10 +973,23 @@ class _AccountHeader extends StatelessWidget {
               radius: 28,
               backgroundColor: scheme.secondary,
               foregroundColor: scheme.onSecondary,
-              child: Text(
-                _initials(displayName),
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
+              child: profilePhotoBytes == null
+                  ? Text(
+                      _initials(displayName),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    )
+                  : ClipOval(
+                      child: Image.memory(
+                        profilePhotoBytes!,
+                        width: 56,
+                        height: 56,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Text(
+                          _initials(displayName),
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -588,6 +1019,36 @@ class _AccountHeader extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfilePhotoPreview extends StatelessWidget {
+  const _ProfilePhotoPreview({required this.bytes});
+
+  final Uint8List bytes;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Profile photo preview',
+      image: true,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Image.memory(
+          bytes,
+          width: 92,
+          height: 92,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Container(
+            width: 92,
+            height: 92,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            alignment: Alignment.center,
+            child: const Icon(Icons.broken_image_outlined),
+          ),
         ),
       ),
     );
@@ -753,4 +1214,51 @@ String _initials(String value) {
   }
   return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
       .toUpperCase();
+}
+
+String _fileNameFromPath(String path) {
+  final normalized = path.replaceAll('\\', '/');
+  final separator = normalized.lastIndexOf('/');
+  return separator < 0 ? normalized : normalized.substring(separator + 1);
+}
+
+String _formatFileSize(int bytes) {
+  return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+}
+
+bool _isAllowedProfilePhotoName(String name) {
+  final parts = name.toLowerCase().split('.');
+  if (parts.length != 2 || parts.first.isEmpty) {
+    return false;
+  }
+  return <String>{'jpg', 'jpeg', 'png', 'webp'}.contains(parts.last);
+}
+
+bool _hasSupportedImageSignature(List<int> bytes) {
+  final isJpeg =
+      bytes.length >= 3 &&
+      bytes[0] == 0xff &&
+      bytes[1] == 0xd8 &&
+      bytes[2] == 0xff;
+  final isPng =
+      bytes.length >= 8 &&
+      bytes[0] == 0x89 &&
+      bytes[1] == 0x50 &&
+      bytes[2] == 0x4e &&
+      bytes[3] == 0x47 &&
+      bytes[4] == 0x0d &&
+      bytes[5] == 0x0a &&
+      bytes[6] == 0x1a &&
+      bytes[7] == 0x0a;
+  final isWebp =
+      bytes.length >= 12 &&
+      bytes[0] == 0x52 &&
+      bytes[1] == 0x49 &&
+      bytes[2] == 0x46 &&
+      bytes[3] == 0x46 &&
+      bytes[8] == 0x57 &&
+      bytes[9] == 0x45 &&
+      bytes[10] == 0x42 &&
+      bytes[11] == 0x50;
+  return isJpeg || isPng || isWebp;
 }

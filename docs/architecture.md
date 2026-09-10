@@ -5,7 +5,7 @@ type: Client Architecture
 platform: Flutter / Dart
 role: Courier / Rider
 status: Active — authentication and account client; operational delivery client deferred
-backend_contract_commit: 678618b
+backend_contract_commit: 20afd9f
 ---
 
 # Scope
@@ -27,6 +27,9 @@ The backend currently exposes Courier authentication and Phase 1 account managem
 - `GET /api/v1/courier/account` (authenticated)
 - `PATCH /api/v1/courier/account/profile` (authenticated)
 - `PUT /api/v1/courier/account/password` (authenticated)
+- `POST /api/v1/courier/account/profile-photo` (authenticated multipart upload)
+- `GET /api/v1/courier/account/profile-photo` (authenticated private stream)
+- `DELETE /api/v1/courier/account/profile-photo` (authenticated idempotent removal)
 
 Shipment, Parcel, Waybill, Scan, Delivery Task, assignment, proof-of-delivery, routing, chat, earnings, and offline synchronization endpoints are not currently available. The app may provide an honest scaffold or unavailable state for those capabilities, but must not fabricate jobs or call conceptual routes from draft specifications.
 
@@ -48,9 +51,9 @@ lib/
 │       ├── domain/       # Auth state and validation rules
 │       └── presentation/ # Login, registration, pending, and session screens
 │   └── account/
-│       ├── data/         # Account DTOs and authenticated repository
-│       ├── domain/       # Private account projection
-│       └── presentation/ # Account form and password/session controls
+│       ├── data/         # Account DTOs, photo transport, authenticated repository
+│       ├── domain/       # Private account projection and in-memory photo data
+│       └── presentation/ # Account form, photo controls, and password/session controls
 └── main.dart
 test/
 ├── unit/
