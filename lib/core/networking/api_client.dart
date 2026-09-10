@@ -9,13 +9,11 @@ import '../security/token_storage.dart';
 
 class ApiClient {
   ApiClient({
-    required AppConfig config,
-    required TokenStorage tokenStorage,
+    required this._config,
+    required this._tokenStorage,
     http.Client? client,
     this.requestTimeout = const Duration(seconds: 20),
-  }) : _config = config,
-       _tokenStorage = tokenStorage,
-       _client = client ?? http.Client();
+  }) : _client = client ?? http.Client();
 
   final AppConfig _config;
   final TokenStorage _tokenStorage;
@@ -35,16 +33,80 @@ class ApiClient {
     );
   }
 
+  /// Fetches a server-provided API URL without treating it as a new API path.
+  ///
+  /// Account photo URLs are private API URLs returned by Laravel. They may be
+  /// relative to the configured API origin or absolute URLs for that same
+  /// origin, but they must never redirect the client to an arbitrary host.
+  Future<http.Response> getServerUrl(
+    String serverUrl, {
+    bool authenticated = false,
+  }) {
+    return _requestUri(
+      method: 'GET',
+      uri: _resolveServerUrl(serverUrl),
+      authenticated: authenticated,
+      requestHeaders: const <String, String>{
+        'Accept': 'image/jpeg, image/png, image/webp',
+      },
+    );
+  }
+
   Future<http.Response> postJson(
     String path, {
     Map<String, Object?> body = const <String, Object?>{},
     bool authenticated = false,
+    Map<String, String>? headers,
   }) {
     return _request(
       method: 'POST',
       path: path,
       body: jsonEncode(body),
       authenticated: authenticated,
+      requestHeaders: headers,
+    );
+  }
+
+  Future<http.Response> patchJson(
+    String path, {
+    Map<String, Object?> body = const <String, Object?>{},
+    bool authenticated = false,
+    Map<String, String>? headers,
+  }) {
+    return _request(
+      method: 'PATCH',
+      path: path,
+      body: jsonEncode(body),
+      authenticated: authenticated,
+      requestHeaders: headers,
+    );
+  }
+
+  Future<http.Response> putJson(
+    String path, {
+    Map<String, Object?> body = const <String, Object?>{},
+    bool authenticated = false,
+    Map<String, String>? headers,
+  }) {
+    return _request(
+      method: 'PUT',
+      path: path,
+      body: jsonEncode(body),
+      authenticated: authenticated,
+      requestHeaders: headers,
+    );
+  }
+
+  Future<http.Response> delete(
+    String path, {
+    bool authenticated = false,
+    Map<String, String>? headers,
+  }) {
+    return _request(
+      method: 'DELETE',
+      path: path,
+      authenticated: authenticated,
+      requestHeaders: headers,
     );
   }
 
@@ -53,10 +115,14 @@ class ApiClient {
     required Map<String, String> fields,
     required Map<String, String> filePaths,
     bool authenticated = false,
+    Map<String, String>? requestHeaders,
     void Function(void Function() cancel)? onCancel,
   }) async {
     final uri = _config.endpoint(path);
     final headers = <String, String>{'Accept': 'application/json'};
+    if (requestHeaders != null) {
+      headers.addAll(requestHeaders);
+    }
 
     if (authenticated) {
       final token = await _tokenStorage.read();
@@ -115,12 +181,32 @@ class ApiClient {
     required bool authenticated,
     String? body,
     Map<String, String>? queryParameters,
+    Map<String, String>? requestHeaders,
   }) async {
     final uri = _config.endpoint(path, queryParameters);
+    return _requestUri(
+      method: method,
+      uri: uri,
+      authenticated: authenticated,
+      body: body,
+      requestHeaders: requestHeaders,
+    );
+  }
+
+  Future<http.Response> _requestUri({
+    required String method,
+    required Uri uri,
+    required bool authenticated,
+    String? body,
+    Map<String, String>? requestHeaders,
+  }) async {
     final headers = <String, String>{
       'Accept': 'application/json',
       if (body != null) 'Content-Type': 'application/json',
     };
+    if (requestHeaders != null) {
+      headers.addAll(requestHeaders);
+    }
 
     if (authenticated) {
       final token = await _tokenStorage.read();
@@ -142,6 +228,16 @@ class ApiClient {
           await _client
               .post(uri, headers: headers, body: body)
               .timeout(requestTimeout),
+        'PATCH' =>
+          await _client
+              .patch(uri, headers: headers, body: body)
+              .timeout(requestTimeout),
+        'PUT' =>
+          await _client
+              .put(uri, headers: headers, body: body)
+              .timeout(requestTimeout),
+        'DELETE' =>
+          await _client.delete(uri, headers: headers).timeout(requestTimeout),
         _ => throw StateError('Unsupported HTTP method: $method'),
       };
 
@@ -162,6 +258,49 @@ class ApiClient {
       throw const ApiException.network('The service could not be reached.');
     }
   }
+
+  Uri _resolveServerUrl(String serverUrl) {
+    final parsed = Uri.tryParse(serverUrl.trim());
+    if (parsed == null || parsed.path.isEmpty || parsed.fragment.isNotEmpty) {
+      throw StateError('The server returned an invalid resource URL.');
+    }
+
+    final base = Uri.parse(_config.baseUrl.replaceFirst(RegExp(r'/+$'), ''));
+    if (base.scheme != 'https' && !_isLocalHost(base.host)) {
+      throw StateError('Non-local API endpoints must use HTTPS.');
+    }
+    final basePath = base.path.replaceFirst(RegExp(r'/+$'), '');
+    final apiPath = '$basePath${AppConfig.apiPrefix}';
+    final expectedPath = parsed.path;
+    if (expectedPath != apiPath && !expectedPath.startsWith('$apiPath/')) {
+      throw StateError('The server returned an unexpected resource URL.');
+    }
+
+    if (parsed.hasScheme || parsed.hasAuthority) {
+      if (parsed.scheme != base.scheme ||
+          parsed.host != base.host ||
+          parsed.port != base.port ||
+          parsed.userInfo.isNotEmpty) {
+        throw StateError('The server returned an unexpected resource URL.');
+      }
+      return parsed;
+    }
+
+    return Uri(
+      scheme: base.scheme,
+      host: base.host,
+      port: base.port,
+      path: '$basePath$expectedPath',
+      query: parsed.query,
+    );
+  }
+
+  static bool _isLocalHost(String host) {
+    return host == 'localhost' ||
+        host == '127.0.0.1' ||
+        host == '::1' ||
+        host == '10.0.2.2';
+  }
 }
 
 class ApiException implements Exception {
@@ -173,10 +312,9 @@ class ApiException implements Exception {
     this.retryAfter,
   });
 
-  const ApiException.network(String message)
+  const ApiException.network(this.message)
     : statusCode = null,
       code = 'NETWORK_ERROR',
-      message = message,
       fieldErrors = const <String, List<String>>{},
       retryAfter = null;
 

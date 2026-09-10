@@ -29,11 +29,7 @@ abstract interface class AuthRepository {
 }
 
 class ApiAuthRepository implements AuthRepository {
-  ApiAuthRepository({
-    required ApiClient client,
-    required TokenStorage tokenStorage,
-  }) : _client = client,
-       _tokenStorage = tokenStorage;
+  ApiAuthRepository({required this._client, required this._tokenStorage});
 
   final ApiClient _client;
   final TokenStorage _tokenStorage;

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../../core/networking/api_client.dart';
 import '../../../core/networking/api_contract_exception.dart';
 import '../../../core/security/token_storage.dart';
+import '../../account/domain/account_models.dart';
 import '../../dashboard/data/dashboard_repository.dart';
 import '../../dashboard/domain/dashboard_models.dart';
 import '../data/auth_repository.dart';
@@ -25,13 +26,14 @@ enum DashboardLoadStatus { idle, loading, loaded, failed }
 
 class AuthController extends ChangeNotifier {
   AuthController({
-    required AuthRepository authRepository,
-    required DashboardRepository dashboardRepository,
-  }) : _authRepository = authRepository,
-       _dashboardRepository = dashboardRepository;
+    required this._authRepository,
+    required this._dashboardRepository,
+    this._onSessionEnded,
+  });
 
   final AuthRepository _authRepository;
   final DashboardRepository _dashboardRepository;
+  final void Function()? _onSessionEnded;
 
   AuthStatus status = AuthStatus.checkingSession;
   DashboardLoadStatus dashboardStatus = DashboardLoadStatus.idle;
@@ -79,6 +81,24 @@ class AuthController extends ChangeNotifier {
     return _authRepository.register(request, onCancel: onCancel);
   }
 
+  Future<void> handleAccountAuthFailure(ApiException error) {
+    return _handleAuthError(error, fromSession: true);
+  }
+
+  Future<void> handlePasswordChanged() {
+    return _clearTokenAndBecomeSignedOut(
+      message: 'Your password was changed. Please sign in again.',
+    );
+  }
+
+  void updateIdentityFromAccount(CourierAccount account) {
+    if (status != AuthStatus.authenticated) {
+      return;
+    }
+    courier = account.toCourierIdentity();
+    notifyListeners();
+  }
+
   Future<void> signIn({required String email, required String password}) async {
     if (status == AuthStatus.authenticating) {
       return;
@@ -91,6 +111,7 @@ class AuthController extends ChangeNotifier {
     dashboard = null;
     dashboardStatus = DashboardLoadStatus.idle;
     dashboardErrorMessage = null;
+    _onSessionEnded?.call();
     notifyListeners();
 
     try {
@@ -245,6 +266,7 @@ class AuthController extends ChangeNotifier {
       dashboardStatus = DashboardLoadStatus.idle;
       errorMessage = _messageForAuthError(error);
       isSigningOut = false;
+      _onSessionEnded?.call();
       notifyListeners();
     } on TokenStorageException {
       _becomeStorageFailure();
@@ -260,6 +282,7 @@ class AuthController extends ChangeNotifier {
     errorMessage = message;
     retryAfter = null;
     isSigningOut = false;
+    _onSessionEnded?.call();
     notifyListeners();
   }
 
@@ -282,6 +305,7 @@ class AuthController extends ChangeNotifier {
     dashboard = null;
     errorMessage = message;
     isSigningOut = false;
+    _onSessionEnded?.call();
     notifyListeners();
   }
 

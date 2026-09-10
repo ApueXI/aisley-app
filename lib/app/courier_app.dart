@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../features/account/presentation/account_controller.dart';
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/auth/presentation/blocked_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
@@ -7,9 +8,14 @@ import '../features/auth/presentation/registration_screen.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
 
 class CourierApp extends StatelessWidget {
-  const CourierApp({required this.authController, super.key});
+  const CourierApp({
+    required this.authController,
+    this.accountController,
+    super.key,
+  });
 
   final AuthController authController;
+  final AccountController? accountController;
 
   @override
   Widget build(BuildContext context) {
@@ -18,15 +24,23 @@ class CourierApp extends StatelessWidget {
       theme: _buildTheme(Brightness.light),
       darkTheme: _buildTheme(Brightness.dark),
       themeMode: ThemeMode.system,
-      home: AuthGate(authController: authController),
+      home: AuthGate(
+        authController: authController,
+        accountController: accountController,
+      ),
     );
   }
 }
 
 class AuthGate extends StatefulWidget {
-  const AuthGate({required this.authController, super.key});
+  const AuthGate({
+    required this.authController,
+    this.accountController,
+    super.key,
+  });
 
   final AuthController authController;
+  final AccountController? accountController;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -60,6 +74,7 @@ class _AuthGateState extends State<AuthGate> {
           AuthStatus.authenticated => DashboardScreen(
             key: const ValueKey('dashboard'),
             authController: authController,
+            accountController: widget.accountController,
           ),
           AuthStatus.pendingApproval => BlockedAccessScreen.pending(
             key: const ValueKey('pending-approval'),

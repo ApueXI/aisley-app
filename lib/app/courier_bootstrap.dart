@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../core/config/app_config.dart';
 import '../core/networking/api_client.dart';
 import '../core/security/token_storage.dart';
+import '../features/account/data/account_repository.dart';
+import '../features/account/presentation/account_controller.dart';
 import '../features/auth/data/auth_repository.dart';
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/dashboard/data/dashboard_repository.dart';
@@ -19,6 +21,7 @@ class CourierBootstrapApp extends StatefulWidget {
 
 class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
   AuthController? _authController;
+  AccountController? _accountController;
   bool _hasStartupError = false;
 
   @override
@@ -41,12 +44,20 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
       );
       final tokenStorage = SecureTokenStorage();
       final apiClient = ApiClient(config: config, tokenStorage: tokenStorage);
+      late final AccountController accountController;
       final authController = AuthController(
         authRepository: ApiAuthRepository(
           client: apiClient,
           tokenStorage: tokenStorage,
         ),
         dashboardRepository: ApiDashboardRepository(client: apiClient),
+        onSessionEnded: () => accountController.clear(),
+      );
+      accountController = AccountController(
+        accountRepository: ApiAccountRepository(client: apiClient),
+        onAuthFailure: authController.handleAccountAuthFailure,
+        onPasswordChanged: authController.handlePasswordChanged,
+        onAccountUpdated: authController.updateIdentityFromAccount,
       );
 
       if (!mounted) {
@@ -55,6 +66,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
 
       setState(() {
         _authController = authController;
+        _accountController = accountController;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -76,7 +88,10 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
   Widget build(BuildContext context) {
     final authController = _authController;
     if (authController != null) {
-      return CourierApp(authController: authController);
+      return CourierApp(
+        authController: authController,
+        accountController: _accountController,
+      );
     }
 
     return MaterialApp(

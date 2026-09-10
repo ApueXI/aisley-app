@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 
+import '../../account/presentation/account_controller.dart';
+import '../../account/presentation/account_screen.dart';
 import '../../auth/domain/auth_models.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../domain/dashboard_models.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({required this.authController, super.key});
+  const DashboardScreen({
+    required this.authController,
+    this.accountController,
+    super.key,
+  });
 
   final AuthController authController;
+  final AccountController? accountController;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -65,6 +72,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Future<void> _openAccount() async {
+    final accountController = widget.accountController;
+    if (accountController == null || !mounted) {
+      return;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AccountScreen(
+          authController: widget.authController,
+          accountController: accountController,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -79,6 +102,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           appBar: AppBar(
             title: const Text('Courier dashboard'),
             actions: [
+              if (widget.accountController != null)
+                IconButton(
+                  onPressed: _openAccount,
+                  tooltip: 'Account settings',
+                  icon: const Icon(Icons.manage_accounts_outlined),
+                ),
               IconButton(
                 onPressed: widget.authController.isSigningOut
                     ? null
