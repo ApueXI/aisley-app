@@ -4,17 +4,10 @@ feature: Chat / Messaging
 system: AISLEY
 type: Feature Specification
 version: 1.0
-status: "Draft — planning reference only; API contract deferred"
-canonical: false
-implementation_status: deferred
+status: Draft
 scope: Flutter Courier Mobile Application / Active-Order Communication
-source_coverage: domain/Courier.md, requirements.md, workspace.md, schema.md
+source_coverage: Courier.md, app.md
 ---
-
-> **Implementation gate:** This is planning material only. The current backend does not expose this Courier feature. Routes, fields, statuses, providers, and behavior in the legacy body are conceptual and must not be implemented until an approved versioned `/api/v1/courier/...` contract and shared Shipment/Delivery Task schema exist.
->
-> **Provider and status rule:** Any legacy provider names or uppercase status labels in this file are superseded; use the canonical documents and the backend contract instead.
-
 # Courier / Rider Chat / Messaging Specification
 ## 1. Purpose
 Courier Chat / Messaging is AISLEY's direct operational communication feature for active delivery work.
@@ -73,7 +66,7 @@ LOGISTICS
 ```
 The Courier may communicate with the relevant party for an active order.
 ## 4. Authentication
-Courier mobile authentication follows the shared backend contract:
+Courier mobile authentication follows `app.md`:
 ```text
 Flutter login
 → Laravel personal access token
@@ -452,7 +445,7 @@ Masked calling is source-supported but should remain optional until AISLEY selec
 ## 64. No Direct Phone Exposure
 If masked calling is implemented, the Courier should not receive the counterparty's raw personal phone number merely to initiate the call.
 ## 65. Telephony Provider
-No provider is selected by the current contract or `Courier.md`.
+No provider is selected in `app.md` or `Courier.md`.
 Open Decision.
 ## 66. No Invented Twilio Requirement
 Do not require:
@@ -606,28 +599,28 @@ This is a recommendation.
 ## 96. Thread List
 Conceptual:
 ```http
-GET /api/v1/courier/chat/threads
+GET /api/courier/chat/threads
 ```
 MVP may restrict this to relevant active-order threads.
 ## 97. Order Threads
 Conceptual:
 ```http
-GET /api/v1/courier/orders/{orderId}/chat
+GET /api/courier/orders/{orderId}/chat
 ```
 or:
 ```http
-GET /api/v1/courier/delivery-tasks/{taskId}/chat
+GET /api/courier/delivery-tasks/{taskId}/chat
 ```
 ## 98. Messages
 Conceptual:
 ```http
-GET /api/v1/courier/chat/threads/{threadId}/messages
+GET /api/courier/chat/threads/{threadId}/messages
 ```
 with cursor pagination.
 ## 99. Send Message
 Conceptual:
 ```http
-POST /api/v1/courier/chat/threads/{threadId}/messages
+POST /api/courier/chat/threads/{threadId}/messages
 ```
 Example:
 ```json
@@ -638,7 +631,7 @@ Example:
 ## 100. Read State
 If implemented:
 ```http
-POST /api/v1/courier/chat/threads/{threadId}/read
+POST /api/courier/chat/threads/{threadId}/read
 ```
 ## 101. Start Thread
 Whether threads are:
@@ -876,7 +869,7 @@ Masked calling likely requires telephony infrastructure/provider.
 No provider is selected in the source.
 ## 153. Brevo
 Not required.
-## 154. Routing Provider Boundary
+## 154. Mapbox
 Not required for messaging itself.
 ## 155. SMS
 Not required for core Chat.
@@ -962,7 +955,7 @@ Not required for core Chat.
 ## 165. Third-Party
 - Core secure text chat works without a new hosted third-party provider.
 - Masked calling remains optional until a provider/architecture is selected.
-- Brevo/routing provider/SMS are not required.
+- Brevo/Mapbox/SMS are not required.
 # Tests
 ## 166. Backend Tests
 Test:

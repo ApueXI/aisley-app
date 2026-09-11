@@ -4,17 +4,10 @@ feature: Complete Delivery
 system: AISLEY
 type: Feature Specification
 version: 1.0
-status: "Draft — planning reference only; API contract deferred"
-canonical: false
-implementation_status: deferred
+status: Draft
 scope: Flutter Courier Mobile Application / Final Delivery Completion
-source_coverage: domain/Courier.md, requirements.md, workspace.md, schema.md
+source_coverage: Courier.md, app.md
 ---
-
-> **Implementation gate:** This is planning material only. The current backend does not expose this Courier feature. Routes, fields, statuses, providers, and behavior in the legacy body are conceptual and must not be implemented until an approved versioned `/api/v1/courier/...` contract and shared Shipment/Delivery Task schema exist.
->
-> **Provider and status rule:** Any legacy provider names or uppercase status labels in this file are superseded; use the canonical documents and the backend contract instead.
-
 # Complete Delivery Specification
 ## 1. Purpose
 Complete Delivery is AISLEY's Courier finalization workflow for marking a successfully fulfilled parcel/order as delivered.
@@ -52,7 +45,7 @@ COURIER / RIDER
 ```
 The Courier completes delivery through the Flutter mobile application.
 ## 3. Authentication
-Courier mobile authentication follows the shared backend contract:
+Courier mobile authentication follows `app.md`:
 ```text
 credentials + device_name
 → /login
@@ -364,7 +357,7 @@ SMS
 ```
 Open Decision.
 ## 45. Brevo
-The legacy draft selected:
+`app.md` selects:
 ```text
 Brevo
 ```
@@ -503,7 +496,7 @@ Resolution policy must be defined by Offline Mode.
 ## 72. Completion Detail
 Conceptual:
 ```http
-GET /api/v1/courier/delivery-tasks/{taskId}/complete
+GET /api/courier/delivery-tasks/{taskId}/complete
 ```
 May return:
 ```text
@@ -516,7 +509,7 @@ completion eligibility
 ## 73. Complete Endpoint
 Conceptual:
 ```http
-POST /api/v1/courier/delivery-tasks/{taskId}/complete
+POST /api/courier/delivery-tasks/{taskId}/complete
 ```
 ## 74. Request Body
 The request should not need authoritative:
@@ -781,12 +774,12 @@ The source does not require a Push or SMS provider for completion notifications.
 Proof of Delivery separately requires secure cloud/media storage.
 `Courier.md` gives:
 ```text
-configured private blob storage
+AWS S3
 ```
 as an example.
 This is not a mandatory provider for Complete Delivery itself.
 ## 130. Maps
-A routing provider is not required to perform the final database transition.
+Mapbox is not required to perform the final database transition.
 It belongs to Deliver Order routing.
 # MVP Scope
 ## 131. Required
@@ -877,7 +870,7 @@ valid e-POD
 ## 142. Third-Party
 - Core completion works without a new third-party provider.
 - Brevo may be reused only if Email is chosen for Buyer/Seller notifications.
-- A routing provider is not required for finalization.
+- Mapbox is not required for finalization.
 - POD storage provider belongs to e-POD.
 # Tests
 ## 143. Backend Tests

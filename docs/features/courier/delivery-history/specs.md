@@ -4,17 +4,10 @@ feature: Delivery History
 system: AISLEY
 type: Feature Specification
 version: 1.0
-status: "Draft — planning reference only; API contract deferred"
-canonical: false
-implementation_status: deferred
+status: Draft
 scope: Flutter Courier Mobile Application / Completed Delivery Archive
-source_coverage: domain/Courier.md, requirements.md, workspace.md, schema.md
+source_coverage: Courier.md, app.md
 ---
-
-> **Implementation gate:** This is planning material only. The current backend does not expose this Courier feature. Routes, fields, statuses, providers, and behavior in the legacy body are conceptual and must not be implemented until an approved versioned `/api/v1/courier/...` contract and shared Shipment/Delivery Task schema exist.
->
-> **Provider and status rule:** Any legacy provider names or uppercase status labels in this file are superseded; use the canonical documents and the backend contract instead.
-
 # Delivery History Specification
 ## 1. Purpose
 Delivery History is AISLEY's Courier archival feature for reviewing previously completed delivery work.
@@ -57,7 +50,7 @@ COURIER / RIDER
 ```
 The Courier uses the Flutter mobile application.
 ## 3. Application Context
-From the shared backend contract:
+From `app.md`:
 ```text
 Mobile App:
 Rider
@@ -65,7 +58,7 @@ Storefront
 ```
 Delivery History is therefore designed for the Courier mobile application.
 ## 4. Authentication
-Courier mobile authentication follows the shared backend contract:
+Courier mobile authentication follows `app.md`:
 ```text
 Flutter sends:
 credentials + device_name
@@ -318,14 +311,14 @@ Do not make:
 every historical GPS point
 ```
 an MVP requirement.
-## 34. Routing Provider Boundary
-The legacy draft selected:
+## 34. Mapbox
+`app.md` selects:
 ```text
-Routing Matrix and Optimization
+Mapbox Matrix and Optimization
 ```
 for Rider/Logistics routing.
-an approved routing service may have been used to calculate route context during Deliver Order.
-Delivery History does not need to call a routing provider again merely to display already stored historical route facts.
+Mapbox may have been used to calculate route context during Deliver Order.
+Delivery History does not need to call Mapbox again merely to display already stored historical route facts.
 ## 35. Route Reconstruction
 If route geometry was not stored, the source does not require reconstructing the exact historic route later.
 Open Decision.
@@ -483,7 +476,7 @@ Open Decision.
 ## 67. History List Endpoint
 Conceptual:
 ```http
-GET /api/v1/courier/delivery-history
+GET /api/courier/delivery-history
 ```
 Backend implicitly applies:
 ```text
@@ -502,13 +495,13 @@ only where implemented.
 ## 69. History Detail
 Conceptual:
 ```http
-GET /api/v1/courier/delivery-history/{taskId}
+GET /api/courier/delivery-history/{taskId}
 ```
 ## 70. Read-Only Contract
 Delivery History routes should use read operations only.
 Do not create:
 ```http
-PATCH /api/v1/courier/delivery-history/{taskId}
+PATCH /api/courier/delivery-history/{taskId}
 ```
 for state editing.
 ## 71. Pagination
@@ -796,9 +789,9 @@ AISLEY backend
 historical delivery-task records
 Orders/shipment data
 ```
-## 129. Routing Provider Boundary
-A routing provider is not required merely to query history.
-If historical route visualization is added, AISLEY may reuse stored route information or existing routing provider integration as appropriate.
+## 129. Mapbox
+Mapbox is not required merely to query history.
+If historical route visualization is added, AISLEY may reuse stored route information or existing Mapbox integration as appropriate.
 ## 130. Brevo
 Not required.
 ## 131. SMS / Push
@@ -920,7 +913,7 @@ Open Decision.
 - Bearer token is protected.
 ## 150. Third-Party
 - Core Delivery History works without a new third-party provider.
-- routing provider is optional only for route presentation if needed.
+- Mapbox is optional only for route presentation if needed.
 - Brevo/SMS/Push are not required.
 - POD storage remains owned by Proof of Delivery.
 # Tests

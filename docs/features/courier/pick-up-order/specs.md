@@ -1,961 +1,203 @@
 ---
-role: Courier/Rider
-feature: Pick Up Order
+role: Courier / Rider
+feature: courier-pick-up-order
+title: Pick Up Order
 system: AISLEY
 type: Feature Specification
-version: 1.0
-status: "Draft — planning reference only; API contract deferred"
-canonical: false
-implementation_status: deferred
-scope: Flutter Courier Mobile Application / Physical Parcel Pickup
-source_coverage: domain/Courier.md, requirements.md, workspace.md, schema.md
+version: 1.1
+status: Waybill resolve implemented; physical pickup scan/evidence transition deferred
+implementation_status: Courier QR resolve is access-only; pickup submission and Logistics recording are planned/unavailable
+canonical: true
+scope: External Flutter mobile client and Laravel Courier API
+backend_contract_commit: 5596fab
+backend_contract_version: courier-pickup-v1-deferred
+source_coverage: docs/requirements.md, docs/workspace.md, docs/schema.md, docs/domains/Courier.md, docs/domains/Logistics.md, docs/references/file-upload-requirements.md, docs/features/shared/shipment-fulfillment/spec.md
 ---
 
-> **Implementation gate:** This is planning material only. The current backend does not expose this Courier feature. Routes, fields, statuses, providers, and behavior in the legacy body are conceptual and must not be implemented until an approved versioned `/api/v1/courier/...` contract and shared Shipment/Delivery Task schema exist.
->
-> **Provider and status rule:** Any legacy provider names or uppercase status labels in this file are superseded; use the canonical documents and the backend contract instead.
+# Pick Up Order
 
-# Pick Up Order Specification
-## 1. Purpose
-Pick Up Order is AISLEY's Courier workflow for confirming the physical handover of a parcel from its pickup origin to the Courier.
-`Courier.md` defines the Core Value as:
-```text
-Proceed to sorting center
-Verify Order Information
-Confirm Item Pickup
-```
-Its Expanded Definition states:
-```text
-The physical handover phase.
+## WHAT
 
-The courier navigates
-to the origin point,
+- **Purpose:** Let an accepted Courier task verify the correct parcel at its origin and submit physical handoff evidence.
+- **Actor boundary:** Courier performs the physical scan in the external Flutter app. Logistics validates and records the authoritative event; the shared transition service commits custody state.
+- **Current implementation:** `POST /api/v1/courier/waybills/resolve` resolves an assigned first-mile waybill and writes an access event. No physical pickup, evidence, or custody-transition endpoint is implemented.
+- **Flow:** accepted task → travel to Seller or hub → scan shared waybill QR/reference → submit event/evidence → Logistics validates → `picked_up_from_seller` or `picked_up_from_hub` is committed → Deliver Order or hub processing.
+- **Task boundary:** One Delivery Task represents one Order/Parcel for one leg. First-mile Seller pickup and final-mile hub pickup are independent tasks.
+- **Non-goals:** accepting/assigning tasks, waybill generation, hub sorting, route authority, delivery completion, proof-of-delivery policy, returns, refunds, partial fulfillment, or Courier web UI.
 
-validates the physical parcel
-against digital manifests,
+```text
+accepted task
+→ origin verification
+→ Courier scans QR/reference
+→ Courier submits evidence
+→ Logistics validates/records
+→ shared transition commits physical pickup
+```
 
-and formally logs
-the successful possession
-of the item
-into the system.
-```
-Its System Context states:
-```text
-Integrates with
-device camera/barcode scanning modules
+## MUST
 
-to validate
-the Order or Package ID,
+### Authentication and task scope
 
-subsequently updating
-the system state
-to IN_TRANSIT.
-```
-This feature therefore owns the physical possession confirmation that occurs after a Courier has accepted a delivery request.
-A separate `flow.md` is required because Pick Up Order has a meaningful stateful lifecycle:
-```text
-ACCEPTED task
-→ proceed to pickup origin
-→ identify parcel
-→ validate Order/Package ID
-→ confirm physical possession
-→ IN_TRANSIT
-```
-## 2. Primary Actor
-Primary actor:
-```text
-COURIER / RIDER
-```
-The Courier performs pickup through the Flutter mobile application.
-## 3. Authentication
-Courier mobile authentication follows the shared backend contract:
-```text
-credentials + device_name
-→ /login
+- Require `auth:sanctum` and `courier.active`; Flutter sends `Authorization: Bearer <token>`.
+- Derive Courier, task, Order/Parcel, Logistics organization, and sole hub from server records. Never trust client `courier_id`, `organization_id`, `hub_id`, status, or task ownership.
+- The task must be offered/accepted to the authenticated Courier and belong to its active approved Logistics affiliation.
+- First-mile pickup is valid only at the Seller origin after `seller_pickup_accepted`; final-mile pickup is valid only at the sole hub after `delivery_accepted` and hub dispatch.
+- An old Courier loses authority if Logistics reassigns, withdraws, or changes the task before commit; return a safe conflict without revealing another tenant.
 
-Laravel:
-createToken()
-→ personal access token
+### Scan and evidence authority
 
-Flutter:
-stores token in flutter_secure_storage
+- The Courier scans the shared waybill's opaque QR/reference at the physical handoff and submits the event/evidence to the owning Logistics organization.
+- The submission is ingress only. It does not directly write `picked_up_from_seller`, `picked_up_from_hub`, `in_transit`, or a generic Order `picked_up` value.
+- Logistics validates the waybill/Order/Parcel link, task leg, current state, Courier authorization, sole-hub scope, expected revision, and idempotency key before recording an authoritative event.
+- The recorded event preserves the performing Courier, recording Logistics account, server event time, location/context required by the transition, and safe QR/reference/evidence metadata.
+- A scan or `waybill_access_events` resolve record alone never advances custody. Only the shared transition service may commit the approved detailed state.
+- Evidence states are separate from custody: `submitted`, `awaiting_validation`, `validated`, `rejected`, or `unavailable`.
+- If an image is attached, inherit `docs/references/file-upload-requirements.md`: JPEG/JPG, PNG, or WebP, strictly below 10 MiB, server MIME/signature/decode validation, generated object key, and private authorized delivery.
+- Do not store or return raw storage paths, bearer tokens, private evidence bytes, or client-supplied actor/status claims.
 
-Requests:
-Authorization: Bearer <token>
-```
-Every pickup request must resolve:
-```text
-authenticated user_id
-+
-COURIER role
-```
-## 4. Identity Rule
-AISLEY uses:
-```text
-unique(email, role)
-```
-Therefore pickup authorization must use the exact authenticated Courier account.
-A same-email Buyer/Seller/Logistics account is a separate logical account.
-# Feature Responsibility
-## 5. Pick Up Order Owns
-This feature owns:
-- opening an accepted delivery task for pickup
-- presenting pickup-origin context
-- showing the digital parcel/order manifest required for verification
-- scanning an Order or Package identifier
-- validating the scanned identifier against the active delivery task
-- allowing the Courier to confirm physical possession
-- revalidating task ownership/state before commit
-- transitioning the applicable delivery/shipment state to `IN_TRANSIT`
-- recording pickup time/actor where modeled
-- preventing duplicate/conflicting pickup transitions
-- handing off to Deliver Order
-## 6. Pick Up Order Does Not Own
-This feature does not own:
-- accepting a delivery request
-- Logistics rider deployment
-- changing Courier assignment
-- route optimization policy
-- Waybill generation
-- Seller packing
-- sorting-center transfer logic
-- Proof of Delivery
-- marking the final Order `DELIVERED`
-- delivery-history aggregation
-- earnings calculation
-- incident-resolution logic
-## 7. Core Boundary
-Pick Up Order means:
-```text
-Courier has physically received
-the correct parcel
-```
-It does not mean:
-```text
-parcel has been delivered
-```
-# Lifecycle Context
-## 8. Previous State
-`Courier.md` explicitly states that Accept Delivery Requests changes the delivery task to:
-```text
-ACCEPTED
-```
-## 9. Pickup Transition
-Pick Up Order then performs:
-```text
-verify parcel
-→ confirm possession
-→ IN_TRANSIT
-```
-## 10. Required Sequence
-Recommended source-consistent sequence:
-```text
-AVAILABLE / OFFERED
-→ ACCEPTED
-→ IN_TRANSIT
-→ DELIVERED
-```
-Only:
-```text
-ACCEPTED
-→ IN_TRANSIT
-```
-is owned by this feature.
-The exact pre-acceptance state name is Open.
-## 11. No Acceptance Bypass
-A Courier should not use Pick Up Order on a request they have not validly accepted/been assigned according to the final delivery-task model.
-## 12. No Delivery Completion
-Pick Up Order must not transition the core Order directly to:
-```text
-DELIVERED
-```
-That belongs to Complete Delivery.
-# Pickup Origin
-## 13. Sorting Center
-The Core Value explicitly says:
-```text
-Proceed to sorting center
-```
-Therefore sorting-center pickup is a source-backed origin.
-## 14. Seller Location
-Courier Dashboard also states packages may be waiting for pickup at:
-```text
-sorting centers
-or seller locations
-```
-Therefore Seller-origin pickup may also be supported where the active delivery task uses that origin.
-## 15. Origin Authority
-Pickup origin must come from the authoritative delivery task/order/shipment.
-The mobile app must not invent or freely replace the pickup location.
-## 16. Origin Details
-Recommended pickup information:
-```text
-pickup type
-pickup address/summary
-contact/context where operationally necessary
-order/package reference
-```
-Exact fields are Open.
-## 17. Pickup Navigation
-Proceeding to the pickup location may use route/navigation context.
-Detailed navigation behavior belongs primarily to Deliver Order/shared routing.
-# Digital Manifest
-## 18. Source Requirement
-The Courier must:
-```text
-validate the physical parcel
-against digital manifests
-```
-## 19. Manifest Purpose
-The digital manifest helps answer:
-```text
-Is this physical parcel
-the parcel assigned to this delivery task?
-```
-## 20. Manifest Data
-Recommended safe manifest summary:
-```text
-Order/Package reference
-pickup origin
-package summary
-destination summary
-```
-Only implemented and necessary fields should be displayed.
-## 21. No Arbitrary Manifest Editing
-The Courier must not edit authoritative order/package identity from this screen.
-## 22. Seller/Buyer Privacy
-The manifest should expose only operational information required for pickup verification.
-# Order / Package Identifier
-## 23. Source Identifier
-`Courier.md` explicitly requires validation of:
-```text
-Order
-or
-Package ID
-```
-## 24. Identifier Scope
-The exact identifier format is not defined.
-Possible implementation values may be:
-```text
-Order reference
-Package reference
-Waybill reference
-QR/barcode payload
-```
-but only identifiers actually mapped by the backend should be accepted.
-## 25. Waybill Relationship
-the shared backend contract separately defines a Logistics Waybill flow and scan-based parcel status automation.
-Waybill may be one implementation source for parcel identity, but Pick Up Order must not assume every Courier scan is necessarily the same Logistics transfer/dispatch Waybill event.
-## 26. Stable Mapping
-A scanned identifier must resolve to the intended authoritative Order/Package record.
-## 27. No Client Trust
-The client must not submit:
-```text
-"this package matches"
-```
-as authoritative.
-The backend validates the scanned/reference identifier against the active task.
-# Camera / Barcode Scanning
-## 28. Source Requirement
-Pick Up Order integrates with:
-```text
-device camera/barcode scanning modules
-```
-## 29. Camera Permission
-If camera scanning is used, the mobile app must request device camera permission according to platform requirements.
-## 30. Permission Denied
-If the user denies camera permission:
-```text
-do not crash
-do not falsely confirm pickup
-```
-Provide an appropriate error/fallback if the project defines one.
-## 31. Barcode / QR Formats
-`Courier.md` does not define the exact symbology.
-Do not invent a mandatory format here.
-The Waybill source elsewhere mentions:
-```text
-Code 128
-or
-QR
-```
-for Logistics Waybill labels.
-If Courier pickup scans Waybills, it may reuse the same compatible format.
-## 32. Scanner Library
-A mobile barcode/camera library is required as an application dependency.
-This does not require a hosted third-party provider.
-## 33. Scan Result
-A successful scan should produce a bounded identifier payload.
-## 34. Scan Validation
-The backend should validate:
-```text
-identifier resolves
-+
-identifier belongs to active task
-+
-task belongs to authenticated Courier
-+
-task is pickup-eligible
-```
-## 35. Wrong Parcel
-If the scanned Order/Package ID does not match:
-```text
-reject pickup
-→ show mismatch
-```
-## 36. Unknown Parcel
-Unknown identifier:
-```text
-reject
-→ no task mutation
-```
-## 37. Duplicate Scan
-Repeated scans of the same correct parcel must not cause multiple state transitions.
-# Manual Identifier Entry
-## 38. Source Boundary
-the shared backend contract explicitly says Logistics can automate status by scanning or manually entering a Waybill QR/reference number.
-It does not explicitly say the Courier Pick Up Order feature supports manual identifier entry.
-Therefore manual entry for Rider pickup is:
-```text
-Open Decision
-```
-and must not be treated as a source requirement.
-## 39. Recommended Fallback
-If operationally needed, manual entry may be added as a fallback after explicit project decision.
-## 40. Same Validation
-If manual entry is later enabled, it must use the same backend validation as camera scanning.
-# Physical Possession Confirmation
-## 41. Source Requirement
-Core Value explicitly requires:
-```text
-Confirm Item Pickup
-```
-## 42. Two-Step Principle
-Recommended:
-```text
-scan/validate identity
-→ Courier explicitly confirms possession
-```
-A successful scan alone should not necessarily mutate state unless the UX intentionally combines validation and confirmation.
-## 43. Confirmation Action
-Recommended primary action:
-```text
-Confirm Pickup
-```
-## 44. Consequential Action
-Confirmation is a consequential state mutation.
-The UI should make the order/package identity clear before submission.
-## 45. No Accidental Pickup
-Opening the screen, viewing the manifest, or scanning a wrong item must not mark the task `IN_TRANSIT`.
-# State Mutation
-## 46. Source-Backed State
-Successful pickup changes system state to:
-```text
-IN_TRANSIT
-```
-## 47. State Domain Ambiguity
-The source does not explicitly say whether `IN_TRANSIT` belongs to:
-```text
-delivery_task.status
-Order.status
-shipment.status
-```
-Open Decision.
-## 48. Shared State Service
-Recommended:
-```text
-Courier Pick Up Order
-+
-Logistics scanner
-+
-Update Status
-→ shared Order/Shipment Transition Service
-```
-where the same physical parcel state is being mutated.
-## 49. No Conflicting State Logic
-Avoid separate rules where:
-```text
-Courier app says ACCEPTED → IN_TRANSIT is valid
-but Logistics Update Status says it is not
-```
-The backend transition policy should be authoritative.
-## 50. Transition Validation
-Conceptually:
-```text
-current state = pickup-eligible
-+
-actor = authenticated Courier
-+
-matching parcel
-→ IN_TRANSIT allowed
-```
-## 51. Invalid Transition
-If the task is already:
-```text
-IN_TRANSIT
-DELIVERED
-COMPLETED
-```
-or otherwise no longer pickup-eligible:
-```text
-do not apply a new pickup transition
-```
-# Task Ownership
-## 52. Courier Assignment
-The active task must belong to the authenticated Courier according to the accepted assignment model.
-## 53. IDOR
-Knowing an:
-```text
-task_id
-order_id
-package_id
-```
-must not permit another Courier to confirm pickup.
-## 54. Reassignment Race
-If Logistics reassigns the task before pickup:
-```text
-backend revalidation
-→ old Courier cannot confirm possession
-```
-according to final reassignment policy.
-## 55. Current Courier
-At commit time:
-```text
-task.courier_id
-```
-or equivalent assignment relation must match the authenticated Courier where the model uses final assignment.
-# Concurrency and Idempotency
-## 56. Concurrent Pickup
-Two clients must not both transition the same parcel from pickup-ready to `IN_TRANSIT`.
-## 57. Atomic Commit
-Recommended transaction:
-```text
-revalidate task
-→ validate scanned parcel
-→ validate Courier ownership
-→ transition to IN_TRANSIT
-→ create pickup/status history
-→ commit
-```
-## 58. Duplicate Submission
-Repeated Confirm Pickup requests caused by:
-```text
-double tap
-network retry
-mobile retry
-```
-must be idempotent or uniqueness-constrained.
-## 59. Already Picked Up
-If the same Courier retries after successful commit:
-```text
-return current IN_TRANSIT state
-```
-or equivalent safe result.
-## 60. Stale Screen
-If task state changed while the pickup screen was open:
-```text
-reject stale mutation
-→ show current authoritative state
-```
-# Handoff to Deliver Order
-## 61. Next Feature
-After successful pickup:
-```text
-Pick Up Order
-→ Deliver Order
-```
-## 62. Active Transit
-`Courier.md` defines Deliver Order as:
-```text
-the active transit phase
-```
-## 63. Dashboard Update
-After pickup:
-```text
-task = IN_TRANSIT
-→ Dashboard/current task refreshes
-→ next action = Deliver Order
-```
-## 64. Routing
-Detailed route/navigation belongs to Deliver Order.
-Pick Up Order may navigate to that feature after success.
-# Logistics Update Status Boundary
-## 65. Manual Recovery
-`Logistics.md` says Logistics may manually advance parcel state when automated rider scanning fails.
-Therefore:
-```text
-Courier pickup scan/confirmation
-= normal Courier path
+### Physical state and handoff
 
-Logistics Update Status
-= authorized manual recovery path
-```
-## 66. Shared Transition Rules
-Both paths should use the same authoritative transition policy where they mutate the same state.
-## 67. Recovery Does Not Duplicate Pickup
-If Logistics has already validly recovered the parcel to `IN_TRANSIT`, a late Courier pickup submission must not create another transition.
-# Waybill Boundary
-## 68. Waybill Feature
-Waybill owns:
-```text
-printable/scannable parcel identity
-```
-## 69. Pickup Scan
-Pick Up Order consumes:
-```text
-Order/Package identifier
-```
-and may reuse Waybill QR/barcode when the architecture chooses that mapping.
-## 70. No Waybill Generation
-Courier does not generate the Logistics Waybill during Pick Up Order.
-# Notifications
-## 71. Source Requirement
-`Courier.md` does not explicitly require Buyer/Seller notification at pickup.
-Do not invent a notification channel as mandatory.
-## 72. Event Support
-The platform may emit a transactional event when state becomes:
-```text
-IN_TRANSIT
-```
-if the shared order-notification policy requires it.
-This remains outside the strict Pick Up Order source requirement.
-## 73. Brevo
-Brevo email is not required merely to confirm pickup.
-## 74. Push / SMS
-No Push or SMS provider is required by this feature.
-# Offline Behavior
-## 75. Offline Mode Boundary
-`Courier.md` defines Offline Mode separately.
-## 76. Pickup Mutation Offline
-Whether `IN_TRANSIT` can be queued offline is not defined.
-Open Decision.
-## 77. Concurrency Risk
-Because pickup mutates assignment/order state, delayed offline submission may conflict with server changes.
-Any offline implementation must follow the Offline Mode conflict policy.
-## 78. Recommended MVP
-Recommended for initial MVP:
-```text
-pickup confirmation requires server connectivity
-```
-unless Offline Mode is implemented deliberately.
-## 79. Cached Manifest
-Offline Mode may later cache the active task manifest for reference.
-This does not make cached state authoritative.
-# API
-## 80. Pickup Detail
-Conceptual:
-```http
-GET /api/v1/courier/delivery-tasks/{taskId}/pickup
-```
-## 81. Validate Scan
-Possible conceptual endpoint:
-```http
-POST /api/v1/courier/delivery-tasks/{taskId}/pickup/validate
-```
-Example:
+- First-mile completion records `picked_up_from_seller` only after Logistics validates the submitted handoff and the transition service accepts the current state.
+- Final-mile completion records `picked_up_from_hub` only after the independent final-mile task is accepted and the hub handoff is validated.
+- High-level Order `assigned` and `picked_up` remain broad projections; this feature consumes explicit task state and does not invent new `orders.status` values.
+- Successful first-mile pickup hands the parcel to Logistics for `received_at_hub` processing. It does not automatically assign the same Courier the final-mile leg.
+- A failed validation leaves custody unchanged. Manual Logistics recovery uses the same transition service and must not duplicate a valid Courier event.
+- Pickup confirmation is not delivery completion; Complete Delivery owns `delivered` after required proof.
+
+### Manifest and privacy
+
+- Show only the authoritative task/waybill manifest required to compare the physical parcel: task leg, Order/waybill reference, pickup origin, item/package summary, destination area, and permitted instructions.
+- Exact address/contact fields are revealed only when the accepted task contract authorizes them and only for operational need.
+- Customer, Seller, and Logistics PII, payment data, private registration/POD evidence, and unrestricted location history are excluded.
+- The QR payload is untrusted input. Do not execute URI/script content or treat a copied QR as possession or permission.
+
+### Reliability and offline boundary
+
+- Scan submission and any physical pickup mutation require online server coordination in the MVP; offline capture is reference-only until an approved offline policy exists.
+- Use a client idempotency key and expected task revision. Matching retries return the committed projection; changed payloads or stale revisions return `409`.
+- Concurrent Courier and Logistics actions cannot create two custody transitions. Append-only history is durable in the same transaction as the state change.
+- Notification or communication failure after Logistics records a transition cannot roll it back; retries are separate from custody.
+- Camera denial, scanner failure, timeout, unknown QR, wrong parcel, and unavailable evidence show recoverable states and never claim pickup.
+
+## HOW
+
+### Endpoint contract
+
+- **Implemented** `POST /api/v1/courier/waybills/resolve` — `auth:sanctum,courier.active`; JSON `{ "payload": "opaque-qr-or-reference" }`, maximum 128 characters. It returns an authorized waybill/task match and records a `resolve` access event only.
+- Resolve returns `404` for an unknown, inactive, foreign, or unassigned waybill without disclosing why; `422` covers malformed payload and `429` covers throttling. It never returns custody state as changed.
+- **Planned/unavailable** `GET /api/v1/courier/tasks/{task}/pickup` — returns the accepted task's safe manifest, origin, leg, current detailed state, evidence state, and allowed next action after the shared schema exists.
+- **Planned/unavailable** `POST /api/v1/courier/tasks/{task}/scan-events` — JSON includes `leg`, scanned `reference`, optional permitted evidence metadata, `expected_revision`, and `idempotency_key`; it must not accept `courier_id`, target status, owner IDs, or raw paths.
+- The planned response contains an event ID, current safe task projection, evidence status, server timestamp, and whether Logistics validation is pending. It does not promise physical pickup until the authoritative transition commits.
+- Planned errors distinguish `401`, `403`, `404`, `409`, `422`, `429`, timeout, offline, storage, and notification failure. Retrying an identical key is safe; uncertain responses require a fresh task read.
+- All task/evidence responses are private and `no-store`; Flutter must not share-cache them or retain them after logout/authorization loss.
+
+### Submission details
+
+- `leg` is server-checked against the task and may be `first_mile` or `final_mile`; Flutter cannot switch a task's leg.
+- `reference` is the opaque waybill QR/reference value after local scanner normalization. The client never sends a database ID as a substitute unless the API explicitly maps it.
+- `expected_revision` prevents a stale pickup screen from overwriting a newer Logistics decision. A missing or stale revision is a validation/conflict error, not permission to skip checks.
+- `idempotency_key` is unique per attempted physical handoff and must be retained until the server returns a final projection.
+- Optional evidence metadata is bounded and non-sensitive: capture time, scanner type, and a safe client correlation value. Raw QR payloads, GPS history, and device secrets are not stored in logs.
+- If media is enabled by the approved contract, upload it through the configured private storage abstraction and wait for server validation before showing `validated`.
+- Logistics may return `awaiting_validation` while the submission is queued; Flutter must not display that state as physical possession.
+
 ```json
 {
-  "identifier": "scanned-value"
+  "leg": "first_mile",
+  "reference": "WB-opaque-value",
+  "expected_revision": 3,
+  "idempotency_key": "handoff-attempt-uuid",
+  "evidence": {"scanner": "camera_qr", "captured_at": "client-time"}
 }
 ```
-Whether validation and confirmation are one or two backend calls is Open.
-## 82. Confirm Pickup
-Conceptual:
-```http
-POST /api/v1/courier/delivery-tasks/{taskId}/pickup/confirm
-```
-Possible request:
+
+### Evidence and custody display
+
+- `submitted` means the Courier sent an event; `awaiting_validation` means Logistics has not committed it; `validated` means evidence passed validation; `rejected` means it did not; `unavailable` means the section cannot be read.
+- Custody state remains the server's detailed task state and is displayed beside evidence state, never replaced by it.
+- A `validated` evidence status alone is not permission to show `picked_up_from_seller` or `picked_up_from_hub`; the transition service must return the committed custody projection.
+- If the Courier submits a duplicate scan after a committed handoff, return the original event/projection and do not append a second physical transition.
+- If Logistics rejects the event, show the reason and retry action without changing the Order or reservation.
+- If the task is re-offered or marked informationally `stale` before submission, stop the action and require a fresh authorized task response.
+
+### Flutter interaction contract
+
+- The screen starts with the accepted task manifest and a clearly labelled origin: Seller for first mile or sole Logistics hub for final mile.
+- The camera prompt occurs only when the Courier chooses **Scan waybill**; denied permission leaves the task usable for safe read-only details and explains the fallback.
+- Show `matched`, `wrong parcel`, `unknown reference`, `uploading`, `awaiting Logistics validation`, `validated`, and `rejected` as text with accessible announcements.
+- Disable duplicate submission while a request is pending, but preserve the idempotency key across a retry or uncertain timeout.
+- A local scan animation, timestamp, or optimistic button state never advances custody or unlocks delivery.
+- After a committed first-mile pickup, route to hub-transfer context; after a committed final-mile pickup, route to Deliver Order.
+
+### Failure and recovery matrix
+
+- `401`: clear the session and do not retry automatically; `403`: show blocked affiliation/task ownership; `404`: show unavailable task/reference without cross-tenant detail.
+- `409`: refresh the task and show the latest custody/evidence state; do not replay an old revision.
+- `422`: show field-addressable scan/evidence errors; `429`: honor retry-after; timeout/offline: keep the attempt uncertain until a safe GET reconciles it.
+- Storage or processing failure leaves evidence unvalidated and custody unchanged. Cleanup/reconciliation must remove orphaned private objects.
+- Notification failure is independent of state and never causes a second scan or rollback.
+- Camera/scanner failure is recoverable and must not be reported as a wrong parcel unless the server validated a mismatch.
+
+### Handoff, history, and retention
+
+- Logistics Update Status is the owning recorder for the validated physical event; this feature owns capture/submission only.
+- Preserve task, Order/Parcel, waybill, leg, performing Courier, recording Logistics account, revision, evidence state, and server timestamp in append-only history.
+- The shared waybill remains immutable; pickup scans and later routing/assignment events append history rather than rewriting its snapshot.
+- Keep evidence private by default and expose only authorized status or short-lived delivery capability; never return a raw disk/blob path.
+- Retention, deletion, and exceptional recovery require the approved operational policy; this feature does not invent returns/refunds/partial fulfillment behavior.
+- The Flutter project must record backend commit `5596fab` and contract `courier-pickup-v1-deferred` beside its API fixtures.
+
 ```json
 {
-  "identifier": "validated-package-id"
+  "data": {
+    "task_id": "task-uuid",
+    "leg": "first_mile",
+    "reference": "WB-123",
+    "evidence_status": "awaiting_validation",
+    "custody_state": "seller_pickup_accepted",
+    "event_id": "event-uuid",
+    "recorded_at": "server-time"
+  }
 }
 ```
-## 83. Backend Actor
-No client-supplied:
-```text
-courier_id
-```
-is authoritative.
-## 84. Response
-Recommended:
-```text
-task_id
-order/package reference
-status = IN_TRANSIT
-picked_up_at
-next_action
-```
-where these fields exist.
-# Security
-## 85. Bearer Authentication
-All pickup endpoints require a valid Courier Bearer token.
-## 86. Role
-Backend verifies:
-```text
-role = COURIER
-```
-## 87. Task Scope
-The active task must belong to the authenticated Courier.
-## 88. Parcel Scope
-The scanned Order/Package ID must belong to the active task.
-## 89. PII Minimization
-Pickup manifest must expose only operationally necessary Buyer/Seller/order data.
-## 90. Token Protection
-Bearer tokens must never appear in:
-```text
-screenshots
-logs
-API payloads
-scanner payloads
-```
-## 91. Scanner Payload Safety
-The scanner should treat scanned content as untrusted input.
-Do not execute arbitrary URI/script content.
-# Device Permissions
-## 92. Camera
-Camera access is required only if the user uses camera scanning.
-## 93. Permission Prompt
-Request permission at the point the feature needs scanning, according to mobile platform conventions.
-## 94. Denied Permission
-Provide clear guidance/error.
-Do not block unrelated app functions unnecessarily.
-## 95. Storage Permission
-Pick Up Order source does not require file/media storage permission.
-Do not request it merely for barcode scanning unless the chosen scanner implementation truly needs it.
-# Error Handling
-## 96. Invalid Task
-```text
-task not found / unauthorized
-→ no pickup mutation
-```
-## 97. Wrong Package
-```text
-scan mismatch
-→ show mismatch
-→ remain pre-pickup
-```
-## 98. Unknown Identifier
-```text
-not found
-→ no mutation
-```
-## 99. Scanner Error
-```text
-camera/scanner failure
-→ allow retry
-→ no mutation
-```
-## 100. Camera Denied
-```text
-show permission state
-→ do not claim pickup
-```
-## 101. Network Failure
-```text
-confirmation request fails
-→ do not claim IN_TRANSIT
-```
-unless an Offline Mode queue explicitly takes ownership.
-## 102. Concurrent State Change
-```text
-server reports task no longer pickup-eligible
-→ show current state
-→ stop duplicate pickup
-```
-# Operational History
-## 103. Pickup History
-Successful pickup should preserve enough history to answer:
-```text
-which task
-which parcel
-which Courier
-previous state
-new state
-pickup time
-```
-## 104. Scan Metadata
-Whether to record:
-```text
-scanner type
-raw barcode value
-device metadata
-```
-is not defined.
-Avoid storing unnecessary raw scanner/PII data.
-## 105. Actor
-Actor is the authenticated Courier.
-## 106. Admin Audit Boundary
-Do not automatically copy every pickup event into the Admin-specific System Audit Logs ledger unless audit architecture is broadened.
-# Performance
-## 107. Pickup Detail
-Load only the active task and parcel/order data needed for verification.
-## 108. Scan Validation
-Identifier resolution should use indexed/reference lookup.
-## 109. No Large History
-Do not load entire order status history merely to display the pickup screen.
-## 110. Commit Latency
-Pickup confirmation should use a direct transactional backend path.
-# UX
-## 111. Recommended Screen
-```text
-Pick Up Order
-├── Pickup Location
-├── Order / Package Manifest
-├── Scan Order / Package ID
-├── Verification Result
-└── Confirm Pickup
-```
-## 112. Pickup Origin
-Clearly display:
-```text
-Sorting Center
-or
-Seller Location
-```
-where applicable.
-## 113. Manifest
-Show enough data for the Courier to visually compare the physical parcel.
-## 114. Scan Action
-Recommended:
-```text
-Scan Package
-```
-## 115. Verification Result
-Clear outcomes:
-```text
-Matched
-Mismatch
-Not Found
-```
-Use text, not color alone.
-## 116. Confirm Pickup
-Enable the consequential confirmation only when the required validation conditions are met.
-Exact UX is Open.
-## 117. Success
-On success:
-```text
-Pickup confirmed
-Status: IN_TRANSIT
-→ Continue Delivery
-```
-## 118. Already Picked Up
-If server says task is already `IN_TRANSIT`, show current state rather than a generic error where safe.
-## 119. Accessibility
-The Flutter UI should:
-- expose scanner controls to screen readers where possible
-- provide textual scan results
-- use adequate touch targets
-- not rely on camera preview alone
-- provide accessible error/retry actions
-# Third-Party Dependencies
-## 120. Core Pickup
-No new hosted third-party provider is required.
-Core uses:
-```text
-Flutter device camera
-barcode/QR scanning library
-AISLEY backend
-delivery-task/order database
-```
-## 121. Scanner Library
-A barcode/camera scanning package may be used.
-This is an application dependency, not a hosted service requirement.
-## 122. Routing Provider Boundary
-an approved routing service may be used to navigate to/from pickup as part of Rider routing.
-It is not required to validate parcel identity.
-## 123. Brevo
-Not required.
-## 124. SMS / Push
-Not required for core pickup confirmation.
-# MVP Scope
-## 125. Required
-- authenticated Courier access
-- exact Courier role authorization
-- accepted/current delivery task
-- pickup-origin display
-- digital manifest
-- camera/barcode scanning integration
-- Order or Package ID validation
-- backend parcel/task matching
-- explicit Confirm Pickup
-- backend state revalidation
-- atomic transition to `IN_TRANSIT`
-- Courier ownership validation
-- duplicate/idempotent handling
-- Pick Up → Deliver Order handoff
-- loading/success/error/conflict states
-- camera permission handling
-- PII minimization
-- token protection
-## 126. Recommended
-- two-step Scan then Confirm
-- clear mismatch UI
-- pickup timestamp
-- operational transition history
-- shared state-transition service with Logistics Update Status
-- reuse Waybill-compatible QR/barcode where architecture supports it
-- server connectivity requirement for MVP
-## 127. Not Required
-- Proof of Delivery
-- final `DELIVERED` mutation
-- manual identifier entry
-- offline pickup queue
-- signature at pickup
-- pickup photo
-- new email provider
-- SMS
-- Push
-- external scanning service
-- arbitrary inspection checklist
-- invented package-condition workflow
-# Acceptance Criteria
-## 128. Access
-- Guest/invalid token cannot access pickup.
-- Non-Courier token cannot confirm pickup.
-- Same-email other-role account does not inherit Courier access.
-- Courier can act only on their authorized task.
-## 129. Manifest
-- Pickup screen shows authoritative task/parcel information.
-- Courier cannot edit authoritative Order/Package identity.
-- PII is minimized.
-## 130. Scan
-- Device camera/barcode scanning can obtain an identifier.
-- Backend validates identifier against the active task.
-- Matching identifier can proceed.
-- Wrong identifier is rejected.
-- Unknown identifier is rejected.
-- Scan alone does not accidentally complete delivery.
-## 131. Confirmation
-- Explicit pickup confirmation is required according to configured UX.
-- Backend revalidates task/Courier/parcel.
-- Successful pickup changes state to `IN_TRANSIT`.
-- Pickup does not mark the final Order `DELIVERED`.
-- Pickup does not reassign the Courier.
-## 132. Concurrency
-- Reassigned/invalid task cannot be picked up by prior Courier.
-- Duplicate confirm requests do not create multiple transitions.
-- Stale task state returns authoritative conflict/current state.
-## 133. Handoff
-- Successful pickup updates Dashboard/current task.
-- Successful pickup can proceed to Deliver Order.
-- Logistics Update Status can recover failed scanning through its own authorized workflow without duplicating state transitions.
-## 134. Device / Security
-- Camera denial is handled safely.
-- Scanner input is treated as untrusted.
-- Bearer token is protected.
-- Task/package IDs cannot bypass authorization.
-- Payment/security secrets are absent.
-## 135. Third-Party
-- Core pickup works without a hosted third-party provider.
-- Mobile scanning may use a Flutter/local library.
-- routing provider/Brevo/SMS/Push are not required for parcel validation.
-# Tests
-## 136. Backend Tests
-Test:
-- missing token denied
-- invalid token denied
-- Buyer/Seller/Logistics token denied
-- Courier token allowed
-- same-email role isolation
-- authorized accepted task
-- unauthorized task denied
-- wrong Courier denied
-- authoritative manifest
-- correct Order ID validation
-- correct Package ID validation
-- wrong package rejected
-- unknown identifier rejected
-- valid ACCEPTED → IN_TRANSIT
-- invalid state transition rejected
-- task already IN_TRANSIT idempotent/safe
-- task DELIVERED rejected
-- reassignment race
-- duplicate confirm
-- operational history
-- PII minimized
-- token/payment secrets absent
-## 137. Flutter Tests
-Test:
-- pickup screen loads
-- pickup origin
-- manifest
-- Scan Package action
-- camera permission granted
-- camera permission denied
-- scanner success
-- scanner failure
-- correct match
-- mismatch
-- unknown identifier
-- Confirm Pickup
-- loading/disabled duplicate tap
-- success state IN_TRANSIT
-- conflict state
-- network error
-- Continue Delivery navigation
-- screen-reader labels
-- textual verification status
-- touch-target accessibility
-# Open Decisions
-## 138. Open Decisions
-The current sources do not define:
-1. exact pickup-eligible task state beyond accepted-flow context
-2. whether `IN_TRANSIT` is task, shipment, or Order status
-3. exact Order/Package identifier format
-4. whether Courier scans Waybill QR specifically
-5. QR vs Code 128 vs other barcode support
-6. whether manual identifier entry is allowed
-7. exact manifest fields
-8. Buyer/Seller contact disclosure
-9. whether scan automatically confirms or requires separate Confirm Pickup
-10. whether pickup requires current GPS
-11. whether pickup requires geofence/proximity to origin
-12. whether package condition must be checked
-13. whether pickup photo/signature is ever required
-14. multiple-package task behavior
-15. partial pickup behavior
-16. reassign-after-accept behavior
-17. offline pickup support
-18. scanner library/package
-19. scanner payload retention
-20. pickup notification policy
-21. exact transition-history schema
-22. exact API routes
-# Final Definition
-## 139. Final Definition
-AISLEY Pick Up Order is:
-```text
-the physical parcel handover workflow
-for an accepted Courier delivery task.
-```
-Core source-backed flow:
-```text
-ACCEPTED task
-→ proceed to sorting center / pickup origin
-→ compare physical parcel with digital manifest
-→ scan Order or Package ID
-→ validate match
-→ confirm possession
-→ IN_TRANSIT
-```
-Critical state boundary:
-```text
-Accept Delivery Request
-→ ACCEPTED
 
-Pick Up Order
-→ IN_TRANSIT
+### Backend implementation boundary
 
-Complete Delivery
-→ DELIVERED
-```
-Device integration:
-```text
-Flutter camera/barcode scanning module
-→ Order/Package validation
-```
-Third-party rule:
-```text
-No hosted third-party provider
-is required for core pickup verification.
-```
+- The current waybill resolve controller is an access/read operation. Do not retrofit custody mutation into it.
+- Additive migrations must provide Shipment, Parcel, Delivery Task, scan/evidence, actor, revision, and append-only custody records before physical endpoints are enabled.
+- Use one shared transition service for state ordering, tenant/hub checks, evidence validation, row locks or revisions, idempotency, and history.
+- Logistics Update Status owns validation/authoritative recording; Courier Pick Up Order owns mobile capture and submission. Neither client creates a competing state machine.
+- Use string-backed enum-like database columns with PHP enum casts and retain the one-Logistics-organization/one-hub rule.
+
+### Flutter states and permissions
+
+- Screen states: checking session, task loading, camera permission, scan ready, matched, mismatch, unknown, evidence uploading, awaiting Logistics validation, validated, rejected, unavailable, conflict, offline, and retry.
+- Store tokens only in OS secure storage. Map `401` to signed out, `403` to blocked affiliation, `404` to unavailable task, `409` to refresh, `422` to field error, and `429` to retry-after.
+- Show textual task leg, evidence state, and custody state; never infer a successful pickup from a local scan animation or generic Order status.
+- Use semantic labels, large touch targets, accessible progress/error announcements, and a text fallback when camera/scanner hardware is unavailable.
+- After a committed pickup response, refresh Dashboard and hand off to Deliver Order only for final-mile `picked_up_from_hub`; first-mile success returns to hub-transfer context.
+
+### Tests, observability, and rollout
+
+- Test role/affiliation/sole-hub/task IDOR, wrong QR, duplicate scan, stale revision, reassignment race, evidence validation, actor preservation, private delivery, and no mutation on resolve/access.
+- Test first-/final-mile leg separation, valid state sequence, Logistics manual recovery, notification failure, storage partial failure, and reservation boundary without returns/refunds/partial fulfillment.
+- Flutter tests cover camera permission, scanner input safety, upload progress/retry, secure token failure, offline/timeout/conflict states, and accessible status text.
+- Log task/leg/event IDs, performing Courier, recording Logistics account, organization/hub, result, revision, and timestamp; never log QR payloads, raw paths, or private media.
+- Keep physical endpoints unavailable until additive migrations, transition ownership, and Flutter contract fixtures are deployed together. Record `courier-pickup-v1-deferred` in the Flutter progress log.
+
+### Open decisions
+
+- Confirm whether the MVP requires a photo in addition to the QR/reference minimum; no image is mandatory by this spec alone.
+- Confirm evidence retention, optional manual reference entry, and the offline capture/replay policy.
+- Confirm transition-specific notification recipients; notification delivery must remain after-commit.
+
+### Acceptance criteria
+
+- [x] Assigned Courier can resolve an authorized waybill through the implemented access-only endpoint.
+- [ ] Courier scan/reference submissions are routed to Logistics, validated, and recorded with both performing and recording actors preserved.
+- [ ] A valid first-mile or final-mile handoff commits the correct detailed pickup state through the shared transition service only.
+- [ ] Resolve/access, invalid evidence, duplicate retries, and stale requests never advance custody or generic Order status.
+- [ ] Evidence status is distinct from custody state and private evidence is never exposed through raw storage paths.
+- [ ] First-mile pickup does not grant final-mile assignment; the same or another eligible Courier must receive and accept a separate task.
+
+**References:** `docs/features/courier/rules.md`, `docs/features/shared/shipment-fulfillment/spec.md`, `docs/features/orders/logistics-pickups/spec.md`, `docs/features/orders/waybill/spec.md`, `docs/features/logistics/update-status/specs.md`, `docs/features/courier/dashboard/specs.md`, and `docs/features/courier/delivery-order/specs.md`.
