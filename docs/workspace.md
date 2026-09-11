@@ -2,8 +2,6 @@
 
 Defines **HOW** the system behaves: step-by-step flows and state transitions per role.
 
-> **Flutter use:** This is a shared workflow reference. The Flutter app must follow only the Courier-relevant sections and the versioned API contract; React/web authentication and backend implementation details are not Flutter screens.
-
 # Authentication and Account Rules
 
 ## Shared Users Table
@@ -166,7 +164,7 @@ The system must protect inventory from overselling when an order is finalized.
 
 Successful COD placement skips `pending_payment`, creates the Order at `placed` with `payment_status = pending`, and reserves the requested inventory atomically. `pending_payment` remains available for a future online-payment flow.
 
-The currently implemented checkout schema does not yet persist a Logistics provider. When fulfillment selection is implemented, the API must store one server-validated eligible Logistics organization for each Shop Order and must not silently replace it after placement.
+The checkout schema does not persist a Logistics provider directly. The implemented Seller pickup-request transaction stores one server-validated eligible Logistics organization with its derived sole hub on the pickup/fulfillment records and must not silently replace it after commitment.
 
 6.5 Address Book
 
@@ -262,19 +260,19 @@ Seller shall be able to process/approve an order and prepare it for fulfillment.
 
 Core flow:
 
-Customer selects an eligible Logistics organization during checkout → Order is placed → Seller processes and packs → Seller confirms `ready_for_pickup` → selected Logistics organization creates the first-mile task.
+Customer places the Order → Seller processes and packs → Seller selects an eligible Logistics organization and confirms `ready_for_pickup` → selected Logistics organization creates the first-mile task.
 
-Seller order processing does not assign a Courier or create the Logistics operational waybill.
+Seller order processing does not assign a Courier; the later pickup-request transaction creates the shared waybill.
 
-7.5 Prepare Order and Package Label
+7.5 Prepare Order, Select Logistics, and Create Waybill
 
-Seller shall be able to create/version and print the package label and shipping details needed for first-mile pickup.
+Seller shall pack each parcel, select an eligible Logistics organization, request pickup, and print the resulting shared waybill needed for first-mile pickup.
 
-The package-label identifier must contain the immutable Order/Parcel reference, package details, the Shop pickup address, and destination fields copied from the immutable Customer checkout snapshot. The Seller cannot rewrite the checkout snapshot.
+The shared-waybill identifier and QR must resolve the immutable Order/Parcel reference. Its server-owned snapshot uses the Shop pickup address and destination copied from Customer checkout; Seller cannot rewrite those facts.
 
-The Seller may revise the package label until `ready_for_pickup` is confirmed. The active label version then freezes; after `picked_up_from_seller`, the label and handoff history cannot be overwritten.
+The Seller's pickup transaction creates one immutable waybill snapshot per Order as `ready_for_pickup` is confirmed. Reprints reuse the same identity and snapshot.
 
-Logistics creates the separate operational waybill when the parcel reaches `received_at_hub`. The package label and operational waybill are linked by the immutable Order/Parcel reference.
+The selected Logistics organization views and scans the same Seller-created waybill; it does not create a second hub waybill at `received_at_hub`.
 
 7.6 Delivery Confirmation
 
@@ -326,17 +324,19 @@ After the Seller confirms `ready_for_pickup`, the selected Logistics organizatio
 
 The system shall connect the `seller_pickup_assigned`, `seller_pickup_accepted`, and `picked_up_from_seller` task states to the corresponding Order/Parcel.
 
+If the offered Courier rejects the task, the task records `rejected`, the Order remains unchanged, and Logistics may offer the same task to another eligible Courier. An unfinished task may be shown as informationally `stale`; it is not automatically cancelled or reassigned in the MVP.
+
 8.4 Waybill
 
-Logistics shall be able to create and print the operational waybill after the parcel is received at the sole hub.
+Logistics shall be able to view, download, print, and scan the shared waybill created by the Seller pickup transaction.
 
-The Seller package label and Logistics operational waybill are separate linked artifacts. The waybill shall include a stable, system-generated, scannable or enterable identifier such as:
+The Seller-created shared waybill shall include a stable, system-generated, scannable or enterable identifier such as:
 
 QR code, and/or
 
 Reference number.
 
-The operational waybill identifier and Order/Parcel link are immutable from `received_at_hub`. Routing and Courier assignments may change before `picked_up_from_hub` only through append-only events; after that pickup, final-mile assignment and custody history cannot be overwritten. Printing or reprinting does not independently advance an Order status.
+The shared waybill identifier, snapshot, selected Logistics organization, and Order/Parcel link are immutable from the Seller pickup-request transaction at `ready_for_pickup`. Routing and Courier assignments may change before physical handoff only through append-only events; after pickup, assignment and custody history cannot be overwritten. A Courier may submit a waybill QR/reference scan or handoff evidence through its assigned task; Logistics validates and records the authoritative event while preserving the performing Courier, recording Logistics account, and timestamp. Printing, reprinting, access, or scan submission does not independently advance an Order status.
 
 8.5 Receiving and Sorting
 
@@ -344,7 +344,7 @@ The logistics workflow shall support:
 
 receive order → waybill → sort
 
-The system shall persist the parcel's current Shipment/Delivery Task state, including `received_at_hub` and `sorted_at_hub`.
+The system shall persist the parcel's current Shipment/Delivery Task state, including `received_at_hub` and `sorted_at_hub`, through the shared transition service after Logistics validates the supporting scan/evidence. The event must retain the Courier who performed a handoff when applicable and the Logistics account that recorded it.
 
 8.6 Transfer
 
@@ -354,7 +354,7 @@ Scanning its waybill identifier, or
 
 Manually entering its QR/reference value.
 
-A successful operation shall update the associated order/shipment status.
+A successful operation shall submit an event to the shared transition service, which validates the current Shipment/Delivery Task state and commits the associated detailed state and any permitted high-level Order projection. Scanning or manual entry alone is not an authoritative state change.
 
 For the MVP, transfer does not mean movement between multiple hubs. It represents a controlled Logistics handoff or movement within the sole operational hub workflow and must use an explicit state such as `in_transfer`.
 
@@ -366,25 +366,25 @@ Scanning its waybill identifier, or
 
 Manually entering its QR/reference value.
 
-A successful dispatch shall update the associated order/shipment status.
+A successful dispatch shall submit an event to the shared transition service, which validates and commits `dispatched_from_hub` and any permitted high-level Order projection. Scanning or manual entry alone is not an authoritative state change.
 
 The canonical dispatched state is `dispatched_from_hub`; it must not be confused with Courier acceptance or physical pickup.
 
 8.8 Deploy Rider
 
-Logistics shall be able to create/offer the first-mile task after `ready_for_pickup` and select an eligible Courier for the first-mile or final-mile task based on operational suitability and distance.
+Logistics shall be able to create/offer the first-mile task after `ready_for_pickup` and select an eligible Courier for the first-mile or final-mile task based on operational suitability and distance. A Courier rejection records task-level `rejected` without changing the Order; Logistics may re-offer the same task to another eligible Courier. An unfinished task may be informationally `stale` and is not automatically cancelled or reassigned in the MVP.
 
 Successful first-mile assignment records `seller_pickup_assigned`. Successful final-mile assignment records `delivery_assigned`; both are distinct from `delivery_accepted` and `picked_up_from_hub`.
 
-Route and distance assistance must use a separately approved provider-neutral Logistics/map contract. The Customer address flow's PSGC, Geoapify, and Leaflet responsibilities must not be replaced by a routing provider, and no Mapbox dependency is used for address or map rendering.
+Route and distance assistance must use a separately approved provider-neutral Logistics/map contract. Authorized Courier projections may include `distance_km` and `estimated_duration_minutes`; these are advisory values, not client authority over assignment or status. The Customer address flow's PSGC, Geoapify, and Leaflet responsibilities must not be replaced by a routing provider, and no Mapbox dependency is used for address or map rendering.
 
 The P0 MVP may use route-assisted/manual rider selection rather than a fully autonomous optimization engine.
 
 8.9 Update Status
 
-Logistics shall be able to update an allowed Shipment/Delivery Task state after a validated scan or operational recovery action.
+Logistics shall be able to update an allowed Shipment/Delivery Task state after validating a Courier-submitted scan/evidence or an operational recovery action. Logistics is the authoritative recorder of the event; the record preserves the Courier who performed the physical action, when applicable.
 
-Scanning should automate state updates where possible.
+Scanning should request the applicable transition where possible, but the shared transition service—not the scan or access event itself—owns the state update.
 
 Manual status update shall remain available as an operational fallback.
 
@@ -424,6 +424,8 @@ View first-mile pickup and final-mile delivery requests created or offered by Lo
 
 View active delivery jobs.
 
+View the operational Order, parcel, waybill, pickup, destination, item, and delivery-instruction data required for an offered or accepted task, plus server-provided provider-neutral `distance_km` and `estimated_duration_minutes`. Secrets, private evidence, raw storage paths, and unrelated personal data remain excluded.
+
 9.3 Accept Delivery Request
 
 Courier shall be able to:
@@ -434,9 +436,13 @@ Review delivery details.
 
 Accept an eligible request.
 
+Reject an offered request. Rejection records task-level `rejected`, leaves the Order unchanged, and allows Logistics to offer the same task to another eligible Courier.
+
 Acceptance shall associate the task with the Courier.
 
 Courier acceptance does not grant assignment authority. Logistics remains responsible for creating and assigning/offering tasks.
+
+An unfinished task may become informationally `stale`; it is not automatically cancelled or reassigned in the MVP.
 
 9.4 Pick Up Order
 
@@ -446,7 +452,7 @@ Proceed to the Seller for a first-mile pickup or the Logistics hub for a final-m
 
 Verify order/parcel information.
 
-Scan the parcel/order identifier.
+Scan the parcel/order waybill QR/reference identifier and submit the scan/evidence to Logistics for validation and authoritative recording.
 
 Confirm pickup.
 
@@ -458,7 +464,7 @@ Courier shall be able to:
 
 View destination information.
 
-Access route/navigation context.
+Access route/navigation context, including server-provided provider-neutral distance and estimated duration when available. These values are advisory and do not authorize assignment or status changes.
 
 Deliver the parcel to the Buyer.
 
@@ -480,7 +486,7 @@ E-signature.
 
 QR scan.
 
-For P0, at least one method must be implemented. QR/parcel verification plus delivery confirmation is sufficient for the core workflow; photo proof is recommended if implementation capacity permits.
+For P0, at least one method must be implemented. QR/parcel verification plus delivery confirmation is sufficient for the core workflow; photo proof is recommended if implementation capacity permits. Courier-submitted QR/reference scans and evidence are validated and recorded authoritatively by Logistics, preserving both the performing Courier and recording Logistics account. Image/signature evidence remains subject to the shared upload policy and the approved operational schema.
 
 9.8 Delivery History
 
@@ -562,7 +568,7 @@ The report shall account for the platform's defined Logistics per-order fee and 
 
 10.7 Platform-Wide Vouchers
 
-Because the shared requirements identify platform-wide voucher creation as an Admin responsibility, Admin shall be able to create and manage vouchers applicable at Buyer checkout.
+Because app.md identifies platform-wide voucher creation as an Admin responsibility, Admin shall be able to create and manage vouchers applicable at Buyer checkout.
 
 10.8 Platform Settings
 
@@ -600,13 +606,11 @@ Timestamp.
 
 11.1 Core Order Flow
 
-Customer selects an eligible Logistics organization for each Shop Order during checkout
-↓
 Buyer places order
 ↓
 Seller begins processing and prepares the order
 ↓
-Seller confirms `ready_for_pickup`
+Seller selects an eligible Logistics organization, requests pickup, creates each waybill, and confirms `ready_for_pickup`
 ↓
 First-mile Courier accepts the Seller pickup task
 ↓
@@ -616,7 +620,7 @@ Courier transfers the parcel to the Logistics organization's sole hub
 ↓
 Logistics receives and validates the parcel (`received_at_hub`)
 ↓
-Logistics creates the operational waybill and links it to the Seller package label through the immutable Order/Parcel reference
+Logistics resolves the Seller-created shared waybill through its immutable Order/Parcel reference
 ↓
 Logistics sorts the parcel (`sorted_at_hub`)
 ↓
@@ -635,6 +639,10 @@ Courier submits proof of delivery and completes the task (`delivered`)
 Buyer may rate/review
 
 All Logistics processing in this MVP is performed within the owning Logistics organization's single hub/sorting center. There is no alternate sub-hub or multi-hub branch in this flow.
+
+If a Courier rejects an offered first-mile or final-mile task, the task records `rejected`, the Order remains unchanged, and Logistics may offer the same task to another eligible Courier. An unfinished task is informationally `stale` only; no automatic cancellation or reassignment occurs in the MVP. First-mile and final-mile assignments remain independent.
+
+Each future Delivery Task represents exactly one Order/Parcel for one leg. A pickup schedule may group Orders operationally, but it does not merge their tasks, waybills, snapshots, or histories.
 
 11.2 Canonical Order and Shipment State Model
 
@@ -677,9 +685,11 @@ out_for_delivery
 delivered
 ```
 
-Shipment/Parcel/Waybill/Scan/Delivery Task and assignment writes must not begin until this flow is reconciled with `docs/schema.md`, the affected domain documents, and feature specifications, and the complete shared operational schema has been approved and migrated. Detailed physical states must not be added to `orders.status` by an individual feature.
+Task-level `rejected` records an offered Courier's refusal and is not an `OrderStatus`. `stale` is an informational freshness condition for an unfinished task, derived or persisted only by the future task contract; it is not a new high-level Order status and does not automatically cancel or reassign work.
 
-Waybill creation, scan, and reprint are document or event operations; they do not independently advance the OrderStatus. Seller package labels may be revised until `ready_for_pickup` is confirmed; the active label version is then frozen. Logistics' waybill identifier and Order/Parcel link are immutable when created at `received_at_hub`; routing and Courier assignments may change before `picked_up_from_hub` only through append-only events. `cancelled`, `rejected`, `delivery_failed`, `return_requested`, and `returned` remain exceptional Order outcomes and require their own transition rules.
+New physical Shipment/Parcel/Scan/custody, final-mile Delivery Task/assignment, and proof-of-delivery writes must not begin until this flow is reconciled with `docs/schema.md`, the affected domain documents, and feature specifications, and the complete shared operational schema has been approved and migrated additively. Existing Seller pickup requests, shared waybills, pickup schedules, and first-mile assignment/acceptance remain the implemented foundation. Detailed physical states must not be added to `orders.status` by an individual feature.
+
+Waybill creation, scan, and reprint are document or event operations; they do not independently advance the OrderStatus. A Courier submits a QR/reference scan or handoff evidence, and Logistics validates and records the authoritative event, preserving the performing Courier, recording Logistics account, and timestamp. The shared transition service—not the scan/access event—commits physical state. The pickup transaction creates one immutable shared waybill snapshot per Order at `ready_for_pickup`. Routing and Courier assignments may change before physical handoff only through append-only events. `cancelled`, `rejected`, `delivery_failed`, `return_requested`, and `returned` remain exceptional Order outcomes and require their own transition rules; task-level `rejected` is distinct from Order-level `rejected`.
 
 Inventory reservations follow the same boundary: placement reserves the requested SKU quantity; an accepted cancellation or rejection before `picked_up_from_seller` releases that quantity once and transactionally; first-mile pickup commits it once. Post-pickup cancellation, delivery failure, returns, refunds, and partial fulfillment remain deferred until their policies and line-level records are approved.
 
@@ -697,7 +707,9 @@ Timestamp.
 
 Optional waybill/scan reference.
 
-Order history records customer-visible high-level `OrderStatus` changes. Shipment/Delivery Task history records first-mile, hub, and final-mile states such as `picked_up_from_seller`, `received_at_hub`, `delivery_assigned`, and `picked_up_from_hub`. A scan, waybill print, or notification must not silently overwrite either history.
+For physical events, the Courier who performed the action (when applicable), the Logistics account that validated/recorded it, the evidence reference or QR/reference value, timestamp, and location/context required by the transition.
+
+Order history records customer-visible high-level `OrderStatus` changes. Shipment/Delivery Task history records first-mile, hub, and final-mile states such as `picked_up_from_seller`, `received_at_hub`, `delivery_assigned`, and `picked_up_from_hub`, plus task-level `rejected` or informational `stale` where supported. A scan, waybill print, or notification must not silently overwrite either history; each accepted event appends immutable history.
 
 12. Waybill and Scanning Requirements
 
@@ -707,7 +719,7 @@ The MVP shall support:
 
 Generation/display of a system-owned Order/Parcel reference.
 
-Seller package-label printing and Logistics operational-waybill printing.
+Seller and selected-Logistics printing of the same shared waybill.
 
 QR/barcode scanning where supported by the client device.
 
@@ -717,13 +729,13 @@ Validation that the parcel exists.
 
 Validation that the requested transition is allowed.
 
-Recording the scan/transfer/dispatch event.
+Submitting and recording the scan/transfer/dispatch event after Logistics validation, with performing-Courier and recording-Logistics actors preserved where applicable.
 
-Updating the shipment/order status.
+Updating the detailed Shipment/Delivery Task state and any permitted high-level Order projection through the shared transition service.
 
 Preventing duplicate or invalid transitions.
 
-Scanning or manual reference entry should automate the applicable Shipment/Delivery Task transition: first-mile pickup records `picked_up_from_seller`, hub receipt/sort/transfer/dispatch use `received_at_hub`, `sorted_at_hub`, `in_transfer`, and `dispatched_from_hub`, and final-mile hub pickup records `picked_up_from_hub`.
+Scanning or manual reference entry should submit the applicable event to the shared transition service: first-mile pickup records `picked_up_from_seller`, hub receipt/sort/transfer/dispatch use `received_at_hub`, `sorted_at_hub`, `in_transfer`, and `dispatched_from_hub`, and final-mile hub pickup records `picked_up_from_hub`. Logistics validates and records Courier-submitted scans/evidence; the scan or waybill access event alone never advances custody.
 
 Do not infer either physical pickup from the generic high-level Order value `picked_up`; the detailed task/scan event is authoritative for the handoff.
 
