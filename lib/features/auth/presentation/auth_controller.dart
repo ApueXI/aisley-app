@@ -85,6 +85,14 @@ class AuthController extends ChangeNotifier {
     return _handleAuthError(error, fromSession: true);
   }
 
+  Future<void> handlePolicyAuthFailure(ApiException error) {
+    return _handleAuthError(error, fromSession: true);
+  }
+
+  Future<void> handlePickupAuthFailure(ApiException error) {
+    return _handleAuthError(error, fromSession: true);
+  }
+
   Future<void> handlePasswordChanged() {
     return _clearTokenAndBecomeSignedOut(
       message: 'Your password was changed. Please sign in again.',

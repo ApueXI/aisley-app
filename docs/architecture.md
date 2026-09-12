@@ -4,8 +4,8 @@ system: AISLEY
 type: Client Architecture
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active — authentication and account client; operational delivery client deferred
-backend_contract_commit: 20afd9f
+status: Active — authentication, account, policy, and pickup client; other operational delivery client deferred
+backend_contract_commit: d5c160d4a5a21272e487b6f46a82de35e81395cb
 ---
 
 # Scope
@@ -16,7 +16,7 @@ The Laravel API remains the source of truth for identity, approval, role access,
 
 ## Current implementation boundary
 
-The backend currently exposes Courier authentication and Phase 1 account management:
+The backend currently exposes Courier authentication, Phase 1 account management, policy consent, and the approved pickup workflow:
 
 - `GET /api/v1/courier/auth/logistics-options`
 - `POST /api/v1/courier/auth/register`
@@ -30,8 +30,18 @@ The backend currently exposes Courier authentication and Phase 1 account managem
 - `POST /api/v1/courier/account/profile-photo` (authenticated multipart upload)
 - `GET /api/v1/courier/account/profile-photo` (authenticated private stream)
 - `DELETE /api/v1/courier/account/profile-photo` (authenticated idempotent removal)
+- `GET /api/v1/platform/policies/{type}` and policy history reads (public)
+- `GET /api/v1/policy-consent/status` and `POST /api/v1/policy-consent/{type}/versions/{version}/accept` (authenticated)
+- `GET /api/v1/courier/first-mile-tasks` (authenticated, private paginated task list)
+- `POST /api/v1/courier/first-mile-tasks/{task}/accept` (authenticated task acceptance)
+- `POST /api/v1/courier/waybills/resolve` (authenticated read-only QR candidate resolution)
+- `POST /api/v1/courier/first-mile-tasks/{task}/pickup` (authenticated idempotent Seller handoff)
+- `GET /api/v1/courier/pickup-schedules/{schedule}/route-manifest` (authenticated ordered manifest)
+- `GET /api/v1/courier/final-mile-tasks` and `GET /api/v1/courier/final-mile-tasks/{task}` (authenticated)
+- `POST /api/v1/courier/final-mile-tasks/{task}/accept` (authenticated task acceptance)
+- `POST /api/v1/courier/final-mile-tasks/{task}/pickup` (authenticated pending hub-handoff evidence)
 
-Shipment, Parcel, Waybill, Scan, Delivery Task, assignment, proof-of-delivery, routing, chat, earnings, and offline synchronization endpoints are not currently available. The app may provide an honest scaffold or unavailable state for those capabilities, but must not fabricate jobs or call conceptual routes from draft specifications.
+Other delivery movement, proof-media, routing/ETA, chat, earnings, notification, and offline synchronization endpoints are not currently available. The app may provide an honest scaffold or unavailable state for those capabilities, but must not fabricate jobs or call conceptual routes from draft specifications.
 
 ## Client structure
 
@@ -46,14 +56,18 @@ lib/
 │   ├── security/        # Secure token storage and redaction helpers
 │   └── widgets/         # Small approved shared UI primitives
 ├── features/
-│   └── auth/
+│   ├── auth/
 │       ├── data/         # DTOs, multipart requests, repository
 │       ├── domain/       # Auth state and validation rules
 │       └── presentation/ # Login, registration, pending, and session screens
-│   └── account/
+│   ├── account/
 │       ├── data/         # Account DTOs, photo transport, authenticated repository
 │       ├── domain/       # Private account projection and in-memory photo data
 │       └── presentation/ # Account form, photo controls, and password/session controls
+│   └── pickup/
+│       ├── data/         # Pickup task, manifest, and handoff repositories
+│       ├── domain/       # Server status, task, manifest, and handoff models
+│       └── presentation/ # Pickup list, detail, verification, and route-order screens
 └── main.dart
 test/
 ├── unit/

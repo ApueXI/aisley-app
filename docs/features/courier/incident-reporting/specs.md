@@ -4,17 +4,10 @@ feature: Incident Reporting
 system: AISLEY
 type: Feature Specification
 version: 1.0
-status: "Draft — planning reference only; API contract deferred"
-canonical: false
-implementation_status: deferred
+status: Draft
 scope: Flutter Courier Mobile Application / Delivery Exception Handling
-source_coverage: domain/Courier.md, requirements.md, workspace.md, schema.md
+source_coverage: Courier.md, app.md
 ---
-
-> **Implementation gate:** This is planning material only. The current backend does not expose this Courier feature. Routes, fields, statuses, providers, and behavior in the legacy body are conceptual and must not be implemented until an approved versioned `/api/v1/courier/...` contract and shared Shipment/Delivery Task schema exist.
->
-> **Provider and status rule:** Any legacy provider names or uppercase status labels in this file are superseded; use the canonical documents and the backend contract instead.
-
 # Incident Reporting Specification
 ## 1. Purpose
 Incident Reporting is AISLEY's Courier exception-handling feature for reporting operational blockers that prevent or materially interfere with successful delivery.
@@ -81,7 +74,7 @@ and potentially:
 support teams
 ```
 ## 4. Authentication
-Courier mobile authentication follows the shared backend contract:
+Courier mobile authentication follows `app.md`:
 ```text
 Flutter
 → personal access token
@@ -391,15 +384,15 @@ Open Decision.
 ## 46. Rerouting Owner
 Route optimization belongs to Logistics/routing systems.
 Incident Reporting provides the exception signal.
-## 47. Routing Provider Boundary
-The legacy draft selected:
+## 47. Mapbox
+`app.md` selects:
 ```text
-Routing Matrix and Optimization
+Mapbox Matrix and Optimization
 ```
 for Logistics/Rider optimal routing.
-If automated rerouting is implemented, the routing subsystem may use the existing routing provider integration.
-## 48. No Direct Routing-Provider Requirement
-Incident creation itself does not need to call a routing provider.
+If automated rerouting is implemented, the routing subsystem may use the existing Mapbox integration.
+## 48. No Direct Mapbox Requirement
+Incident creation itself does not need to call Mapbox.
 ## 49. Reassignment
 Whether an Incident causes:
 ```text
@@ -552,7 +545,7 @@ Exact display is Open.
 ## 79. Create Incident
 Conceptual:
 ```http
-POST /api/v1/courier/delivery-tasks/{taskId}/incidents
+POST /api/courier/delivery-tasks/{taskId}/incidents
 ```
 Possible body:
 ```json
@@ -565,12 +558,12 @@ Exact enum/body is Open.
 ## 80. List Active Task Incidents
 Conceptual:
 ```http
-GET /api/v1/courier/delivery-tasks/{taskId}/incidents
+GET /api/courier/delivery-tasks/{taskId}/incidents
 ```
 ## 81. Incident Detail
 Conceptual:
 ```http
-GET /api/v1/courier/incidents/{incidentId}
+GET /api/courier/incidents/{incidentId}
 ```
 ## 82. Courier Update
 Whether Courier may edit:
@@ -806,8 +799,8 @@ Incident
 → Logistics dispatch reviews
 → manually reroutes/reassigns/supports
 ```
-## 128. Routing Provider Boundary
-An an approved routing service may calculate alternative route solutions only after a routing contract exists.
+## 128. Mapbox Boundary
+Mapbox may calculate alternative route solutions.
 AISLEY decides:
 ```text
 whether reroute is needed
@@ -836,7 +829,7 @@ Incident creation should be a short transactional path.
 ## 134. External Work
 Do not block Incident creation waiting for:
 ```text
-routing provider reroute
+Mapbox reroute
 email
 complex support automation
 ```
@@ -861,8 +854,8 @@ Incident record
 delivery-task relationship
 internal dispatch notification/realtime
 ```
-## 138. Routing Provider Boundary
-An an approved routing service may be reused only if an Incident-triggered rerouting contract is approved.
+## 138. Mapbox
+Mapbox may be reused if an Incident triggers automated rerouting.
 It is not required for Incident creation itself.
 ## 139. Brevo
 Email is not source-required for Incident Reporting.
@@ -899,7 +892,7 @@ That concern is closer to SOS, whose own source still prioritizes internal alert
 - Chat handoff
 - SOS shortcut
 - rerouting integration hook
-- routing provider reuse only when rerouting is enabled
+- Mapbox reuse only when rerouting is enabled
 - Logistics acknowledgement/resolution workflow as a separate counterpart feature
 ## 144. Not Required
 - large incident taxonomy
@@ -940,8 +933,8 @@ That concern is closer to SOS, whose own source still prioritizes internal alert
 ## 149. Rerouting
 - Incident can be consumed by routing/dispatch logic.
 - Automated rerouting is optional/configurable.
-- Incident creation does not require routing provider.
-- A routing provider does not own the Incident or delivery state.
+- Incident creation does not require Mapbox.
+- Mapbox does not own the Incident or delivery state.
 ## 150. Delivery State
 - Incident creation does not set Order `DELIVERED`.
 - Incident creation does not automatically cancel the Order.
@@ -954,7 +947,7 @@ That concern is closer to SOS, whose own source still prioritizes internal alert
 - Client cannot self-resolve/approve an Incident unless policy permits.
 ## 152. Third-Party
 - Core Incident Reporting works without a new third-party provider.
-- A routing provider is only relevant to optional rerouting.
+- Mapbox is only relevant to optional rerouting.
 - Brevo/SMS/Push providers are not required.
 # Tests
 ## 153. Backend Tests

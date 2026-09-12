@@ -4,17 +4,10 @@ feature: Profit Dashboard
 system: AISLEY
 type: Feature Specification
 version: 1.0
-status: "Draft — planning reference only; API contract deferred"
-canonical: false
-implementation_status: deferred
+status: Draft
 scope: Flutter Courier Mobile Application / Courier Earnings Overview
-source_coverage: domain/Courier.md, requirements.md, workspace.md, schema.md
+source_coverage: Courier.md, app.md
 ---
-
-> **Implementation gate:** This is planning material only. The current backend does not expose this Courier feature. Routes, fields, statuses, providers, and behavior in the legacy body are conceptual and must not be implemented until an approved versioned `/api/v1/courier/...` contract and shared Shipment/Delivery Task schema exist.
->
-> **Provider and status rule:** Any legacy provider names or uppercase status labels in this file are superseded; use the canonical documents and the backend contract instead.
-
 # Profit Dashboard Specification
 ## 1. Purpose
 Profit Dashboard is AISLEY's Courier financial-overview feature for showing earnings generated from completed delivery work.
@@ -55,7 +48,7 @@ COURIER / RIDER
 ```
 The Courier views the Profit Dashboard through the Flutter mobile application.
 ## 3. Authentication
-Courier mobile authentication follows the shared backend contract:
+Courier mobile authentication follows `app.md`:
 ```text
 credentials + device_name
 → /login
@@ -158,8 +151,8 @@ the earnings ledger should use the final domain relation selected by implementat
 Do not calculate Rider earnings merely by summing arbitrary Order totals.
 Courier earnings should come from a dedicated financial/earnings record or authoritative earnings calculation service.
 # Shipping Fee Boundary
-## 13. Shared Shipping-Fee Context
-The shared requirements define:
+## 13. app.md Shipping Fee
+`app.md` defines:
 ```text
 Shipping fee
 → default ₱50
@@ -177,7 +170,7 @@ Courier earnings
 =
 full shipping fee
 ```
-because the shared backend contract explicitly assigns the default shipping fee revenue to Logistics.
+because `app.md` explicitly assigns the default shipping fee revenue to Logistics.
 ## 16. Recommended Financial Model
 Recommended:
 ```text
@@ -369,7 +362,7 @@ Whether future incentives are included in earnings totals is Open.
 Whether deductions/adjustments appear is Open.
 # Currency
 ## 43. Currency Context
- The shared requirements use Philippine peso amounts such as:
+`app.md` uses Philippine peso amounts such as:
 ```text
 ₱10
 ₱50
@@ -512,7 +505,7 @@ Open Decision.
 ## 66. Profit Summary
 Conceptual:
 ```http
-GET /api/v1/courier/profit
+GET /api/courier/profit
 ```
 Query example:
 ```text
@@ -521,12 +514,12 @@ Query example:
 ## 67. Custom Range
 Possible:
 ```http
-GET /api/v1/courier/profit?from=YYYY-MM-DD&to=YYYY-MM-DD
+GET /api/courier/profit?from=YYYY-MM-DD&to=YYYY-MM-DD
 ```
 ## 68. Earnings List
 Conceptual:
 ```http
-GET /api/v1/courier/earnings
+GET /api/courier/earnings
 ```
 with:
 ```text
@@ -537,7 +530,7 @@ earning type filters where implemented
 ## 69. Delivery Breakdown
 Possible:
 ```http
-GET /api/v1/courier/earnings/{earningId}
+GET /api/courier/earnings/{earningId}
 ```
 or navigate through Delivery History.
 ## 70. Read-Only API
@@ -751,9 +744,9 @@ AISLEY backend
 Courier earnings/ledger table
 completed delivery relationships
 ```
-## 113. Routing Provider Boundary
+## 113. Mapbox
 Not required.
-## 114. Routing Provider Boundary
+## 114. Google Maps
 Not required.
 ## 115. Brevo
 Not required.
@@ -806,8 +799,8 @@ Do not automatically dump every dashboard read into Admin System Audit Logs.
 - tips
 - incentives
 - financial goals
-- routing provider
-- routing provider
+- Mapbox
+- Google Maps
 - Brevo
 - SMS
 - Push
@@ -844,7 +837,7 @@ Do not automatically dump every dashboard read into Admin System Audit Logs.
 - Financial logs avoid unnecessary sensitive payloads.
 ## 130. Third-Party
 - Core Profit Dashboard works without a new third-party provider.
-- routing provider/Brevo/SMS/Push are not required.
+- Mapbox/Google Maps/Brevo/SMS/Push are not required.
 - No payout provider is required just to display earnings.
 # Tests
 ## 131. Backend Tests
@@ -948,7 +941,7 @@ period filtering
 ```
 Important AISLEY revenue boundary:
 ```text
-the shared backend contract default shipping fee = ₱50
+app.md default shipping fee = ₱50
 → Logistics revenue/commission context
 
 Courier earnings

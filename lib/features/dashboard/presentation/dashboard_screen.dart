@@ -4,17 +4,24 @@ import '../../account/presentation/account_controller.dart';
 import '../../account/presentation/account_screen.dart';
 import '../../auth/domain/auth_models.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../policy/presentation/policy_controller.dart';
+import '../../pickup/presentation/pickup_controller.dart';
+import '../../pickup/presentation/pickup_screen.dart';
 import '../domain/dashboard_models.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
     required this.authController,
     this.accountController,
+    this.policyController,
+    this.pickupController,
     super.key,
   });
 
   final AuthController authController;
   final AccountController? accountController;
+  final PolicyController? policyController;
+  final PickupController? pickupController;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -83,6 +90,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
         builder: (_) => AccountScreen(
           authController: widget.authController,
           accountController: accountController,
+          policyController: widget.policyController,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openPickups() async {
+    final pickupController = widget.pickupController;
+    if (pickupController == null || !mounted) {
+      return;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PickupScreen(
+          authController: widget.authController,
+          pickupController: pickupController,
+          policyController: widget.policyController,
         ),
       ),
     );
@@ -102,6 +127,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           appBar: AppBar(
             title: const Text('Courier dashboard'),
             actions: [
+              if (widget.pickupController != null)
+                IconButton(
+                  onPressed: _openPickups,
+                  tooltip: 'Pickup orders',
+                  icon: const Icon(Icons.local_shipping_outlined),
+                ),
               if (widget.accountController != null)
                 IconButton(
                   onPressed: _openAccount,
@@ -129,6 +160,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: _DashboardBody(
               authController: widget.authController,
               onSignOut: _confirmSignOut,
+              pickupController: widget.pickupController,
+              onOpenPickups: _openPickups,
             ),
           ),
         );
@@ -138,10 +171,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 class _DashboardBody extends StatelessWidget {
-  const _DashboardBody({required this.authController, required this.onSignOut});
+  const _DashboardBody({
+    required this.authController,
+    required this.onSignOut,
+    this.pickupController,
+    required this.onOpenPickups,
+  });
 
   final AuthController authController;
   final VoidCallback onSignOut;
+  final PickupController? pickupController;
+  final VoidCallback onOpenPickups;
 
   @override
   Widget build(BuildContext context) {
@@ -209,6 +249,14 @@ class _DashboardBody extends StatelessWidget {
           isLoading: isLoading,
         ),
         const SizedBox(height: 20),
+        if (pickupController != null) ...[
+          OutlinedButton.icon(
+            onPressed: onOpenPickups,
+            icon: const Icon(Icons.local_shipping_outlined),
+            label: const Text('Open pickup orders'),
+          ),
+          const SizedBox(height: 12),
+        ],
         OutlinedButton.icon(
           onPressed: isLoading ? null : authController.loadDashboard,
           icon: const Icon(Icons.refresh),

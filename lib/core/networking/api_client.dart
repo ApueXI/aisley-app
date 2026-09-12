@@ -165,7 +165,10 @@ class ApiClient {
     } on TokenStorageException {
       rethrow;
     } on TimeoutException {
-      throw const ApiException.network('The request timed out.');
+      throw const ApiException.network(
+        'The request timed out.',
+        networkFailure: ApiNetworkFailure.timeout,
+      );
     } on SocketException {
       throw const ApiException.network('The service could not be reached.');
     } on http.ClientException {
@@ -251,7 +254,10 @@ class ApiClient {
     } on TokenStorageException {
       rethrow;
     } on TimeoutException {
-      throw const ApiException.network('The request timed out.');
+      throw const ApiException.network(
+        'The request timed out.',
+        networkFailure: ApiNetworkFailure.timeout,
+      );
     } on SocketException {
       throw const ApiException.network('The service could not be reached.');
     } on http.ClientException {
@@ -303,6 +309,8 @@ class ApiClient {
   }
 }
 
+enum ApiNetworkFailure { offline, timeout }
+
 class ApiException implements Exception {
   const ApiException({
     required this.statusCode,
@@ -310,19 +318,23 @@ class ApiException implements Exception {
     required this.message,
     this.fieldErrors = const <String, List<String>>{},
     this.retryAfter,
+    this.networkFailure = ApiNetworkFailure.offline,
   });
 
-  const ApiException.network(this.message)
-    : statusCode = null,
-      code = 'NETWORK_ERROR',
-      fieldErrors = const <String, List<String>>{},
-      retryAfter = null;
+  const ApiException.network(
+    this.message, {
+    this.networkFailure = ApiNetworkFailure.offline,
+  }) : statusCode = null,
+       code = 'NETWORK_ERROR',
+       fieldErrors = const <String, List<String>>{},
+       retryAfter = null;
 
   final int? statusCode;
   final String code;
   final String message;
   final Map<String, List<String>> fieldErrors;
   final Duration? retryAfter;
+  final ApiNetworkFailure networkFailure;
 
   bool get isNetworkError => statusCode == null;
 

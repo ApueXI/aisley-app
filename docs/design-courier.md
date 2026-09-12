@@ -4,7 +4,7 @@ system: AISLEY
 type: Design Guide
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active — authentication and account management implemented; delivery UI follows approved API contracts
+status: Active — authentication, account management, policy consent, and pickup UI implemented; other delivery UI deferred
 ---
 
 # Courier Mobile Design Guide
@@ -13,7 +13,7 @@ status: Active — authentication and account management implemented; delivery U
 
 This guide applies to the external Flutter Courier application. It does not define the Customer storefront or the React Admin, Seller, or Logistics dashboards. Courier UI is implemented in the Flutter project; the Laravel repository provides the API and remains authoritative for identity, approval, ownership, and operational state.
 
-The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, and Phase 1 account management. Shipment, pickup, delivery, scanning, routing, proof-of-delivery, earnings, and offline task screens remain deferred until their API contracts are approved.
+The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, Phase 1 account management, policy consent, and the approved first-mile/final-mile pickup workflow. Delivery movement, camera scanning, routing, proof-of-delivery media, earnings, notifications, and offline task screens remain deferred until their own contracts and client choices are approved.
 
 ## Design goals
 
@@ -96,6 +96,14 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 - Fetch the saved profile photo through the authenticated private URL with the bearer token; never use a browser-style public URL, raw storage path, or unauthenticated network image widget. Confirm success only after the server response and private refresh succeed.
 - Confirm photo removal and reconcile uncertain upload/removal responses with a fresh account/photo read. Do not queue photo writes offline or expose the original filename as storage identity.
 - Require current password confirmation before a password change. Clear password fields after every attempt and explain that a successful change revokes all sessions and returns to sign-in.
+
+### Pickup orders
+
+- Show server-assigned Seller pickups and hub pickups in separate sections. The task list is read-only until the Courier explicitly accepts an assigned task.
+- Keep schedule, Seller/hub, authorized pickup address, Order reference, waybill reference, destination area, and lowercase server status visible without exposing Buyer contact details, prices, or private evidence.
+- Require an explicit confirmation after the QR/manual identifier candidate is entered. A waybill QR payload is untrusted text; the current client supports scanner keyboard/paste input and a manual Order ID/reference fallback, not camera decoding.
+- Use the documented idempotency key for physical first-mile confirmation and preserve the same key and identifier after an uncertain response. Final-mile hub evidence must remain visibly “Awaiting Logistics validation” until the server reports validated custody.
+- Present the schedule route manifest as an ordered, accessible stop list. It is not a Buyer delivery route, and the client does not add map credentials, provider calls, or turn-by-turn navigation.
 
 ## Status, error, and network presentation
 
