@@ -12,6 +12,29 @@ import 'package:aisley_app/features/auth/data/auth_repository.dart';
 import 'package:aisley_app/features/auth/domain/auth_models.dart';
 
 void main() {
+  test('preserves nested registration validation field paths', () {
+    final error = ApiException.fromResponse(
+      http.Response(
+        jsonEncode(<String, Object?>{
+          'message': 'The given data was invalid.',
+          'errors': <String, Object?>{
+            'address': <String, Object?>{
+              'postal_code': <String>['Enter a valid postal code.'],
+            },
+            'email': <String>['This email is already registered.'],
+          },
+        }),
+        422,
+      ),
+    );
+
+    expect(
+      error.fieldErrors['address.postal_code'],
+      contains('valid postal code'),
+    );
+    expect(error.fieldErrors['email'], contains('already registered'));
+  });
+
   test('loads only public active Logistics organization options', () async {
     late http.Request request;
     final storage = FakeTokenStorage();

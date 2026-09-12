@@ -1612,7 +1612,9 @@ String _messageForRegistrationError(ApiException error) {
         message.toLowerCase() == 'the given data was invalid.' ||
         message.toLowerCase() == 'the submitted data is invalid.';
     return isGeneric
-        ? 'The server rejected some registration details. Review the highlighted fields below and correct them before submitting again.'
+        ? error.fieldErrors.isEmpty
+              ? 'The server rejected the registration without identifying a field. Verify the organization, address, vehicle details, and both documents, then retry. If this repeats, check the API response for the validation cause.'
+              : 'The server rejected some registration details. Review the highlighted fields below and correct them before submitting again.'
         : message;
   }
   if (error.statusCode == 409) {
@@ -1621,7 +1623,13 @@ String _messageForRegistrationError(ApiException error) {
   if (error.statusCode == 404) {
     return 'The selected Logistics organization is no longer available. Return to the organization field, choose an available option, and retry.';
   }
-  return 'Registration could not be submitted. Check every required field, both evidence files, and the selected Logistics organization, then retry.';
+  if (error.statusCode != null && error.statusCode! >= 500) {
+    return 'The registration service returned a server error (HTTP ${error.statusCode}, ${error.code}). This is not a missing-field error. Retry once; if it continues, check the API log for this status and code.';
+  }
+  if (error.statusCode != null) {
+    return 'The registration service rejected the request (HTTP ${error.statusCode}, ${error.code}). This does not confirm that the Logistics organization or documents are missing. Retry, then check the API response if it continues.';
+  }
+  return 'Registration could not be submitted. Your form is preserved; retry when the service is available.';
 }
 
 class _RegistrationErrorBanner extends StatelessWidget {
