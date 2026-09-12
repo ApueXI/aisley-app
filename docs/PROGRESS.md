@@ -109,3 +109,10 @@ This is the progress log for the external Courier Flutter application. It is sep
 
 - Normalized the live policy status version projection when Laravel serializes `current_version` or `accepted_version` as a numeric string or a version descriptor containing an integer `version`; invalid, fractional, zero, and unrelated values still fail closed.
 - Added model coverage for both deployed representations while retaining the documented integer DTO as the canonical contract.
+
+## 2026-09-12
+
+- Fixed the Dashboard welcome avatar so it renders the confirmed private profile-photo bytes held by the shared account controller instead of always showing initials.
+- Dashboard now listens for account/photo state changes, loads the account photo on the first authenticated dashboard visit, and falls back to initials for missing or invalid photo data; no new endpoint or API contract was introduced.
+- Added a widget regression test for refreshing the Dashboard avatar after a profile-photo update.
+- Verification: direct Dart analysis passes; Flutter widget tests remain blocked by the installed SDK attempting to write its cache/build-hook files outside this project.
