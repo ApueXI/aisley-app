@@ -87,3 +87,9 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Added explicit post-consent return to the dashboard, a sign-out action while consent is required, and a generic access-denied state for unrecognized or role-forbidden `403` responses; only `LOGISTICS_ASSOCIATION_INVALID` shows the affiliation-blocked state.
 - Added auth-controller and widget regression coverage for session preservation, consent routing, and separation of affiliation from other authorization failures.
 - Verification: workspace Dart analysis reports no issues; Flutter analyzer/test execution remains blocked here because the installed SDK tries to write its cache outside this project.
+
+## 2026-09-12
+
+- Clarified the policy consent recovery state when authenticated status loading fails: missing policy routes, backend server/bootstrap failures, contract mismatches, and local secure-storage failures now receive distinct actionable messages without exposing response bodies or credentials.
+- Added controller regression coverage for missing policy routes and locked secure storage. The documented policy endpoints and response contract remain unchanged; the API must still provide `/api/v1/policy-consent/status` and current seeded Terms/Privacy versions.
+- Verification: direct Dart analysis passes; focused Flutter tests remain blocked by the installed SDK's external build hooks in this environment.

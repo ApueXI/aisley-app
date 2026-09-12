@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/networking/api_client.dart';
 import '../../../core/networking/api_contract_exception.dart';
+import '../../../core/security/token_storage.dart';
 import '../data/policy_repository.dart';
 import '../domain/policy_models.dart';
 
@@ -460,7 +461,15 @@ class PolicyController extends ChangeNotifier {
     if (error is ApiContractException) {
       state = PolicyViewState.retryableError;
       errorMessage =
-          'The policy service returned an unexpected response. Please retry.';
+          'The policy service returned an unexpected response. Confirm that the API is using the documented policy contract, then retry.';
+      successMessage = null;
+      notifyListeners();
+      return;
+    }
+    if (error is TokenStorageException) {
+      state = PolicyViewState.retryableError;
+      errorMessage =
+          'Secure session storage is unavailable. Unlock your keyring and retry.';
       successMessage = null;
       notifyListeners();
       return;
@@ -524,7 +533,15 @@ class PolicyController extends ChangeNotifier {
       return;
     }
     state = PolicyViewState.retryableError;
-    errorMessage = 'We could not load policy information. Please retry.';
+    if (error.statusCode == 404) {
+      errorMessage =
+          'The policy consent endpoint is unavailable on this API. Deploy the policy routes and retry.';
+    } else if (error.statusCode != null && error.statusCode! >= 500) {
+      errorMessage =
+          'The policy service returned a server error. Check the policy migrations and seed data, then retry.';
+    } else {
+      errorMessage = 'We could not load policy information. Please retry.';
+    }
     notifyListeners();
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:aisley_app/core/networking/api_client.dart';
+import 'package:aisley_app/core/security/token_storage.dart';
 import 'package:aisley_app/features/policy/data/policy_repository.dart';
 import 'package:aisley_app/features/policy/domain/policy_models.dart';
 import 'package:aisley_app/features/policy/presentation/policy_controller.dart';
@@ -106,6 +107,38 @@ void main() {
 
     expect(controller.state, PolicyViewState.forbidden);
     expect(controller.errorMessage, 'Courier affiliation is not eligible.');
+  });
+
+  test('missing policy status route explains the deployment problem', () async {
+    final api = _FakePolicyApi()
+      ..statusError = const ApiException(
+        statusCode: 404,
+        code: 'NOT_FOUND',
+        message: 'not found',
+      );
+    final controller = PolicyController(policyApi: api);
+
+    await controller.load();
+
+    expect(controller.state, PolicyViewState.retryableError);
+    expect(
+      controller.errorMessage,
+      'The policy consent endpoint is unavailable on this API. Deploy the policy routes and retry.',
+    );
+  });
+
+  test('secure-storage failure explains the local recovery action', () async {
+    final api = _FakePolicyApi()
+      ..statusError = TokenStorageException('read', StateError('locked'));
+    final controller = PolicyController(policyApi: api);
+
+    await controller.load();
+
+    expect(controller.state, PolicyViewState.retryableError);
+    expect(
+      controller.errorMessage,
+      'Secure session storage is unavailable. Unlock your keyring and retry.',
+    );
   });
 
   test('422 keeps the document open when confirmation is rejected', () async {
