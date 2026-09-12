@@ -116,3 +116,17 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Dashboard now listens for account/photo state changes, loads the account photo on the first authenticated dashboard visit, and falls back to initials for missing or invalid photo data; no new endpoint or API contract was introduced.
 - Added a widget regression test for refreshing the Dashboard avatar after a profile-photo update.
 - Verification: direct Dart analysis passes; Flutter widget tests remain blocked by the installed SDK attempting to write its cache/build-hook files outside this project.
+
+## 2026-09-12
+
+- Made Courier registration failures explicit: local validation now displays a top-level explanation, and server field errors are summarized above the form as well as shown beside their fields.
+- Added specific guidance for duplicate Courier email, throttling with retry timing, registration conflicts, unavailable organizations, generic validation responses, network failures, and required evidence/field review.
+- Added widget coverage proving an empty registration submission explains why it cannot continue; the registration endpoint and multipart contract remain unchanged.
+- Verification: direct Dart analysis passes; the focused Flutter widget test is blocked by the installed SDK's read-only external cache/build-hook files.
+
+## 2026-09-12
+
+- Corrected registration diagnostics so non-validation API failures are no longer described as missing Logistics or document fields; the UI now identifies server/API failures with safe HTTP status and stable error-code guidance.
+- Preserved nested validation paths such as `address.postal_code` when the API returns nested `errors` objects, allowing the form summary and inline fields to identify the rejected address field.
+- Added API error-parser coverage for nested registration validation responses; the registration endpoint and multipart field contract remain unchanged.
+- Verification: direct Dart analysis passes; Flutter tests remain blocked by the installed SDK's read-only external cache/build-hook files.

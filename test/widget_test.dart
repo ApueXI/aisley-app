@@ -37,6 +37,31 @@ void main() {
     expect(find.textContaining('No map pin is required'), findsOneWidget);
   });
 
+  testWidgets('registration explains local validation failures at the top', (
+    WidgetTester tester,
+  ) async {
+    final controller = AuthController(
+      authRepository: _FakeAuthRepository(),
+      dashboardRepository: _FakeDashboardRepository(),
+    );
+    await controller.initialize();
+
+    await tester.pumpWidget(CourierApp(authController: controller));
+    await tester.tap(find.text('New Courier? Register here'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Submit registration'));
+    await tester.tap(find.text('Submit registration'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Some required information is missing or invalid. Review the highlighted fields below before submitting.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Enter your first name.'), findsOneWidget);
+  });
+
   testWidgets('Courier can sign in and reach the dashboard skeleton', (
     WidgetTester tester,
   ) async {

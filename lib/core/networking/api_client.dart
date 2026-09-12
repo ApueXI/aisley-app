@@ -409,14 +409,27 @@ Map<String, List<String>> _decodeFieldErrors(Object? value) {
   }
 
   final errors = <String, List<String>>{};
-  for (final entry in value.entries) {
-    final key = entry.key.toString();
-    final fieldValue = entry.value;
+  void collect(Object? current, String prefix) {
+    if (current is Map) {
+      for (final entry in current.entries) {
+        final key = entry.key.toString();
+        final nestedKey = prefix.isEmpty ? key : '$prefix.$key';
+        collect(entry.value, nestedKey);
+      }
+      return;
+    }
+
+    final fieldValue = current;
     if (fieldValue is String) {
-      errors[key] = <String>[fieldValue];
+      errors[prefix] = <String>[fieldValue];
     } else if (fieldValue is List) {
-      errors[key] = fieldValue.whereType<String>().toList(growable: false);
+      final messages = fieldValue.whereType<String>().toList(growable: false);
+      if (messages.isNotEmpty) {
+        errors[prefix] = messages;
+      }
     }
   }
+
+  collect(value, '');
   return errors;
 }
