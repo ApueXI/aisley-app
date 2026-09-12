@@ -93,3 +93,9 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Clarified the policy consent recovery state when authenticated status loading fails: missing policy routes, backend server/bootstrap failures, contract mismatches, and local secure-storage failures now receive distinct actionable messages without exposing response bodies or credentials.
 - Added controller regression coverage for missing policy routes and locked secure storage. The documented policy endpoints and response contract remain unchanged; the API must still provide `/api/v1/policy-consent/status` and current seeded Terms/Privacy versions.
 - Verification: direct Dart analysis passes; focused Flutter tests remain blocked by the installed SDK's external build hooks in this environment.
+
+## 2026-09-12
+
+- Aligned the policy repository with the API's successful policy DTO response by accepting either the documented `data` resource envelope or a complete endpoint-specific top-level DTO; incomplete or unrelated successful responses still fail closed.
+- Added a direct status-response contract fixture while preserving the bearer-auth path, exact routes, private status handling, and server-authoritative consent decisions.
+- Verification: direct Dart analysis passes; focused Flutter tests remain blocked by the installed SDK's external build hooks in this environment.

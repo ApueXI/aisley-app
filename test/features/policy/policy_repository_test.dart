@@ -88,6 +88,22 @@ void main() {
     expect(status.allRequiredAccepted, isFalse);
   });
 
+  test('reads a direct private status DTO when the envelope is omitted', () async {
+    final client = ApiClient(
+      config: const AppConfig(baseUrl: 'https://api.example.test'),
+      tokenStorage: _FakeTokenStorage()..token = 'policy-token',
+      client: MockClient((incoming) async {
+        return http.Response(jsonEncode(_directStatusResponse), 200);
+      }),
+    );
+
+    final status = await ApiPolicyRepository(client: client)
+        .fetchConsentStatus();
+
+    expect(status.itemFor(PolicyType.termsOfService)?.currentVersion, 3);
+    expect(status.allRequiredAccepted, isFalse);
+  });
+
   test('does not cache private status responses', () async {
     var requestCount = 0;
     final client = ApiClient(
@@ -226,29 +242,33 @@ const _historyResponse = <String, dynamic>{
 };
 
 const _statusResponse = <String, dynamic>{
-  'data': <String, dynamic>{
-    'policies': <Map<String, dynamic>>[
-      <String, dynamic>{
-        'type': 'terms_of_service',
-        'label': 'Terms of Service',
-        'required': true,
-        'accepted': false,
-        'accepted_at': null,
-        'current_version': 3,
-        'accepted_version': null,
-      },
-      <String, dynamic>{
-        'type': 'privacy_policy',
-        'label': 'Privacy Policy',
-        'required': true,
-        'accepted': true,
-        'accepted_at': '2026-08-02T08:00:00Z',
-        'current_version': 2,
-        'accepted_version': 2,
-      },
-    ],
-    'all_required_accepted': false,
-  },
+  'data': _statusData,
+};
+
+const _directStatusResponse = _statusData;
+
+const _statusData = <String, dynamic>{
+  'policies': <Map<String, dynamic>>[
+    <String, dynamic>{
+      'type': 'terms_of_service',
+      'label': 'Terms of Service',
+      'required': true,
+      'accepted': false,
+      'accepted_at': null,
+      'current_version': 3,
+      'accepted_version': null,
+    },
+    <String, dynamic>{
+      'type': 'privacy_policy',
+      'label': 'Privacy Policy',
+      'required': true,
+      'accepted': true,
+      'accepted_at': '2026-08-02T08:00:00Z',
+      'current_version': 2,
+      'accepted_version': 2,
+    },
+  ],
+  'all_required_accepted': false,
 };
 
 const _acceptanceResponse = <String, dynamic>{
