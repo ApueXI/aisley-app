@@ -104,3 +104,8 @@ This is the progress log for the external Courier Flutter application. It is sep
 
 - Added privacy-safe policy contract diagnostics that identify the rejected status field without rendering the response body, token, or private account data.
 - Added controller coverage for contract-field reporting; no policy authority, endpoint, or consent fallback was introduced.
+
+## 2026-09-12
+
+- Normalized the live policy status version projection when Laravel serializes `current_version` or `accepted_version` as a numeric string or a version descriptor containing an integer `version`; invalid, fractional, zero, and unrelated values still fail closed.
+- Added model coverage for both deployed representations while retaining the documented integer DTO as the canonical contract.
