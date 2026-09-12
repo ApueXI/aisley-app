@@ -12,6 +12,8 @@ import '../features/auth/presentation/auth_controller.dart';
 import '../features/dashboard/data/dashboard_repository.dart';
 import '../features/policy/data/policy_repository.dart';
 import '../features/policy/presentation/policy_controller.dart';
+import '../features/pickup/data/pickup_repository.dart';
+import '../features/pickup/presentation/pickup_controller.dart';
 import 'courier_app.dart';
 
 class CourierBootstrapApp extends StatefulWidget {
@@ -25,6 +27,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
   AuthController? _authController;
   AccountController? _accountController;
   PolicyController? _policyController;
+  PickupController? _pickupController;
   bool _hasStartupError = false;
 
   @override
@@ -49,6 +52,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
       final apiClient = ApiClient(config: config, tokenStorage: tokenStorage);
       late final AccountController accountController;
       late final PolicyController policyController;
+      late final PickupController pickupController;
       final authController = AuthController(
         authRepository: ApiAuthRepository(
           client: apiClient,
@@ -58,6 +62,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         onSessionEnded: () {
           accountController.clear();
           policyController.clear();
+          pickupController.clear();
         },
       );
       accountController = AccountController(
@@ -70,6 +75,10 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         policyApi: ApiPolicyRepository(client: apiClient),
         onAuthFailure: authController.handlePolicyAuthFailure,
       );
+      pickupController = PickupController(
+        pickupRepository: ApiPickupRepository(client: apiClient),
+        onAuthFailure: authController.handlePickupAuthFailure,
+      );
 
       if (!mounted) {
         return;
@@ -79,6 +88,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         _authController = authController;
         _accountController = accountController;
         _policyController = policyController;
+        _pickupController = pickupController;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -104,6 +114,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         authController: authController,
         accountController: _accountController,
         policyController: _policyController,
+        pickupController: _pickupController,
       );
     }
 

@@ -4,16 +4,16 @@ system: AISLEY
 type: Feature Index
 role: Courier / Rider
 platform: Flutter / Dart
-status: Auth, account management, and policy consent implemented; operational features deferred
+status: Auth, account management, policy consent, and pickup workflow implemented; other operational features deferred
 ---
 
 # Courier feature index
 
 ## Implementation rule
 
-`auth/spec.md` and the Phase 1 `account-management/specs.md` describe currently implemented APIs. The remaining Courier specifications are planning drafts copied for future design work. They are not endpoint contracts and must not be used to invent Flutter requests, response fields, statuses, providers, or offline behavior.
+`auth/spec.md`, the Phase 1 `account-management/specs.md`, the policy-consent specification, and `pick-up-order/specs.md` describe currently implemented APIs. The remaining Courier specifications are planning drafts copied for future design work. They are not endpoint contracts and must not be used to invent Flutter requests, response fields, statuses, providers, or offline behavior.
 
-Before implementing any non-auth feature, the backend must first provide:
+Before implementing any other non-auth feature, the backend must first provide:
 
 1. an approved feature specification;
 2. a versioned `/api/v1/courier/...` endpoint contract with request and response examples;
@@ -41,8 +41,16 @@ Until then, implement only a truthful scaffold or unavailable state. Do not fabr
 - `GET /api/v1/platform/policies/{type}/history/{version}` (public exact history read)
 - `GET /api/v1/policy-consent/status` (authenticated Courier status)
 - `POST /api/v1/policy-consent/{type}/versions/{version}/accept` (authenticated exact-version acceptance)
+- `GET /api/v1/courier/first-mile-tasks` (authenticated private task list)
+- `POST /api/v1/courier/first-mile-tasks/{task}/accept` (authenticated first-mile acceptance)
+- `POST /api/v1/courier/waybills/resolve` (authenticated read-only QR candidate resolution)
+- `POST /api/v1/courier/first-mile-tasks/{task}/pickup` (authenticated idempotent Seller handoff)
+- `GET /api/v1/courier/pickup-schedules/{schedule}/route-manifest` (authenticated ordered manifest)
+- `GET /api/v1/courier/final-mile-tasks` and `GET /api/v1/courier/final-mile-tasks/{task}` (authenticated final-mile reads)
+- `POST /api/v1/courier/final-mile-tasks/{task}/accept` (authenticated final-mile acceptance)
+- `POST /api/v1/courier/final-mile-tasks/{task}/pickup` (authenticated pending hub-handoff evidence)
 
-All other routes shown in the draft files are conceptual placeholders. They are not implemented merely because they appear in a specification.
+All other routes shown in the draft files are conceptual placeholders. They are not implemented merely because they appear in a specification. The pickup client deliberately uses the accessible ordered manifest list and scanner keyboard/paste/manual identifier input; camera scanning, delivery routing, and proof media remain separate work.
 
 ## Canonical constraints for future features
 
@@ -54,4 +62,4 @@ All other routes shown in the draft files are conceptual placeholders. They are 
 
 ## Draft files
 
-The following files remain backlog material: Accept Delivery Requests, Chat/Messaging, Complete Delivery, Dashboard, Delivery History, Deliver Order, Incident Reporting, Pick Up Order, Profit Dashboard, and Proof of Delivery. Revise each against the real API before implementation.
+The following files remain backlog material: Accept Delivery Requests as a standalone screen, Chat/Messaging, Complete Delivery, Dashboard operational sections, Delivery History, Deliver Order, Incident Reporting, Profit Dashboard, and Proof of Delivery. Pickup includes the documented acceptance prerequisite; revise each remaining feature against its real API before implementation.

@@ -4,9 +4,9 @@ This is the progress log for the external Courier Flutter application. It is sep
 
 ## Backend contract snapshot
 
-- **Backend commit:** `c3b9cad` for the Courier policy-viewing/consent contract, with account/profile-photo behavior at `20afd9f` (API version `courier-account-management-v1` plus the platform-policy contract)
-- **Current API surface:** Courier Logistics discovery, registration, login, generic password-recovery response, `/me`, current-token logout, account profile/password management, private profile-photo upload/retrieval/removal, public Terms/Privacy reads and history, authenticated policy status/acceptance, and the read-only Courier dashboard scaffold.
-- **Deferred:** Shipment, Parcel, Waybill, Scan, Delivery Task, assignment, proof-of-delivery, routing, chat, earnings, and offline synchronization APIs.
+- **Backend commit:** `d5c160d4a5a21272e487b6f46a82de35e81395cb` for `first-and-final-mile-pickup-v1`, with policy consent at `c3b9cad` and account/profile-photo behavior at `20afd9f`.
+- **Current API surface:** Courier Logistics discovery, registration, login, generic password-recovery response, `/me`, current-token logout, account profile/password management, private profile-photo upload/retrieval/removal, public Terms/Privacy reads and history, authenticated policy status/acceptance, first-mile and final-mile pickup task reads/acceptance, waybill candidate resolution, idempotent first-mile Seller handoff, ordered first-mile route manifests, pending final-mile hub-handoff evidence, and the read-only Courier dashboard scaffold.
+- **Deferred:** Delivery movement, camera QR decoding, proof-of-delivery media, routing/ETA, chat, earnings, notification transport, and offline synchronization APIs.
 
 ## 2026-09-08
 
@@ -71,3 +71,12 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Added typed policy parsing, bounded in-memory public caching, explicit loading/consent/accepted/stale/forbidden/rate-limit/timeout/offline/retry states, 401 auth-boundary handling, uncertain-acceptance reconciliation, and account/settings navigation.
 - Added safe plain-text current and historical document screens, explicit confirmation checkboxes, localized timestamps, accessibility labels, and no published-version/partial-failure states. Draft/Internal Rules content is not requested or rendered.
 - Added repository, model, controller, and widget contract tests for exact paths, headers, body, envelopes, caching, stale versions, 401, unknown acceptance results, and accessible consent controls.
+
+## 2026-09-12
+
+- Implemented the Courier pickup workflow against backend commit `d5c160d4a5a21272e487b6f46a82de35e81395cb` / API version `first-and-final-mile-pickup-v1`.
+- Added separate Seller-pickup and hub-pickup task sections, server-authoritative task details, explicit task acceptance, QR-payload/manual Order-reference verification, first-mile idempotent physical pickup confirmation, final-mile pending hub-handoff evidence submission, and schedule-scoped ordered route-manifest viewing.
+- Added session-bound error handling for `401`, policy-consent `403`, forbidden/validation/conflict/rate-limit responses, timeout/offline failures, secure-storage failures, stale-task refresh, and preserved idempotency retries. Pickup data and route manifests remain in memory and are cleared on session end.
+- Kept Dashboard cards read-only and linked to the dedicated pickup screen. The current Flutter client uses scanner keyboard/paste QR payloads and manual fallback; no camera, map SDK, provider key, or turn-by-turn navigation dependency was added.
+- Added repository, controller, and widget contract coverage for exact routes, bearer headers, request bodies, idempotency, response-state semantics, error separation, accessibility labels, and final-mile “awaiting validation” behavior.
+- Verification: focused pickup tests pass; full `flutter analyze`, `flutter test`, and `flutter build linux --debug` are run before handoff.
