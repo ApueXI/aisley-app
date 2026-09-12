@@ -80,3 +80,10 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Kept Dashboard cards read-only and linked to the dedicated pickup screen. The current Flutter client uses scanner keyboard/paste QR payloads and manual fallback; no camera, map SDK, provider key, or turn-by-turn navigation dependency was added.
 - Added repository, controller, and widget contract coverage for exact routes, bearer headers, request bodies, idempotency, response-state semantics, error separation, accessibility labels, and final-mile “awaiting validation” behavior.
 - Verification: focused pickup tests pass; full `flutter analyze`, `flutter test`, and `flutter build linux --debug` are run before handoff.
+
+## 2026-09-12
+
+- Fixed the Courier policy-gated dashboard flow against the existing `d5c160d4a5a21272e487b6f46a82de35e81395cb` / `c3b9cad` contract: `403 POLICY_CONSENT_REQUIRED` now preserves the secure session and opens the Flutter consent screen instead of being mislabeled as an invalid Logistics affiliation.
+- Added explicit post-consent return to the dashboard, a sign-out action while consent is required, and a generic access-denied state for unrecognized or role-forbidden `403` responses; only `LOGISTICS_ASSOCIATION_INVALID` shows the affiliation-blocked state.
+- Added auth-controller and widget regression coverage for session preservation, consent routing, and separation of affiliation from other authorization failures.
+- Verification: workspace Dart analysis reports no issues; Flutter analyzer/test execution remains blocked here because the installed SDK tries to write its cache outside this project.

@@ -52,6 +52,56 @@ void main() {
       expect(authRepository.tokenCleared, isTrue);
     });
 
+    test('preserves the session and routes policy denial to consent', () async {
+      final authRepository = FakeAuthRepository();
+      final dashboardRepository = FakeDashboardRepository()
+        ..error = const ApiException(
+          statusCode: 403,
+          code: 'POLICY_CONSENT_REQUIRED',
+          message: 'consent required',
+        );
+      final controller = AuthController(
+        authRepository: authRepository,
+        dashboardRepository: dashboardRepository,
+      );
+
+      await controller.signIn(email: 'courier@example.com', password: 'secret');
+      await controller.loadDashboard();
+
+      expect(controller.status, AuthStatus.policyConsentRequired);
+      expect(controller.courier, isNotNull);
+      expect(controller.dashboard, isNull);
+      expect(authRepository.tokenCleared, isFalse);
+      expect(
+        controller.errorMessage,
+        'Review and accept the current Terms of Service and Privacy Policy to continue.',
+      );
+    });
+
+    test(
+      'does not label an unrecognized 403 as an affiliation failure',
+      () async {
+        final authRepository = FakeAuthRepository()
+          ..loginError = const ApiException(
+            statusCode: 403,
+            code: 'FORBIDDEN_ROLE',
+            message: 'private server message',
+          );
+        final controller = AuthController(
+          authRepository: authRepository,
+          dashboardRepository: FakeDashboardRepository(),
+        );
+
+        await controller.signIn(
+          email: 'courier@example.com',
+          password: 'secret',
+        );
+
+        expect(controller.status, AuthStatus.accessDenied);
+        expect(authRepository.tokenCleared, isTrue);
+      },
+    );
+
     test('preserves a session on a recoverable restore failure', () async {
       final authRepository = FakeAuthRepository()
         ..hasToken = true
@@ -155,8 +205,14 @@ class FakeAuthRepository implements AuthRepository {
 }
 
 class FakeDashboardRepository implements DashboardRepository {
+  Object? error;
+
   @override
   Future<DashboardSnapshot> fetchDashboard() async {
+    final fetchError = error;
+    if (fetchError != null) {
+      throw fetchError;
+    }
     return DashboardSnapshot.fromJson(_dashboardJson);
   }
 }

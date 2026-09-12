@@ -6,6 +6,9 @@ import 'package:aisley_app/features/auth/domain/auth_models.dart';
 import 'package:aisley_app/features/auth/presentation/auth_controller.dart';
 import 'package:aisley_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:aisley_app/features/dashboard/domain/dashboard_models.dart';
+import 'package:aisley_app/features/policy/data/policy_repository.dart';
+import 'package:aisley_app/features/policy/domain/policy_models.dart';
+import 'package:aisley_app/features/policy/presentation/policy_controller.dart';
 
 void main() {
   testWidgets('Courier can open the registration form from sign in', (
@@ -53,6 +56,33 @@ void main() {
     expect(
       find.text(
         'Operational delivery data will appear here when it is available.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('policy-gated dashboard opens consent without signing out', (
+    WidgetTester tester,
+  ) async {
+    final authController = AuthController(
+      authRepository: _FakeAuthRepository(),
+      dashboardRepository: _FakeDashboardRepository(),
+    )..status = AuthStatus.policyConsentRequired;
+    final policyController = PolicyController(policyApi: _FakePolicyApi());
+
+    await tester.pumpWidget(
+      CourierApp(
+        authController: authController,
+        policyController: policyController,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Policy & consent'), findsOneWidget);
+    expect(find.text('Platform policies'), findsOneWidget);
+    expect(
+      find.text(
+        'Accept every required current policy before Courier dashboard access is restored.',
       ),
       findsOneWidget,
     );
@@ -139,4 +169,95 @@ class _FakeDashboardRepository implements DashboardRepository {
       },
     });
   }
+}
+
+class _FakePolicyApi implements PolicyApi {
+  @override
+  Future<PolicyDocument> fetchCurrent(
+    PolicyType type, {
+    bool forceRefresh = false,
+  }) async {
+    return _policyDocument(type);
+  }
+
+  @override
+  Future<PolicyHistory> fetchHistory(
+    PolicyType type, {
+    bool forceRefresh = false,
+  }) async {
+    return PolicyHistory(
+      type: type,
+      label: type.fallbackLabel,
+      versions: const <PolicyHistoryEntry>[],
+    );
+  }
+
+  @override
+  Future<PolicyDocument> fetchHistoryVersion(
+    PolicyType type,
+    int version, {
+    bool forceRefresh = false,
+  }) async {
+    return _policyDocument(type);
+  }
+
+  @override
+  Future<PolicyConsentStatus> fetchConsentStatus() async {
+    return const PolicyConsentStatus(
+      policies: <PolicyConsentItem>[
+        PolicyConsentItem(
+          rawType: 'terms_of_service',
+          label: 'Terms of Service',
+          required: true,
+          accepted: false,
+          acceptedAt: null,
+          currentVersion: 1,
+          acceptedVersion: null,
+        ),
+        PolicyConsentItem(
+          rawType: 'privacy_policy',
+          label: 'Privacy Policy',
+          required: true,
+          accepted: false,
+          acceptedAt: null,
+          currentVersion: 1,
+          acceptedVersion: null,
+        ),
+      ],
+      allRequiredAccepted: false,
+    );
+  }
+
+  @override
+  Future<PolicyAcceptance> accept({
+    required PolicyType type,
+    required int version,
+  }) async {
+    return PolicyAcceptance(
+      type: type,
+      label: type.fallbackLabel,
+      version: _policyDocument(type).version,
+      acceptedAt: DateTime.utc(2026, 9, 12),
+    );
+  }
+
+  @override
+  void clearPublicCache() {}
+}
+
+PolicyDocument _policyDocument(PolicyType type) {
+  return PolicyDocument(
+    type: type,
+    label: type.fallbackLabel,
+    version: PolicyVersion(
+      id: '${type.apiValue}-1',
+      version: 1,
+      title: type.fallbackLabel,
+      content: 'Policy content.',
+      status: 'published',
+      changeSummary: null,
+      requiresReconsent: false,
+      publishedAt: DateTime.utc(2026, 9, 12),
+    ),
+  );
 }
