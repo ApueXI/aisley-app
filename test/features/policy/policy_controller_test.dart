@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:aisley_app/core/networking/api_client.dart';
+import 'package:aisley_app/core/networking/api_contract_exception.dart';
 import 'package:aisley_app/core/security/token_storage.dart';
 import 'package:aisley_app/features/policy/data/policy_repository.dart';
 import 'package:aisley_app/features/policy/domain/policy_models.dart';
@@ -138,6 +139,20 @@ void main() {
     expect(
       controller.errorMessage,
       'Secure session storage is unavailable. Unlock your keyring and retry.',
+    );
+  });
+
+  test('contract failure identifies the safe response field', () async {
+    final api = _FakePolicyApi()
+      ..statusError = const ApiContractException('policy.consent.flags');
+    final controller = PolicyController(policyApi: api);
+
+    await controller.load();
+
+    expect(controller.state, PolicyViewState.retryableError);
+    expect(
+      controller.errorMessage,
+      contains('policy.consent.flags'),
     );
   });
 

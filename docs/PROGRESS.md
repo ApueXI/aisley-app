@@ -99,3 +99,8 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Aligned the policy repository with the API's successful policy DTO response by accepting either the documented `data` resource envelope or a complete endpoint-specific top-level DTO; incomplete or unrelated successful responses still fail closed.
 - Added a direct status-response contract fixture while preserving the bearer-auth path, exact routes, private status handling, and server-authoritative consent decisions.
 - Verification: direct Dart analysis passes; focused Flutter tests remain blocked by the installed SDK's external build hooks in this environment.
+
+## 2026-09-12
+
+- Added privacy-safe policy contract diagnostics that identify the rejected status field without rendering the response body, token, or private account data.
+- Added controller coverage for contract-field reporting; no policy authority, endpoint, or consent fallback was introduced.
