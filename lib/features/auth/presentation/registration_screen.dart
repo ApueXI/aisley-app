@@ -413,6 +413,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     });
 
     if (!(_formKey.currentState?.validate() ?? false)) {
+      setState(() {
+        _submissionError = 'Some required information is missing or invalid. Review the highlighted fields below before submitting.';
+      });
       return;
     }
 
@@ -579,6 +582,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     _buildHeader(context),
                     if (_submissionError != null) ...[
                       _RegistrationErrorBanner(message: _submissionError!),
+                      const SizedBox(height: 18),
+                    ],
+                    if (_fieldErrors.isNotEmpty) ...[
+                      _RegistrationFieldErrorSummary(errors: _fieldErrors),
                       const SizedBox(height: 18),
                     ],
                     _sectionHeading(
@@ -1585,18 +1592,36 @@ String _messageForOptionsError(ApiException error) {
 }
 
 String _messageForRegistrationError(ApiException error) {
+  if (error.code == 'EMAIL_ALREADY_REGISTERED') {
+    return 'This email is already registered for a Courier account. Use a different email or sign in instead.';
+  }
   if (error.statusCode == 429) {
+    final retryAfter = error.retryAfter;
+    if (retryAfter != null && retryAfter.inSeconds > 0) {
+      return 'Too many registration attempts. Try again in ${retryAfter.inSeconds} seconds.';
+    }
     return 'Too many registration attempts. Please wait before trying again.';
   }
   if (error.isNetworkError) {
     return 'Could not reach the service. Your form is preserved; retry only when you are ready.';
   }
   if (error.statusCode == 422) {
-    return error.message.isEmpty
-        ? 'Check the highlighted fields and try again.'
-        : error.message;
+    final message = error.message.trim();
+    final isGeneric =
+        message.isEmpty ||
+        message.toLowerCase() == 'the given data was invalid.' ||
+        message.toLowerCase() == 'the submitted data is invalid.';
+    return isGeneric
+        ? 'The server rejected some registration details. Review the highlighted fields below and correct them before submitting again.'
+        : message;
   }
-  return 'Registration could not be submitted. Please review the form and retry.';
+  if (error.statusCode == 409) {
+    return 'This registration conflicts with an existing application. Check the email and selected Logistics organization, then retry.';
+  }
+  if (error.statusCode == 404) {
+    return 'The selected Logistics organization is no longer available. Return to the organization field, choose an available option, and retry.';
+  }
+  return 'Registration could not be submitted. Check every required field, both evidence files, and the selected Logistics organization, then retry.';
 }
 
 class _RegistrationErrorBanner extends StatelessWidget {
@@ -1633,4 +1658,90 @@ class _RegistrationErrorBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+class _RegistrationFieldErrorSummary extends StatelessWidget {
+  const _RegistrationFieldErrorSummary({required this.errors});
+
+  final Map<String, List<String>> errors;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleErrors = errors.entries
+        .where(
+          (entry) => entry.value.any((message) => message.trim().isNotEmpty),
+        )
+        .toList(growable: false);
+    if (visibleErrors.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      liveRegion: true,
+      container: true,
+      label: 'Registration fields with errors',
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: scheme.errorContainer,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Review these fields:',
+              style: TextStyle(
+                color: scheme.onErrorContainer,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            for (final entry in visibleErrors)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  '• ${_registrationFieldLabel(entry.key)}: ${entry.value.where((message) => message.trim().isNotEmpty).join(' ')}',
+                  style: TextStyle(color: scheme.onErrorContainer),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _registrationFieldLabel(String key) {
+  final normalized = key.replaceAll('[', '.').replaceAll(']', '');
+  return switch (normalized) {
+    'first_name' => 'First name',
+    'last_name' => 'Last name',
+    'middle_name' => 'Middle initial',
+    'contact_number' => 'Contact number',
+    'birth_date' => 'Birth date',
+    'email' => 'Email',
+    'password' => 'Password',
+    'password_confirmation' => 'Confirm password',
+    'sex' => 'Sex',
+    'logistics_organization_id' => 'Logistics organization',
+    'address.address_line_1' => 'Street / house detail',
+    'address.address_line_2' => 'Address line 2',
+    'address.barangay' => 'Barangay',
+    'address.city_municipality' => 'City / municipality',
+    'address.province' => 'Province',
+    'address.region' => 'Region',
+    'address.postal_code' => 'Postal code',
+    'vehicle_type' => 'Vehicle type',
+    'plate_number' => 'Plate number',
+    'government_id' => 'Government ID / driver’s license',
+    'vehicle_registration' => 'Vehicle registration (OR/CR)',
+    _ =>
+      key
+          .replaceAll(RegExp(r'[._\[\]]'), ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim(),
+  };
 }
