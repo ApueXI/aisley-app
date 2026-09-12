@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../account/domain/account_models.dart';
 import '../../account/presentation/account_controller.dart';
 import '../../account/presentation/account_screen.dart';
 import '../../auth/domain/auth_models.dart';
@@ -34,6 +37,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         widget.authController.loadDashboard();
+        final accountController = widget.accountController;
+        if (accountController != null && accountController.account == null) {
+          unawaited(accountController.loadAccount());
+        }
       }
     });
   }
@@ -157,12 +164,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           body: RefreshIndicator(
             onRefresh: widget.authController.loadDashboard,
-            child: _DashboardBody(
-              authController: widget.authController,
-              onSignOut: _confirmSignOut,
-              pickupController: widget.pickupController,
-              onOpenPickups: _openPickups,
-            ),
+            child: widget.accountController == null
+                ? _DashboardBody(
+                    authController: widget.authController,
+                    onSignOut: _confirmSignOut,
+                    pickupController: widget.pickupController,
+                    onOpenPickups: _openPickups,
+                  )
+                : AnimatedBuilder(
+                    animation: widget.accountController!,
+                    builder: (context, child) => _DashboardBody(
+                      authController: widget.authController,
+                      onSignOut: _confirmSignOut,
+                      pickupController: widget.pickupController,
+                      onOpenPickups: _openPickups,
+                      profilePhoto: widget.accountController!.profilePhoto,
+                    ),
+                  ),
           ),
         );
       },
@@ -176,12 +194,14 @@ class _DashboardBody extends StatelessWidget {
     required this.onSignOut,
     this.pickupController,
     required this.onOpenPickups,
+    this.profilePhoto,
   });
 
   final AuthController authController;
   final VoidCallback onSignOut;
   final PickupController? pickupController;
   final VoidCallback onOpenPickups;
+  final ProfilePhotoData? profilePhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -194,7 +214,7 @@ class _DashboardBody extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
-        _WelcomeCard(courier: courier),
+        _WelcomeCard(courier: courier, profilePhoto: profilePhoto),
         const SizedBox(height: 24),
         Text(
           'Your work',
@@ -270,9 +290,10 @@ class _DashboardBody extends StatelessWidget {
 }
 
 class _WelcomeCard extends StatelessWidget {
-  const _WelcomeCard({required this.courier});
+  const _WelcomeCard({required this.courier, this.profilePhoto});
 
   final CourierIdentity courier;
+  final ProfilePhotoData? profilePhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -280,6 +301,7 @@ class _WelcomeCard extends StatelessWidget {
     final organization = courier.organizationName;
     final hub = courier.hubName;
     final affiliation = [?organization, ?hub].join(' • ');
+    final photoBytes = profilePhoto?.bytes;
 
     return Card(
       color: scheme.secondaryContainer,
@@ -292,10 +314,25 @@ class _WelcomeCard extends StatelessWidget {
               radius: 26,
               backgroundColor: scheme.secondary,
               foregroundColor: scheme.onSecondary,
-              child: Text(
-                _initials(courier.displayName),
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
+              child: photoBytes == null || photoBytes.isEmpty
+                  ? Text(
+                      _initials(courier.displayName),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    )
+                  : ClipOval(
+                      child: Image.memory(
+                        photoBytes,
+                        key: const ValueKey<String>('dashboard-profile-photo'),
+                        width: 52,
+                        height: 52,
+                        fit: BoxFit.cover,
+                        semanticLabel: '${courier.displayName} profile photo',
+                        errorBuilder: (context, error, stackTrace) => Text(
+                          _initials(courier.displayName),
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
             ),
             const SizedBox(width: 14),
             Expanded(

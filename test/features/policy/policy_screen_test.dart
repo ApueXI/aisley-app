@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:aisley_app/core/networking/api_client.dart';
 import 'package:aisley_app/features/auth/data/auth_repository.dart';
 import 'package:aisley_app/features/auth/domain/auth_models.dart';
 import 'package:aisley_app/features/auth/presentation/auth_controller.dart';
@@ -43,9 +44,50 @@ void main() {
       expect(find.text('View published history'), findsNWidgets(2));
     },
   );
+
+  testWidgets('shows an actionable message when the policy route is missing', (
+    tester,
+  ) async {
+    final policyController = PolicyController(
+      policyApi: _WidgetPolicyApi(
+        statusError: const ApiException(
+          statusCode: 404,
+          code: 'NOT_FOUND',
+          message: 'not found',
+        ),
+      ),
+    );
+    final authController = AuthController(
+      authRepository: _WidgetAuthRepository(),
+      dashboardRepository: _WidgetDashboardRepository(),
+    )..status = AuthStatus.authenticated;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PolicyScreen(
+          authController: authController,
+          policyController: policyController,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Policy information unavailable'), findsOneWidget);
+    expect(
+      find.text(
+        'The policy consent endpoint is unavailable on this API. Deploy the policy routes and retry.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Retry'), findsOneWidget);
+  });
 }
 
 class _WidgetPolicyApi implements PolicyApi {
+  _WidgetPolicyApi({this.statusError});
+
+  final Object? statusError;
+
   @override
   Future<PolicyDocument> fetchCurrent(
     PolicyType type, {
@@ -77,6 +119,9 @@ class _WidgetPolicyApi implements PolicyApi {
 
   @override
   Future<PolicyConsentStatus> fetchConsentStatus() async {
+    if (statusError != null) {
+      throw statusError!;
+    }
     return const PolicyConsentStatus(
       policies: <PolicyConsentItem>[
         PolicyConsentItem(

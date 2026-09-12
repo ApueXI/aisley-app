@@ -186,11 +186,38 @@ Map<String, dynamic> _dataMap(String body, String field) {
       throw ApiContractException('$field.response');
     }
     final data = decoded['data'];
-    if (data is! Map) {
-      throw ApiContractException('$field.data');
+    if (data is Map) {
+      return Map<String, dynamic>.from(data);
     }
-    return Map<String, dynamic>.from(data);
+
+    // The policy controller's Laravel response may be serialized as a
+    // resource envelope or as the DTO itself. Accept only a complete,
+    // endpoint-specific DTO so an arbitrary successful response cannot be
+    // mistaken for policy data.
+    final direct = Map<String, dynamic>.from(decoded);
+    if (_isDirectPolicyDto(direct, field)) {
+      return direct;
+    }
+
+    throw ApiContractException('$field.data');
   } on FormatException {
     throw ApiContractException('$field.response');
   }
+}
+
+bool _isDirectPolicyDto(Map<String, dynamic> payload, String field) {
+  return switch (field) {
+    'policy.consent' =>
+      payload['policies'] is List &&
+          payload['all_required_accepted'] is bool,
+    'policy.history' =>
+      payload['type'] is String &&
+          payload['label'] is String &&
+          payload['versions'] is List,
+    'policy' || 'policy.acceptance' =>
+      payload['type'] is String &&
+          payload['label'] is String &&
+          payload['version'] is Map,
+    _ => false,
+  };
 }

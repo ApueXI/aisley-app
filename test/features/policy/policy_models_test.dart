@@ -27,6 +27,26 @@ void main() {
     },
   );
 
+  test('normalizes deployed policy version projections', () {
+    final status = PolicyConsentStatus.fromJson(const <String, dynamic>{
+      'policies': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'type': 'terms_of_service',
+          'label': 'Terms of Service',
+          'required': true,
+          'accepted': true,
+          'accepted_at': null,
+          'current_version': '3',
+          'accepted_version': <String, dynamic>{'version': 3},
+        },
+      ],
+      'all_required_accepted': true,
+    });
+
+    expect(status.policies.single.currentVersion, 3);
+    expect(status.policies.single.acceptedVersion, 3);
+  });
+
   test('rejects malformed version timestamps and missing policy envelopes', () {
     expect(
       () => PolicyVersion.fromJson(const <String, dynamic>{

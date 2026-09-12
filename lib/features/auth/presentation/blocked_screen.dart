@@ -55,6 +55,18 @@ class BlockedAccessScreen extends StatelessWidget {
          key: key,
        );
 
+  const BlockedAccessScreen.denied({
+    required AuthController authController,
+    Key? key,
+  }) : this(
+         authController: authController,
+         title: 'Access unavailable',
+         message:
+             'This Courier account is not currently allowed to access the app.',
+         icon: Icons.block_outlined,
+         key: key,
+       );
+
   final AuthController authController;
   final String title;
   final String message;
@@ -66,6 +78,26 @@ class BlockedAccessScreen extends StatelessWidget {
       icon: icon,
       title: title,
       message: message,
+      actionLabel: 'Return to sign in',
+      onAction: authController.returnToSignIn,
+    );
+  }
+}
+
+class PolicyConsentUnavailableScreen extends StatelessWidget {
+  const PolicyConsentUnavailableScreen({
+    required this.authController,
+    super.key,
+  });
+
+  final AuthController authController;
+
+  @override
+  Widget build(BuildContext context) {
+    return _StatusMessageScreen(
+      icon: Icons.policy_outlined,
+      title: 'Policy consent unavailable',
+      message: 'The app is missing the policy screen needed to complete consent. Return to sign in and try again.',
       actionLabel: 'Return to sign in',
       onAction: authController.returnToSignIn,
     );

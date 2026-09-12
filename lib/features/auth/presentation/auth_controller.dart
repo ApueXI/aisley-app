@@ -18,6 +18,8 @@ enum AuthStatus {
   rejected,
   suspendedOrDeactivated,
   invalidAffiliation,
+  accessDenied,
+  policyConsentRequired,
   recoverableNetworkFailure,
   secureStorageFailure,
 }
@@ -87,6 +89,34 @@ class AuthController extends ChangeNotifier {
 
   Future<void> handlePolicyAuthFailure(ApiException error) {
     return _handleAuthError(error, fromSession: true);
+  }
+
+  Future<void> completePolicyConsent() async {
+    if (status != AuthStatus.policyConsentRequired) {
+      return;
+    }
+
+    try {
+      courier ??= await _authRepository.currentCourier();
+      if (status != AuthStatus.policyConsentRequired) {
+        return;
+      }
+      status = AuthStatus.authenticated;
+      dashboard = null;
+      dashboardStatus = DashboardLoadStatus.idle;
+      dashboardErrorMessage = null;
+      errorMessage = null;
+      retryAfter = null;
+      notifyListeners();
+    } on ApiException catch (error) {
+      await _handleAuthError(error, fromSession: true);
+    } on TokenStorageException {
+      _becomeStorageFailure();
+    } on ApiContractException {
+      _becomeContractFailure(
+        'The service returned an unexpected account response.',
+      );
+    }
   }
 
   Future<void> handlePickupAuthFailure(ApiException error) {
@@ -234,6 +264,11 @@ class AuthController extends ChangeNotifier {
       return;
     }
 
+    if (error.statusCode == 403 && error.code == 'POLICY_CONSENT_REQUIRED') {
+      _preserveSessionForPolicyConsent(error);
+      return;
+    }
+
     if (error.statusCode == 403) {
       await _clearTokenAndSetBlocked(error);
       return;
@@ -281,6 +316,17 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  void _preserveSessionForPolicyConsent(ApiException error) {
+    status = AuthStatus.policyConsentRequired;
+    dashboard = null;
+    dashboardStatus = DashboardLoadStatus.idle;
+    dashboardErrorMessage = null;
+    errorMessage = _messageForAuthError(error);
+    retryAfter = null;
+    isSigningOut = false;
+    notifyListeners();
+  }
+
   void _becomeSignedOut({String? message}) {
     status = AuthStatus.signedOut;
     courier = null;
@@ -324,7 +370,7 @@ class AuthController extends ChangeNotifier {
       'ACCOUNT_SUSPENDED' ||
       'ACCOUNT_INACTIVE' => AuthStatus.suspendedOrDeactivated,
       'LOGISTICS_ASSOCIATION_INVALID' => AuthStatus.invalidAffiliation,
-      _ => AuthStatus.invalidAffiliation,
+      _ => AuthStatus.accessDenied,
     };
   }
 
@@ -339,6 +385,9 @@ class AuthController extends ChangeNotifier {
       'LOGISTICS_ASSOCIATION_INVALID' =>
         'Your Logistics affiliation is not currently valid.',
       'FORBIDDEN_ROLE' => 'This account is not authorized as a Courier.',
+      'FORBIDDEN' =>
+        'This Courier account is not currently allowed to sign in.',
+      'POLICY_CONSENT_REQUIRED' => 'Review and accept the current Terms of Service and Privacy Policy to continue.',
       'THROTTLED' => 'Too many attempts. Please wait and try again.',
       _ when error.isNetworkError =>
         'Could not reach the service. Check your connection and retry.',

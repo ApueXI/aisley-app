@@ -10,11 +10,17 @@ class PolicyScreen extends StatefulWidget {
   const PolicyScreen({
     required this.authController,
     required this.policyController,
+    this.onConsentComplete,
+    this.requiredForAccess = false,
+    this.showSignOutAction = false,
     super.key,
   });
 
   final AuthController authController;
   final PolicyController policyController;
+  final Future<void> Function()? onConsentComplete;
+  final bool requiredForAccess;
+  final bool showSignOutAction;
 
   @override
   State<PolicyScreen> createState() => _PolicyScreenState();
@@ -56,6 +62,12 @@ class _PolicyScreenState extends State<PolicyScreen>
       return;
     }
     _clearOutdatedConfirmations();
+    if (controller.consentStatus?.allRequiredAccepted == true) {
+      await widget.onConsentComplete?.call();
+      if (!mounted) {
+        return;
+      }
+    }
     await _closeIfSessionEnded();
   }
 
@@ -71,7 +83,27 @@ class _PolicyScreenState extends State<PolicyScreen>
       return;
     }
     _clearOutdatedConfirmations();
+    if (controller.consentStatus?.allRequiredAccepted == true) {
+      await widget.onConsentComplete?.call();
+      if (!mounted) {
+        return;
+      }
+    }
     await _closeIfSessionEnded();
+  }
+
+  Future<void> _signOut() async {
+    final didSignOut = await widget.authController.signOut();
+    if (!mounted || didSignOut) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Sign out could not be completed. Your session remains active.',
+        ),
+      ),
+    );
   }
 
   Future<void> _openHistory(PolicyType type) async {
@@ -101,7 +133,25 @@ class _PolicyScreenState extends State<PolicyScreen>
       animation: controller,
       builder: (context, child) {
         return Scaffold(
-          appBar: AppBar(title: const Text('Policy & consent')),
+          appBar: AppBar(
+            title: const Text('Policy & consent'),
+            actions: [
+              if (widget.showSignOutAction)
+                IconButton(
+                  onPressed: widget.authController.isSigningOut
+                      ? null
+                      : _signOut,
+                  tooltip: 'Sign out',
+                  icon: widget.authController.isSigningOut
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.logout),
+                ),
+            ],
+          ),
           body: _buildBody(context),
         );
       },
@@ -181,6 +231,13 @@ class _PolicyScreenState extends State<PolicyScreen>
           style: Theme.of(context).textTheme.bodyMedium
               ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
+        if (widget.requiredForAccess) ...[
+          const SizedBox(height: 16),
+          const _PolicyBanner(
+            message: 'Accept every required current policy before Courier dashboard access is restored.',
+            isError: false,
+          ),
+        ],
         if (state == PolicyViewState.loadingStatus ||
             state == PolicyViewState.loadingDocument) ...[
           const SizedBox(height: 16),

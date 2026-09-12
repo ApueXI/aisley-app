@@ -7,6 +7,7 @@ import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/registration_screen.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
 import '../features/policy/presentation/policy_controller.dart';
+import '../features/policy/presentation/policy_screen.dart';
 import '../features/pickup/presentation/pickup_controller.dart';
 
 class CourierApp extends StatelessWidget {
@@ -106,6 +107,24 @@ class _AuthGateState extends State<AuthGate> {
             key: const ValueKey('invalid-affiliation'),
             authController: authController,
           ),
+          AuthStatus.accessDenied => BlockedAccessScreen.denied(
+            key: const ValueKey('access-denied'),
+            authController: authController,
+          ),
+          AuthStatus.policyConsentRequired =>
+            widget.policyController == null
+                ? PolicyConsentUnavailableScreen(
+                    key: const ValueKey('policy-consent-unavailable'),
+                    authController: authController,
+                  )
+                : PolicyScreen(
+                    key: const ValueKey('policy-consent-required'),
+                    authController: authController,
+                    policyController: widget.policyController!,
+                    requiredForAccess: true,
+                    showSignOutAction: true,
+                    onConsentComplete: authController.completePolicyConsent,
+                  ),
           AuthStatus.recoverableNetworkFailure => RetrySessionScreen(
             key: const ValueKey('network-retry'),
             authController: authController,

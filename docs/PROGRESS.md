@@ -80,3 +80,39 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Kept Dashboard cards read-only and linked to the dedicated pickup screen. The current Flutter client uses scanner keyboard/paste QR payloads and manual fallback; no camera, map SDK, provider key, or turn-by-turn navigation dependency was added.
 - Added repository, controller, and widget contract coverage for exact routes, bearer headers, request bodies, idempotency, response-state semantics, error separation, accessibility labels, and final-mile “awaiting validation” behavior.
 - Verification: focused pickup tests pass; full `flutter analyze`, `flutter test`, and `flutter build linux --debug` are run before handoff.
+
+## 2026-09-12
+
+- Fixed the Courier policy-gated dashboard flow against the existing `d5c160d4a5a21272e487b6f46a82de35e81395cb` / `c3b9cad` contract: `403 POLICY_CONSENT_REQUIRED` now preserves the secure session and opens the Flutter consent screen instead of being mislabeled as an invalid Logistics affiliation.
+- Added explicit post-consent return to the dashboard, a sign-out action while consent is required, and a generic access-denied state for unrecognized or role-forbidden `403` responses; only `LOGISTICS_ASSOCIATION_INVALID` shows the affiliation-blocked state.
+- Added auth-controller and widget regression coverage for session preservation, consent routing, and separation of affiliation from other authorization failures.
+- Verification: workspace Dart analysis reports no issues; Flutter analyzer/test execution remains blocked here because the installed SDK tries to write its cache outside this project.
+
+## 2026-09-12
+
+- Clarified the policy consent recovery state when authenticated status loading fails: missing policy routes, backend server/bootstrap failures, contract mismatches, and local secure-storage failures now receive distinct actionable messages without exposing response bodies or credentials.
+- Added controller regression coverage for missing policy routes and locked secure storage. The documented policy endpoints and response contract remain unchanged; the API must still provide `/api/v1/policy-consent/status` and current seeded Terms/Privacy versions.
+- Verification: direct Dart analysis passes; focused Flutter tests remain blocked by the installed SDK's external build hooks in this environment.
+
+## 2026-09-12
+
+- Aligned the policy repository with the API's successful policy DTO response by accepting either the documented `data` resource envelope or a complete endpoint-specific top-level DTO; incomplete or unrelated successful responses still fail closed.
+- Added a direct status-response contract fixture while preserving the bearer-auth path, exact routes, private status handling, and server-authoritative consent decisions.
+- Verification: direct Dart analysis passes; focused Flutter tests remain blocked by the installed SDK's external build hooks in this environment.
+
+## 2026-09-12
+
+- Added privacy-safe policy contract diagnostics that identify the rejected status field without rendering the response body, token, or private account data.
+- Added controller coverage for contract-field reporting; no policy authority, endpoint, or consent fallback was introduced.
+
+## 2026-09-12
+
+- Normalized the live policy status version projection when Laravel serializes `current_version` or `accepted_version` as a numeric string or a version descriptor containing an integer `version`; invalid, fractional, zero, and unrelated values still fail closed.
+- Added model coverage for both deployed representations while retaining the documented integer DTO as the canonical contract.
+
+## 2026-09-12
+
+- Fixed the Dashboard welcome avatar so it renders the confirmed private profile-photo bytes held by the shared account controller instead of always showing initials.
+- Dashboard now listens for account/photo state changes, loads the account photo on the first authenticated dashboard visit, and falls back to initials for missing or invalid photo data; no new endpoint or API contract was introduced.
+- Added a widget regression test for refreshing the Dashboard avatar after a profile-photo update.
+- Verification: direct Dart analysis passes; Flutter widget tests remain blocked by the installed SDK attempting to write its cache/build-hook files outside this project.

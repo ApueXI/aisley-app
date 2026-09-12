@@ -312,10 +312,24 @@ int? _nullableInt(Object? value, String field) {
   if (value == null) {
     return null;
   }
-  if (value is! int) {
+  final parsed = _parseVersionNumber(value);
+  if (parsed == null || parsed < 1) {
     throw ApiContractException(field);
   }
-  return value;
+  return parsed;
+}
+
+int? _parseVersionNumber(Object? value) {
+  if (value is int) {
+    return value;
+  }
+  if (value is String) {
+    return int.tryParse(value.trim());
+  }
+  if (value is Map) {
+    return _parseVersionNumber(value['version']);
+  }
+  return null;
 }
 
 String? _nullableString(Object? value) {

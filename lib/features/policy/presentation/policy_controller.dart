@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/networking/api_client.dart';
 import '../../../core/networking/api_contract_exception.dart';
+import '../../../core/security/token_storage.dart';
 import '../data/policy_repository.dart';
 import '../domain/policy_models.dart';
 
@@ -459,8 +460,15 @@ class PolicyController extends ChangeNotifier {
     }
     if (error is ApiContractException) {
       state = PolicyViewState.retryableError;
+      errorMessage = _contractFailureMessage(error);
+      successMessage = null;
+      notifyListeners();
+      return;
+    }
+    if (error is TokenStorageException) {
+      state = PolicyViewState.retryableError;
       errorMessage =
-          'The policy service returned an unexpected response. Please retry.';
+          'Secure session storage is unavailable. Unlock your keyring and retry.';
       successMessage = null;
       notifyListeners();
       return;
@@ -469,6 +477,25 @@ class PolicyController extends ChangeNotifier {
     errorMessage = 'We could not load policy information. Please retry.';
     successMessage = null;
     notifyListeners();
+  }
+
+  String _contractFailureMessage(ApiContractException error) {
+    return switch (error.field) {
+      'policy.consent.response' =>
+        'The policy status response was empty or invalid. Confirm the API returns JSON, then retry.',
+      'policy.consent.data' =>
+        'The policy status response is missing its policy data object. Confirm the API response envelope, then retry.',
+      'policy.consent.item' ||
+      'policy.consent.type' ||
+      'policy.consent.label' ||
+      'policy.consent.flags' ||
+      'policy.consent.accepted_at' ||
+      'policy.consent.current_version' ||
+      'policy.consent.accepted_version' =>
+        'The policy status fields do not match the documented API contract (${error.field}). Update the API response or client contract, then retry.',
+      _ =>
+        'The policy service returned an unexpected response (${error.field}). Confirm the documented API contract, then retry.',
+    };
   }
 
   Future<void> _setApiFailure(ApiException error) async {
@@ -524,7 +551,15 @@ class PolicyController extends ChangeNotifier {
       return;
     }
     state = PolicyViewState.retryableError;
-    errorMessage = 'We could not load policy information. Please retry.';
+    if (error.statusCode == 404) {
+      errorMessage =
+          'The policy consent endpoint is unavailable on this API. Deploy the policy routes and retry.';
+    } else if (error.statusCode != null && error.statusCode! >= 500) {
+      errorMessage =
+          'The policy service returned a server error. Check the policy migrations and seed data, then retry.';
+    } else {
+      errorMessage = 'We could not load policy information. Please retry.';
+    }
     notifyListeners();
   }
 
