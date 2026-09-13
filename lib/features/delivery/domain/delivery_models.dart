@@ -198,7 +198,7 @@ class CompletionProjection {
   bool get isProofAwaitingValidation => evidenceStatus == 'awaiting_validation';
 
   factory CompletionProjection.fromResponse(Map<String, dynamic> json) {
-    final data = _requiredMap(json['data'], 'delivery.completion.data');
+    final data = _completionData(json);
     final taskStatus = _requiredString(
       data['task_status'] ?? data['status'],
       'delivery.completion.task_status',
@@ -219,6 +219,25 @@ class CompletionProjection {
       revision: _nullableInt(data['revision']),
     );
   }
+}
+
+Map<String, dynamic> _completionData(Map<String, dynamic> json) {
+  final rawData = json['data'];
+  if (rawData is Map) {
+    return Map<String, dynamic>.from(rawData);
+  }
+
+  // The deployed Laravel response may serialize this endpoint-specific DTO
+  // without the usual resource envelope. Accept it only when the required
+  // completion fields are present; never treat an arbitrary successful JSON
+  // object as a completion projection.
+  if (json['task_id'] is String &&
+      (json['task_status'] is String || json['status'] is String) &&
+      json['completion_status'] is String) {
+    return json;
+  }
+
+  throw const ApiContractException('delivery.completion.data');
 }
 
 String? _contactString(

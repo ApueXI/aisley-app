@@ -144,9 +144,19 @@ class ApiDeliveryRepository implements DeliveryRepository {
         'confirmed': true,
       },
     );
-    return CompletionProjection.fromResponse(
-      _decodeObject(response.body, 'delivery.completion.submit'),
-    );
+    try {
+      return CompletionProjection.fromResponse(
+        _decodeObject(response.body, 'delivery.completion.submit'),
+      );
+    } on ApiContractException {
+      // A successful 202 acknowledges the intent, while the completion GET
+      // is the authoritative projection. Recover from an empty or differently
+      // serialized acknowledgment without treating it as delivery success.
+      if (response.statusCode == 202) {
+        return fetchCompletion(taskId);
+      }
+      rethrow;
+    }
   }
 }
 

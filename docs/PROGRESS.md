@@ -155,3 +155,11 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Made the pending completion state explicit in the UI by confirming that the server accepted the completion intent while preserving the required “Awaiting Logistics validation” state; the task remains undelivered until a server completion read reports `delivered`.
 - Added controller coverage for stale proof/intent projections and widget coverage that taps the completion confirmation and verifies the completion request receives the proof ID.
 - Verification: direct Dart analysis passes; focused Flutter tests remain blocked by the installed SDK's external build-hook/cache writes in this environment.
+
+## 2026-09-13
+
+- Fixed completion projection parsing for the deployed API serialization: Flutter now accepts the documented `data` envelope and a complete direct completion DTO without weakening required task, status, or completion fields.
+- A successful HTTP 202 completion acknowledgment with an empty or otherwise unsupported body now falls back to the documented completion GET, whose projection remains authoritative; incomplete GET projections still fail closed.
+- Completion contract failures now identify the safe rejected field path so an API-shape mismatch is distinguishable from Logistics proof validation; response bodies, tokens, and private delivery data remain hidden.
+- Added repository coverage for direct and empty-body HTTP 202 completion responses and controller coverage for contract-field diagnostics. No Laravel endpoint, request body, status authority, or delivery transition was changed.
+- Verification: direct Dart analysis passes; focused Flutter tests remain blocked by the installed SDK's external build-hook/cache writes in this environment.

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:aisley_app/core/networking/api_client.dart';
+import 'package:aisley_app/core/networking/api_contract_exception.dart';
 import 'package:aisley_app/features/delivery/data/delivery_repository.dart';
 import 'package:aisley_app/features/delivery/domain/delivery_models.dart';
 import 'package:aisley_app/features/delivery/presentation/delivery_controller.dart';
@@ -119,6 +120,35 @@ void main() {
       expect(submitted, isTrue);
       expect(repository.completionEvidenceId, 'new-proof');
       expect(controller.isCompletionPending(_outForDeliveryTask), isTrue);
+    },
+  );
+
+  test(
+    'completion contract failures identify the safe response field',
+    () async {
+      final repository = _FakeDeliveryRepository()
+        ..completionError = const ApiContractException(
+          'delivery.completion.completion_status',
+        );
+      final controller = DeliveryController(deliveryRepository: repository)
+        ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+          taskId: 'delivery-task-1',
+          proofId: 'proof-1',
+          evidenceStatus: 'awaiting_validation',
+          custodyState: 'out_for_delivery',
+          completionEligible: false,
+        );
+
+      final submitted = await controller.submitCompletion(
+        _outForDeliveryTask,
+        evidenceId: 'proof-1',
+      );
+
+      expect(submitted, isFalse);
+      expect(
+        controller.actionError(_outForDeliveryTask),
+        contains('delivery.completion.completion_status'),
+      );
     },
   );
 
@@ -349,6 +379,7 @@ void main() {
 class _FakeDeliveryRepository implements DeliveryRepository {
   Object? loadError;
   Object? proofError;
+  Object? completionError;
   bool failCompletionOnce = false;
   String? movementStatus;
   String? proofIdentifier;
@@ -436,6 +467,9 @@ class _FakeDeliveryRepository implements DeliveryRepository {
     completionEvidenceId = evidenceId;
     completionExpectedRevisions.add(expectedRevision);
     completionIdempotencyKeys.add(idempotencyKey);
+    if (completionError != null) {
+      throw completionError!;
+    }
     if (failCompletionOnce) {
       failCompletionOnce = false;
       throw const ApiException.network(

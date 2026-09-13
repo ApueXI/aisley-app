@@ -129,6 +129,60 @@ void main() {
     },
   );
 
+  test(
+    'accepts a direct completion DTO when the data envelope is omitted',
+    () async {
+      final repository = _repository((incoming) async {
+        return http.Response(jsonEncode(_directCompletionResponse), 202);
+      });
+
+      final completion = await repository.submitCompletion(
+        taskId: 'delivery-task-1',
+        expectedRevision: 7,
+        evidenceId: 'proof-1',
+        idempotencyKey: '44444444-4444-4444-8444-444444444444',
+      );
+
+      expect(completion.taskId, 'delivery-task-1');
+      expect(completion.intentId, 'intent-1');
+      expect(completion.completionStatus, 'awaiting_validation');
+      expect(completion.isDelivered, isFalse);
+    },
+  );
+
+  test(
+    'reads the completion projection after a 202 acknowledgment without a DTO',
+    () async {
+      final requests = <http.Request>[];
+      final repository = _repository((incoming) async {
+        requests.add(incoming);
+        if (incoming.method == 'POST') {
+          return http.Response('', 202);
+        }
+        return http.Response(jsonEncode(_completionResponse), 200);
+      });
+
+      final completion = await repository.submitCompletion(
+        taskId: 'delivery-task-1',
+        expectedRevision: 7,
+        evidenceId: 'proof-1',
+        idempotencyKey: '55555555-5555-4555-8555-555555555555',
+      );
+
+      expect(requests.map((request) => request.method), <String>[
+        'POST',
+        'GET',
+      ]);
+      expect(
+        requests.last.url.path,
+        '/api/v1/courier/tasks/delivery-task-1/completion',
+      );
+      expect(completion.intentId, 'intent-1');
+      expect(completion.completionStatus, 'awaiting_validation');
+      expect(completion.isDelivered, isFalse);
+    },
+  );
+
   test('submits the public Order reference as order_id', () async {
     late http.Request request;
     final repository = _repository((incoming) async {
@@ -225,4 +279,15 @@ const _completionResponse = <String, dynamic>{
     'delivered_at': null,
     'revision': 8,
   },
+};
+
+const _directCompletionResponse = <String, dynamic>{
+  'task_id': 'delivery-task-1',
+  'intent_id': 'intent-1',
+  'task_status': 'out_for_delivery',
+  'order_status': 'out_for_delivery',
+  'evidence_status': 'awaiting_validation',
+  'completion_status': 'awaiting_validation',
+  'delivered_at': null,
+  'revision': 8,
 };

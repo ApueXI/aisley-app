@@ -276,10 +276,9 @@ class DeliveryController extends ChangeNotifier {
       completionStatuses[taskId] = DeliveryLoadStatus.secureStorageFailure;
       completionErrors[taskId] = 'Secure session storage is unavailable. Completion status cannot be loaded.';
       notifyListeners();
-    } on ApiContractException {
+    } on ApiContractException catch (error) {
       completionStatuses[taskId] = DeliveryLoadStatus.failed;
-      completionErrors[taskId] =
-          'The completion response was not understood. Please retry.';
+      completionErrors[taskId] = _contractFailureMessage(error);
       notifyListeners();
     }
   }
@@ -323,8 +322,8 @@ class DeliveryController extends ChangeNotifier {
       await _setActionError(task, error);
     } on TokenStorageException {
       _setStorageActionError(task);
-    } on ApiContractException {
-      _setContractActionError(task);
+    } on ApiContractException catch (error) {
+      _setContractActionError(task, error);
     }
     return false;
   }
@@ -437,8 +436,8 @@ class DeliveryController extends ChangeNotifier {
       await _setActionError(task, error);
     } on TokenStorageException {
       _setStorageActionError(task);
-    } on ApiContractException {
-      _setContractActionError(task);
+    } on ApiContractException catch (error) {
+      _setContractActionError(task, error);
     }
     return false;
   }
@@ -524,8 +523,8 @@ class DeliveryController extends ChangeNotifier {
       await _setActionError(task, error);
     } on TokenStorageException {
       _setStorageActionError(task);
-    } on ApiContractException {
-      _setContractActionError(task);
+    } on ApiContractException catch (error) {
+      _setContractActionError(task, error);
     }
     return false;
   }
@@ -629,11 +628,14 @@ class DeliveryController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _setContractActionError(PickupTask task) {
+  void _setContractActionError(PickupTask task, ApiContractException error) {
     _actionStatuses[task.id] = DeliveryActionStatus.failed;
-    _actionErrors[task.id] =
-        'The delivery service returned an unexpected response. Please retry.';
+    _actionErrors[task.id] = _contractFailureMessage(error);
     notifyListeners();
+  }
+
+  String _contractFailureMessage(ApiContractException error) {
+    return 'The delivery response does not match the documented API contract (${error.field}). Please retry.';
   }
 
   void _replaceTask(PickupTask updated) {
