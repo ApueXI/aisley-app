@@ -3,9 +3,10 @@ feature: courier-complete-delivery
 title: Complete Delivery
 system: AISLEY
 type: Feature Specification
-version: 1.3
+version: 1.4
 status: Implemented P0 QR completion flow; advanced proof methods deferred
 implementation_status: Completion intent, Logistics proof validation, atomic delivered transition, and history records are implemented; Flutter UI is external
+flutter_status: Final-mile completion flow is implemented in this Flutter project; direct Dart analysis passes and full Flutter test verification remains environment-blocked
 canonical: true
 role: Courier
 scope: Laravel API and external Flutter application
@@ -142,29 +143,14 @@ out_for_delivery
 - GET has no body and no client-controlled ownership parameters.
 - New intent and matching replay return 202. Replay may reflect updated intent/task state but still returns `delivered_at: null`; use GET for the authoritative completion projection and timestamp.
 - Finalization is visible through a fresh GET, not inferred from an earlier 202.
-- Initial GET may return intent_id null and delivered_at null.
+- Initial GET may return intent_id null, completion_status null, and delivered_at null when no Courier completion intent exists.
 
 ```json
-{
-  "expected_revision": 4,
-  "evidence_id": "00000000-0000-4000-8000-000000000001",
-  "confirmed": true
-}
+{"expected_revision":4,"evidence_id":"00000000-0000-4000-8000-000000000001","confirmed":true}
 ```
 
 ```json
-{
-  "data": {
-    "task_id": "00000000-0000-4000-8000-000000000002",
-    "intent_id": "00000000-0000-4000-8000-000000000003",
-    "task_status": "out_for_delivery",
-    "order_status": "out_for_delivery",
-    "evidence_status": "awaiting_validation",
-    "completion_status": "awaiting_validation",
-    "delivered_at": null,
-    "revision": 5
-  }
-}
+{"data":{"task_id":"00000000-0000-4000-8000-000000000002","intent_id":"00000000-0000-4000-8000-000000000003","task_status":"out_for_delivery","order_status":"out_for_delivery","evidence_status":"awaiting_validation","completion_status":"awaiting_validation","delivered_at":null,"revision":5}}
 ```
 
 - completion_status is a response/intent field, not a new OrderStatus.

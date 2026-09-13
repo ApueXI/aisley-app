@@ -182,7 +182,7 @@ class CompletionProjection {
 
   final String taskId;
   final String taskStatus;
-  final String completionStatus;
+  final String? completionStatus;
   final String? intentId;
   final String? orderStatus;
   final String? evidenceStatus;
@@ -207,7 +207,7 @@ class CompletionProjection {
     return CompletionProjection(
       taskId: _requiredString(data['task_id'], 'delivery.completion.task_id'),
       taskStatus: taskStatus,
-      completionStatus: _requiredString(
+      completionStatus: _nullableString(
         data['completion_status'],
         'delivery.completion.completion_status',
       ),
@@ -233,7 +233,9 @@ Map<String, dynamic> _completionData(Map<String, dynamic> json) {
   // object as a completion projection.
   if (json['task_id'] is String &&
       (json['task_status'] is String || json['status'] is String) &&
-      json['completion_status'] is String) {
+      json.containsKey('completion_status') &&
+      (json['completion_status'] == null ||
+          json['completion_status'] is String)) {
     return json;
   }
 
@@ -279,12 +281,12 @@ String _requiredString(Object? value, String field) {
   return value.trim();
 }
 
-String? _nullableString(Object? value) {
+String? _nullableString(Object? value, [String field = 'delivery.value']) {
   if (value == null) {
     return null;
   }
   if (value is! String) {
-    throw const ApiContractException('delivery.value');
+    throw ApiContractException(field);
   }
   final normalized = value.trim();
   return normalized.isEmpty ? null : normalized;

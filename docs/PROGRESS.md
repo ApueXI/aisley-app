@@ -163,3 +163,9 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Completion contract failures now identify the safe rejected field path so an API-shape mismatch is distinguishable from Logistics proof validation; response bodies, tokens, and private delivery data remain hidden.
 - Added repository coverage for direct and empty-body HTTP 202 completion responses and controller coverage for contract-field diagnostics. No Laravel endpoint, request body, status authority, or delivery transition was changed.
 - Verification: direct Dart analysis passes; focused Flutter tests remain blocked by the installed SDK's external build-hook/cache writes in this environment.
+
+## 2026-09-13
+
+- Reconciled the imported Complete Delivery specification from the webapp project into the canonical Flutter copy: adopted version 1.4 while preserving the same backend commit, endpoints, response envelope, and server authority.
+- Documented that an initial completion GET may return `completion_status: null` when no completion intent exists; Flutter now models that field as nullable and continues to require a server-confirmed `delivered` projection before showing completion.
+- Updated contract diagnostics to identify the documented JSON location `data.completion_status`. Added repository coverage for an initial projection with no completion intent; the imported `specs-from-webapp.md` comparison file remains unchanged and uncommitted.

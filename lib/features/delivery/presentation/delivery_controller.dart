@@ -635,7 +635,10 @@ class DeliveryController extends ChangeNotifier {
   }
 
   String _contractFailureMessage(ApiContractException error) {
-    return 'The delivery response does not match the documented API contract (${error.field}). Please retry.';
+    final field = error.field == 'delivery.completion.completion_status'
+        ? 'data.completion_status'
+        : error.field;
+    return 'The delivery response does not match the documented API contract ($field). Please retry.';
   }
 
   void _replaceTask(PickupTask updated) {

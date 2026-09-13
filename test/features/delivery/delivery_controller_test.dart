@@ -147,7 +147,7 @@ void main() {
       expect(submitted, isFalse);
       expect(
         controller.actionError(_outForDeliveryTask),
-        contains('delivery.completion.completion_status'),
+        contains('data.completion_status'),
       );
     },
   );

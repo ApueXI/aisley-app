@@ -183,6 +183,20 @@ void main() {
     },
   );
 
+  test('accepts a null completion status before an intent exists', () async {
+    final repository = _repository((incoming) async {
+      return http.Response(jsonEncode(_initialCompletionResponse), 200);
+    });
+
+    final completion = await repository.fetchCompletion('delivery-task-1');
+
+    expect(completion.intentId, isNull);
+    expect(completion.completionStatus, isNull);
+    expect(completion.taskStatus, 'out_for_delivery');
+    expect(completion.isAwaitingValidation, isFalse);
+    expect(completion.isDelivered, isFalse);
+  });
+
   test('submits the public Order reference as order_id', () async {
     late http.Request request;
     final repository = _repository((incoming) async {
@@ -290,4 +304,17 @@ const _directCompletionResponse = <String, dynamic>{
   'completion_status': 'awaiting_validation',
   'delivered_at': null,
   'revision': 8,
+};
+
+const _initialCompletionResponse = <String, dynamic>{
+  'data': <String, dynamic>{
+    'task_id': 'delivery-task-1',
+    'intent_id': null,
+    'task_status': 'out_for_delivery',
+    'order_status': 'out_for_delivery',
+    'evidence_status': null,
+    'completion_status': null,
+    'delivered_at': null,
+    'revision': 7,
+  },
 };
