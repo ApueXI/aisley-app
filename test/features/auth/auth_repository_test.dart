@@ -29,10 +29,13 @@ void main() {
     );
 
     expect(
-      error.fieldErrors['address.postal_code'],
+      error.fieldErrors['address.postal_code']!.single,
       contains('valid postal code'),
     );
-    expect(error.fieldErrors['email'], contains('already registered'));
+    expect(
+      error.fieldErrors['email']!.single,
+      contains('already registered'),
+    );
   });
 
   test('loads only public active Logistics organization options', () async {

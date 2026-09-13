@@ -29,7 +29,7 @@ void main() {
 
     await tester.pumpWidget(CourierApp(authController: controller));
     await tester.tap(find.text('New Courier? Register here'));
-    await tester.pumpAndSettle();
+    await _pumpUntilFound(tester, find.text('Logistics organization'));
 
     expect(find.text('Create your Courier account'), findsOneWidget);
     expect(find.text('Logistics organization'), findsOneWidget);
@@ -48,10 +48,10 @@ void main() {
 
     await tester.pumpWidget(CourierApp(authController: controller));
     await tester.tap(find.text('New Courier? Register here'));
-    await tester.pumpAndSettle();
+    await _pumpUntilFound(tester, find.text('Logistics organization'));
     await tester.ensureVisible(find.text('Submit registration'));
     await tester.tap(find.text('Submit registration'));
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(
       find.text(
@@ -162,6 +162,16 @@ void main() {
       findsOneWidget,
     );
   });
+}
+
+Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {
+  for (var index = 0; index < 100; index++) {
+    if (finder.evaluate().isNotEmpty) {
+      return;
+    }
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+  expect(finder, findsOneWidget);
 }
 
 class _FakeAuthRepository implements AuthRepository {

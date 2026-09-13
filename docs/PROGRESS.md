@@ -176,3 +176,9 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Kept the API contract on the documented `data` envelope, recorded nullable initial `completion_status` and `evidence_id`, clarified Courier task versus Logistics Shipment revisions, and corrected copied domain-document paths to this repository's `docs/domain/` layout.
 - Updated Flutter completion parsing and tests to accept explicit null initial status while rejecting an omitted or malformed `completion_status`; no endpoint, request field, status authority, or Laravel code changed.
 - Verification: direct Dart analysis and diff/spec-length checks pass; focused Flutter tests remain blocked by the installed SDK's external build-hook/cache writes in this environment.
+
+## 2026-09-13
+
+- Stabilized the Flutter tests against backend contract `d1abeee73d0141e1fd7dda4bea0ee3fead370378`: nested registration validation assertions now match individual messages, the completion widget test scrolls its action into the test viewport, and registration validation uses bounded pumps while PSGC/organization loading indicators are active.
+- No production endpoint, status authority, secure-storage behavior, or Laravel code changed.
+- Verification: `flutter analyze` passes and `flutter test` passes with 102 tests; `git diff --check` passes.

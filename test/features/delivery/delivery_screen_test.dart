@@ -46,7 +46,11 @@ void main() {
         ),
         findsOneWidget,
       );
-      await tester.ensureVisible(find.text('Submit completion'));
+      await tester.drag(
+        find.byType(ListView).first,
+        const Offset(0, -500),
+      );
+      await tester.pump();
       expect(find.text('Submit completion'), findsOneWidget);
       expect(find.text('Delivery completed by the server.'), findsNothing);
 
