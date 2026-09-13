@@ -7,7 +7,7 @@ version: 1.1
 status: API, A6 PDF, and Seller/Logistics UI implemented; physical scan transition deferred
 roles: Seller, Logistics, Courier API
 scope: Seller SPA, Logistics SPA, Courier API, Laravel API
-source_coverage: docs/requirements.md, docs/workspace.md, docs/schema.md, docs/domains/Logistics.md, docs/domains/Courier.md, docs/features/shared/shipment-fulfillment/spec.md
+source_coverage: docs/requirements.md, docs/workspace.md, docs/schema.md, docs/domain/Logistics.md, docs/domain/Courier.md, docs/features/shared/shipment-fulfillment/spec.md
 ---
 
 # Seller-Created Pickup Waybill

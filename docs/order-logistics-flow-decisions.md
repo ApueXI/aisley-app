@@ -1,3 +1,5 @@
+> Historical decisions only. Current shared/backend contracts and owning specs supersede this worksheet; unchecked or older choices here do not block implemented P0 operations or authorize new features.
+
 ---
 title: Order and Logistics Flow Decisions
 type: Decision Record

@@ -13,11 +13,11 @@ status: Auth, account management, policy consent, first/final-mile pickup, deliv
 
 `auth/spec.md`, the Phase 1 `account-management/specs.md`, the policy-consent specification, `accept-delivery-requests/specs.md`, `pick-up-order/specs.md`, `delivery-order/specs.md`, `proof-of-delivery/specs.md`, `complete-delivery/specs.md`, and `delivery-history/specs.md` describe the currently implemented API slices. The remaining Courier specifications are planning drafts copied for future design work. They are not endpoint contracts and must not be used to invent Flutter requests, response fields, statuses, providers, or offline behavior.
 
-Before implementing any other non-auth feature, the backend must first provide:
+Before implementing an unavailable capability, confirm the backend provides:
 
 1. an approved feature specification;
 2. a versioned `/api/v1/courier/...` endpoint contract with request and response examples;
-3. the shared Shipment/Delivery Task schema and transition rules; and
+3. any schema and transition contract that capability actually requires (the shared fulfillment foundation already exists); and
 4. integration/contract-test coverage.
 
 Until then, implement only a truthful scaffold or unavailable state for the missing capability. Do not fabricate delivery requests, task counts, routes, proof requirements, earnings, notifications, or history.
@@ -56,7 +56,7 @@ Until then, implement only a truthful scaffold or unavailable state for the miss
 - `GET /api/v1/courier/tasks/{task}/completion` and `POST /api/v1/courier/tasks/{task}/completion` (authenticated completion projection/intent)
 - `GET /api/v1/courier/delivery-history` and `GET /api/v1/courier/delivery-history/{task}` (authenticated delivered history)
 
-All other routes shown in the draft files are conceptual placeholders. They are not implemented merely because they appear in a specification. The client deliberately uses text/area delivery context, revision-checked movement, P0 QR/reference proof, and read-only completion/history projections; camera scanning, route/location telemetry, and proof media remain unavailable.
+The dashboard scaffold (`GET /api/v1/courier/dashboard`), `GET /api/v1/courier/map-style`, and `GET /api/v1/courier/map-tiles/{z}/{x}/{y}.png` also exist; the last two are private map resources, not evidence of implemented Flutter map rendering. Routes shown only in historical backlog drafts are unavailable. They are not implemented merely because they appear in a specification. The client deliberately uses text/area delivery context, revision-checked movement, P0 QR/reference proof, and read-only completion/history projections; camera scanning, route/location telemetry, and proof media remain unavailable.
 
 ## Canonical constraints for future features
 

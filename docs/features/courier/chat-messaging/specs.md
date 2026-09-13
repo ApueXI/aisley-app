@@ -4,10 +4,14 @@ feature: Chat / Messaging
 system: AISLEY
 type: Feature Specification
 version: 1.0
-status: Draft
+status: Historical backlog draft; not implementation authority
+canonical: false
+implementation_status: No implemented Courier endpoint; requires a separate approved revision
 scope: Flutter Courier Mobile Application / Active-Order Communication
 source_coverage: Courier.md, app.md
 ---
+
+> Historical reference only. Routes, uppercase states, `app.md`, Mapbox, payout and incident assumptions below are unapproved legacy proposals, not current contracts. Do not implement or call them. Preserve this draft for a future scoped feature revision.
 # Courier / Rider Chat / Messaging Specification
 ## 1. Purpose
 Courier Chat / Messaging is AISLEY's direct operational communication feature for active delivery work.

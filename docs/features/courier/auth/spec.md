@@ -5,7 +5,7 @@ system: AISLEY
 type: Feature Specification
 version: 2.1
 status: Implemented foundation; dedicated coverage and recovery completion deferred
-implementation_status: Auth foundation implemented; first- and final-mile APIs exist under their owning specs; external Flutter implementation unverified
+implementation_status: Auth and both-leg client slices reported implemented; backend authoritative; latest full Flutter verification remains pending
 canonical: true
 role: Courier / Rider
 scope: Laravel API consumed by an external Flutter mobile client
@@ -92,7 +92,7 @@ GET active Logistics options
 - Issue only the server-owned `courier` ability and return the plain-text token once. `/me` never returns the token.
 - Flutter stores the token only in OS secure storage and sends `Authorization: Bearer <token>`; it must not log or ordinary-cache tokens.
 - `/me` and logout require `auth:sanctum` and `courier.active`. Logout deletes only the current personal access token.
-- After active Courier and approved-affiliation checks, protected Courier APIs require current shared Terms of Service and Privacy Policy consent. `/me`, logout, policy status, and policy acceptance remain reachable so Flutter can present the consent flow.
+- After active Courier and approved-affiliation checks, protected Courier APIs enforce shared consent when the Admin-controlled gate is enabled; use server status rather than locally inferring enforcement. `/me`, logout, policy status, and policy acceptance remain reachable so Flutter can present the consent flow.
 
 ### Stable errors and privacy
 
@@ -106,7 +106,7 @@ GET active Logistics options
 
 - Before a request, show `checking_session`, `submitting`, or `authenticating` without treating a local token as proof of approval.
 - A successful registration enters `pending_approval`; the response contains no token and cannot open operational screens.
-- `ACCOUNT_PENDING_APPROVAL` maps to a pending screen with a retryable status check, not to a login loop.
+- `ACCOUNT_PENDING_APPROVAL` maps to an informational pending screen; no standalone pending-status API exists. Offer explicit sign-in retry, not polling `/me` with a nonexistent credential.
 - `ACCOUNT_REJECTED` maps to a rejection screen; do not invent resubmission or appeal controls.
 - `ACCOUNT_SUSPENDED`, `ACCOUNT_INACTIVE`, and `LOGISTICS_ASSOCIATION_INVALID` clear operational session state and explain that access is blocked.
 - A successful login stores the returned token once, then calls `/me` only to restore identity on later launches.
@@ -206,4 +206,4 @@ The inspected backend baseline is commit `d1abeee73d0141e1fd7dda4bea0ee3fead3703
 - Backend review confirms that every new Auth mutation remains server-owned, transactional, scoped, and covered by API tests.
 - A material contract change increments this spec version, updates the copied Flutter document, and appends `docs/PROGRESS.md`.
 
-**References:** `docs/features/courier/rules.md`, `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, `docs/domains/Courier.md`, `docs/domains/Logistics.md`, [`user-registration-requirements.md`](../../../references/user-registration-requirements.md), [`file-upload-requirements.md`](../../../references/file-upload-requirements.md), and [Laravel Sanctum token abilities](https://laravel.com/docs/sanctum#token-abilities).
+**References:** `docs/features/courier/rules.md`, `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, `docs/domain/Courier.md`, `docs/domain/Logistics.md`, [`user-registration-requirements.md`](../../../references/user-registration-requirements.md), [`file-upload-requirements.md`](../../../references/file-upload-requirements.md), and [Laravel Sanctum token abilities](https://laravel.com/docs/sanctum#token-abilities).

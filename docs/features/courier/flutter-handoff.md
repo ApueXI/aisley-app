@@ -1,3 +1,5 @@
+> Historical handoff snapshot (2026-09-13). See `docs/AUDIT.md` for the 2026-09-14 review and current completion/consent corrections. This report is not an API contract.
+
 # External Courier Flutter handoff — 2026-09-13
 
 ## Evidence and authority

@@ -47,7 +47,7 @@ The backend currently exposes Courier authentication, Phase 1 account management
 - `GET /api/v1/courier/tasks/{task}/completion` and `POST /api/v1/courier/tasks/{task}/completion` (authenticated completion projection/intent)
 - `GET /api/v1/courier/delivery-history` and `GET /api/v1/courier/delivery-history/{task}` (authenticated read-only delivered history)
 
-The dashboard aggregation remains a read-only scaffold. Route/location, camera QR decoding, photo/signature proof media, chat, earnings, notification transport, and offline synchronization endpoints are not currently available. The app renders explicit unavailable states for those capabilities and must not fabricate jobs or call conceptual routes from draft specifications.
+The dashboard aggregation remains a read-only scaffold. First-mile route-manifest and map proxy APIs exist; final-mile route/location, proof-media, Courier chat/earnings/notification and offline-sync APIs remain unavailable. Camera QR decoding and Flutter graphical map/navigation are unimplemented client capabilities, not endpoints. The app renders explicit unavailable states for those capabilities and must not fabricate jobs or call conceptual routes from draft specifications.
 
 ## Client structure
 
@@ -92,6 +92,9 @@ test/
 The exact state-management, routing, networking, and secure-storage packages are project decisions. Inspect `pubspec.yaml` and reuse existing choices before adding a dependency.
 
 ## API integration
+
+- Consent follows server `required` and `all_required_accepted`; Admin may disable enforcement without accepting policies for the Courier. Preserve exact acceptance history and never call Admin controls from Flutter.
+- Backend references in copied shared docs are upstream-only; Flutter owns no Laravel services, migrations, or React screens.
 
 - Use the `/api/v1` prefix and an environment-specific base URL. Use HTTPS outside local development.
 - Centralize requests in one client/repository layer; screens must not issue ad-hoc HTTP calls.

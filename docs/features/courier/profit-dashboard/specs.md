@@ -4,10 +4,14 @@ feature: Profit Dashboard
 system: AISLEY
 type: Feature Specification
 version: 1.0
-status: Draft
+status: Historical backlog draft; not implementation authority
+canonical: false
+implementation_status: No implemented Courier endpoint; requires a separate approved revision
 scope: Flutter Courier Mobile Application / Courier Earnings Overview
 source_coverage: Courier.md, app.md
 ---
+
+> Historical reference only. Routes, uppercase states, `app.md`, Mapbox, payout and incident assumptions below are unapproved legacy proposals, not current contracts. Do not implement or call them. Preserve this draft for a future scoped feature revision.
 # Profit Dashboard Specification
 ## 1. Purpose
 Profit Dashboard is AISLEY's Courier financial-overview feature for showing earnings generated from completed delivery work.

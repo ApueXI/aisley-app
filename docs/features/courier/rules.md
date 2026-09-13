@@ -10,12 +10,12 @@ status: Active
 # Purpose
 
 This file governs how Courier feature specifications are added, updated, or revised.
-Courier UI is implemented in the separate Flutter project; this repository documents and implements the Laravel API consumed by that app.
+These are copied Courier specification rules adapted for the Flutter project. Flutter implements the client; the separate backend repository owns Laravel, migrations, and API authority.
 The rules keep the backend contract, the copied Flutter documentation, and the external client aligned.
 
 ## Authority and scope
 
-- Treat `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, and every applicable file under `docs/domains/` as the canonical cross-feature contract for role boundaries, ownership, approval, hubs, statuses, data, and invariants.
+- Treat `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, and every applicable file under `docs/domain/` as the canonical cross-feature contract for role boundaries, ownership, approval, hubs, statuses, data, and invariants.
 - Treat the matching file under `docs/features/courier/` as the detailed contract for that feature only after it is reviewed and marked implementation-ready. It may add endpoint and client detail, but it must not override a shared canonical rule.
 - Treat the implemented API, migrations, models, tests, and current `docs/PROGRESS.md` as evidence of what exists. If implementation evidence conflicts with the canonical contract, reconcile the documents before inventing or enabling behavior.
 - Treat `docs/order-logistics-flow-decisions.md` as background decision history only. Accepted decisions must be copied into the applicable canonical documents; the worksheet cannot authorize an endpoint, migration, status, or client behavior and must not be treated as an implementation prerequisite.
@@ -33,8 +33,8 @@ The rules keep the backend contract, the copied Flutter documentation, and the e
 - Read `docs/architecture.md` for backend/API boundaries and the external mobile-app boundary.
 - Read `docs/references/user-registration-requirements.md` for registration or approval work.
 - Read `docs/references/file-upload-requirements.md` for evidence, image, proof, or other upload work.
-- Read `docs/design.md` only for shared web design context; do not copy React layout rules into Flutter requirements.
-- Inspect `src/api/routes/api.php`, the relevant controller, Form Request, resource, service, model, migration, and tests.
+- Read `docs/design-courier.md` for Flutter UI; web design requirements in upstream copies apply only to the corresponding web application.
+- Use copied endpoint contracts and permitted live API checks. Backend `src/api/` paths refer to the upstream repository; if source is unavailable, request contract evidence rather than inventing or creating Laravel files here.
 - Use `rg --files` and targeted `rg` searches to find existing names, routes, enums, and relationship constraints.
 - Record whether the feature is implemented, scaffolded, partially implemented, deferred, or absent.
 - Identify every dependency and write down whether it is implemented, planned, or blocking.
@@ -92,17 +92,17 @@ Do not leave the client to infer request names, status values, ownership, or err
 ## Backend and data rules
 
 - Use the `/api/v1` prefix for all new API routes.
-- Keep UUID identifiers and server-derived ownership; never accept a client-selected `courier_id`, `hub_id`, `organization_id`, role, ability, reviewer, or status as authority.
+- Keep UUIDs opaque and ownership server-derived. Send documented action targets only: the movement endpoint accepts bounded `target_state`/`status`, not arbitrary status changes.
 - Enforce Courier access with Sanctum, the persisted `courier` role, active account status, approved affiliation, active Logistics organization, and valid sole hub.
 - Keep the MVP boundary of one Courier affiliation and one operational hub per Logistics organization.
 - Keep first-mile and final-mile assignments independent; completing one leg never grants the other.
 - Use lowercase `snake_case` persisted/API values and human-readable UI labels; do not introduce uppercase source labels as new values.
-- Store enum-like database columns as strings and cast them to PHP enums; never add native PostgreSQL enum columns.
+- Upstream Laravel stores enum-like columns as strings with PHP enum casts. Flutter models JSON values; it does not create database migrations.
 - Never modify an executed migration; specify an additive migration when schema change is approved.
 - Use transactional writes, row locks or compare-and-update guards, stable idempotency keys, and append-only history for state changes.
 - Keep one immutable shared waybill created by the Seller pickup transaction; Seller and selected Logistics have role-scoped access, and assigned Courier QR resolution remains task-authorized.
 - Do not put detailed physical shipment milestones directly in `orders.status` without an approved shared migration.
-- Do not invent Shipment, Parcel, Scan, Delivery Task, assignment, or proof records while the shared operational schema is deferred.
+- The shared P0 fulfillment schema exists in Laravel. Do not recreate its records in Flutter or invent fields for deferred capabilities.
 
 ## External Flutter handoff
 
@@ -153,7 +153,7 @@ Do not leave the client to infer request names, status values, ownership, or err
 - Add DTO privacy tests proving that secrets, raw paths, private evidence, and unnecessary PII are absent.
 - Add Flutter contract tests or fixtures for JSON parsing, multipart names, auth-state mapping, token storage failures, and server errors.
 - Mocks may support deterministic unit/widget tests, but they cannot replace API contract verification against the Laravel backend.
-- Run the relevant Laravel tests and Flutter analyzer/test commands before marking a spec implementation-ready.
+- Run Flutter analyzer/tests here. Record upstream Laravel test evidence separately; never claim it ran in Flutter or mistake a SDK-blocked test for a pass.
 - Verify the spec line count, links, endpoint examples, and backend commit metadata before review.
 - Ask whether every acceptance criterion can be demonstrated by an API or UI test; unresolved criteria remain open.
 - Update the copied spec in the Flutter project when a backend contract changes.
@@ -169,14 +169,14 @@ Do not leave the client to infer request names, status values, ownership, or err
 - If a feature cannot be explained within 200–230 lines, split genuinely separate contracts into separate feature specs and link them.
 - If a revision falls outside the range, correct the structure before calling the spec ready for implementation.
 
-## Final checklist before handoff
+## Per-feature checklist template — verify afresh, not inherited evidence
 
-- [x] Current code and migrations were inspected.
-- [x] Current behavior is separated from deferred behavior.
-- [x] Canonical role, ownership, approval, hub, and status rules are explicit.
-- [x] Every usable endpoint has method, path, auth, request, response, errors, and retry semantics.
-- [x] Conceptual endpoints are labeled unavailable and cannot be copied as working API calls.
-- [x] Flutter screen states, secure storage, privacy, accessibility, and offline boundaries are documented.
-- [x] Dependencies and blocking schema/policy decisions are named.
-- [x] The feature spec is 200–230 physical lines.
-- [x] Tests, backend commit/API version, copied-document sync, and `PROGRESS.md` updates are planned.
+- [ ] Current code and migrations were inspected.
+- [ ] Current behavior is separated from deferred behavior.
+- [ ] Canonical role, ownership, approval, hub, and status rules are explicit.
+- [ ] Every usable endpoint has method, path, auth, request, response, errors, and retry semantics.
+- [ ] Conceptual endpoints are labeled unavailable and cannot be copied as working API calls.
+- [ ] Flutter screen states, secure storage, privacy, accessibility, and offline boundaries are documented.
+- [ ] Dependencies and blocking schema/policy decisions are named.
+- [ ] The feature spec is 200–230 physical lines.
+- [ ] Tests, backend commit/API version, copied-document sync, and `PROGRESS.md` updates are planned.

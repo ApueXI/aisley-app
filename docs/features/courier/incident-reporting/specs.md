@@ -4,10 +4,14 @@ feature: Incident Reporting
 system: AISLEY
 type: Feature Specification
 version: 1.0
-status: Draft
+status: Historical backlog draft; not implementation authority
+canonical: false
+implementation_status: No implemented Courier endpoint; requires a separate approved revision
 scope: Flutter Courier Mobile Application / Delivery Exception Handling
 source_coverage: Courier.md, app.md
 ---
+
+> Historical reference only. Routes, uppercase states, `app.md`, Mapbox, payout and incident assumptions below are unapproved legacy proposals, not current contracts. Do not implement or call them. Preserve this draft for a future scoped feature revision.
 # Incident Reporting Specification
 ## 1. Purpose
 Incident Reporting is AISLEY's Courier exception-handling feature for reporting operational blockers that prevent or materially interfere with successful delivery.

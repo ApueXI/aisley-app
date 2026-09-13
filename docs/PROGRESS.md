@@ -170,15 +170,7 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Documented that an initial completion GET may return `completion_status: null` when no completion intent exists; Flutter now models that field as nullable and continues to require a server-confirmed `delivered` projection before showing completion.
 - Updated contract diagnostics to identify the documented JSON location `data.completion_status`. Added repository coverage for an initial projection with no completion intent; the imported `specs-from-webapp.md` comparison file remains unchanged and uncommitted.
 
-## 2026-09-13
+## 2026-09-14
 
-- Reconciled the v1.5 Proof of Delivery and Complete Delivery specifications from the webapp project: pending QR/reference proof now explicitly hands its `proof_id` to Courier completion, pending evidence does not block intent submission, and Logistics validates the matching proof and intent during finalization.
-- Kept the API contract on the documented `data` envelope, recorded nullable initial `completion_status` and `evidence_id`, clarified Courier task versus Logistics Shipment revisions, and corrected copied domain-document paths to this repository's `docs/domain/` layout.
-- Updated Flutter completion parsing and tests to accept explicit null initial status while rejecting an omitted or malformed `completion_status`; no endpoint, request field, status authority, or Laravel code changed.
-- Verification: direct Dart analysis and diff/spec-length checks pass; focused Flutter tests remain blocked by the installed SDK's external build-hook/cache writes in this environment.
-
-## 2026-09-13
-
-- Stabilized the Flutter tests against backend contract `d1abeee73d0141e1fd7dda4bea0ee3fead370378`: nested registration validation assertions now match individual messages, the completion widget test scrolls its action into the test viewport, and registration validation uses bounded pumps while PSGC/organization loading indicators are active.
-- No production endpoint, status authority, secure-storage behavior, or Laravel code changed.
-- Verification: `flutter analyze` passes and `flutter test` passes with 102 tests; `git diff --check` passes.
+- Audited all 34 imported documentation files against backend `9a2e1af987fadd91d17979e7defbffdbb0e5ca44`. Refreshed shared contracts and Courier handoff details, clarified Admin-controlled consent and descriptor/envelope parsing, corrected auth-only indexes and upstream/local paths, and isolated historical drafts/comparison copies from implementation authority.
+- Preserved prior Flutter implementation reports and test limitations. No Flutter/Laravel runtime was changed or tested; latest full Flutter test execution, PostgreSQL verification, and live completion-failure diagnosis remain unresolved. See `docs/AUDIT.md`.

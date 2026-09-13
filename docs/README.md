@@ -1,21 +1,25 @@
 # Courier Flutter documentation bundle
 
-This directory is a documentation bundle for the external Courier Flutter application. Copy `AGENTS.md` to the Flutter project root and copy the `docs/` directory into that project. Do not copy Laravel, React, Next.js, or database source code into the Flutter project.
-
-## Authority order
-
-1. The live, versioned Laravel API contract.
-2. The copied `docs/requirements.md`, `docs/workspace.md`, and `docs/schema.md` sections relevant to Courier.
-3. `docs/domain/Courier.md` and `docs/domain/Logistics.md`.
-4. The matching Courier feature specification.
-5. `docs/order-logistics-flow-decisions.md` only as historical rationale; it is not canonical.
-
-If these sources disagree, stop and resolve the backend contract before implementing behavior.
+This bundle contains the external Flutter client's documentation. Copy this `docs/` tree into the Flutter project without replacing Flutter source or its root rules. No `AGENTS.md` is included in this bundle; retain the Flutter project's existing one.
 
 ## Current implementation
 
-Only Courier authentication is currently available. Use `docs/features/courier/auth/spec.md` for the implemented endpoints and `docs/features/courier/README.md` for the deferred-feature gate. The other Courier specs are planning drafts and must not be treated as API documentation.
+- Backend supports Courier auth, account/photo, shared policies, both task legs, first-mile manifests, final-mile QR proof/completion, and delivered history.
+- Flutter progress reports those client slices implemented, using manual/keyboard/pasted QR input and ordered manifest text.
+- Camera decoding and graphical maps/navigation remain client extensions; they are not missing scan APIs.
+- Courier dashboard aggregation, notification endpoints, final-mile route/location telemetry, photo/signature proof, chat, earnings, incidents, and offline mutations remain unavailable.
+- Logistics has its own implemented inbox and hub review UI; these are not Courier routes.
 
-## Synchronization
+## Authority and paths
 
-The bundle was checked against backend commit `d817a10` on 2026-09-08. The agent must automatically update `docs/PROGRESS.md` in the same task after implementation, test, backend-contract, or material project-documentation changes. Record the actual change and verification; do not add entries for read-only reviews or unfinished work.
+- Backend requirements, workspace, schema, role domains and owning feature contracts govern API behavior; copied docs are snapshots, not permission to change the backend.
+- `docs/domain/` is the local role-reference folder. `src/api/`, Logistics/Admin/Seller/Customer specs not included here, and migrations named in shared copies are upstream backend references, not missing Flutter implementation files.
+- Read only Courier-relevant and shared sections. This bundle's architecture and design guide apply to Flutter; web-library requirements elsewhere apply to the upstream web apps.
+- Historical decision worksheets, the prior handoff report, `specs-from-webapp.md`, and legacy chat/incident/profit drafts do not authorize routes, statuses, providers, or business rules.
+- If runtime behavior contradicts a contract, report the response/code and owning contract; do not guess fields or bypass authorization.
+
+## Synchronization and verification
+
+Audited against backend `9a2e1af987fadd91d17979e7defbffdbb0e5ca44` on 2026-09-14. Older implementation commits in progress remain historical provenance. See `AUDIT.md` for coverage and remaining verification.
+
+Retain client implementation notes and append actual changes/test outcomes to `docs/PROGRESS.md`. Copying specs does not prove live integration, and the latest supplied Flutter log still reports SDK-blocked test execution.

@@ -111,7 +111,7 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 - After the server records `picked_up_from_hub`, show one explicit movement action at a time: `in_transit`, then `out_for_delivery`. Each action confirms the server-authorized transition and revision; it never writes an Order status locally.
 - Show the authorized hub, destination, recipient contact, instructions, and optional advisory metrics returned by the delivery-context endpoint. Missing route metrics remain visibly unavailable; no map, GPS, local ETA, or fabricated zero distance is shown.
 - At `out_for_delivery`, offer only the live P0 QR/reference proof input. Show `awaiting_validation` after the 202 response, map the returned proof reference to completion, and never treat a scan or completion intent as delivered.
-- Completion is an explicit intent followed by a fresh completion read. Display delivered only when the server returns the committed `delivered` projection.
+- Completion is an explicit intent using the just-returned `proof_id` as `evidence_id`, even while proof awaits validation; never wait for `completion_eligible: true`. Initial completion status may be null. Then perform a fresh completion read. Display delivered only when the server returns the committed `delivered` projection.
 
 ### Delivery history
 
@@ -120,6 +120,8 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 - Keep cursor pagination unavailable when the server does not provide a usable cursor; distinguish an empty successful list from unavailable, unauthorized, offline, and retryable states.
 
 ## Status, error, and network presentation
+
+- Respect server-computed consent gating; `all_required_accepted: true` permits entry even if `accepted: false` when enforcement is disabled. Do not label unaccepted policies as accepted.
 
 - Every API-backed screen has loading, empty, validation, unauthorized, forbidden, timeout/offline, retry, and success states appropriate to its operation.
 - Use server error codes such as `INVALID_CREDENTIALS`, `ACCOUNT_PENDING_APPROVAL`, `ACCOUNT_REJECTED`, `ACCOUNT_SUSPENDED`, `ACCOUNT_INACTIVE`, and `LOGISTICS_ASSOCIATION_INVALID` as state inputs, not as permission decisions made locally.
@@ -150,4 +152,4 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 - Add golden or screenshot tests only for stable, approved screens; verify text scaling and light/dark variants before accepting them.
 - Keep this guide and the copied Courier feature specs synchronized with the backend API version. Changes to deferred delivery UI require the matching API/schema decision first.
 
-**Related documents:** `../AGENTS.md`, `docs/features/courier/auth/spec.md`, `docs/domain/Courier.md`, `docs/domain/Logistics.md`, `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, `docs/references/user-registration-requirements.md`, and `docs/references/file-upload-requirements.md`.
+**Related documents:** The Flutter project's existing root rules (not supplied in this bundle), `docs/features/courier/auth/spec.md`, `docs/domain/Courier.md`, `docs/domain/Logistics.md`, `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, `docs/references/user-registration-requirements.md`, and `docs/references/file-upload-requirements.md`.

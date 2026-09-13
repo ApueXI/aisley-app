@@ -7,7 +7,7 @@ type: Feature Specification
 version: 1.5
 status: Implemented P0 QR/reference proof submission; media extensions deferred
 implementation_status: Courier QR/reference proof records and Logistics validation are implemented; image/signature uploads remain deferred
-flutter_status: Both-leg client slices reported implemented in the supplied 2026-09-13 Flutter handoff; source/runtime and full test verification not performed here
+flutter_status: Client implementation reported in Flutter progress; latest full Flutter test execution remains environment-blocked
 canonical: true
 scope: External Flutter mobile client and Laravel Courier API
 backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378
