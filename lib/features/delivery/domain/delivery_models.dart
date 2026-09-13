@@ -182,7 +182,7 @@ class CompletionProjection {
 
   final String taskId;
   final String taskStatus;
-  final String completionStatus;
+  final String? completionStatus;
   final String? intentId;
   final String? orderStatus;
   final String? evidenceStatus;
@@ -198,16 +198,19 @@ class CompletionProjection {
   bool get isProofAwaitingValidation => evidenceStatus == 'awaiting_validation';
 
   factory CompletionProjection.fromResponse(Map<String, dynamic> json) {
-    final data = _requiredMap(json['data'], 'delivery.completion.data');
+    final data = _completionData(json);
     final taskStatus = _requiredString(
       data['task_status'] ?? data['status'],
       'delivery.completion.task_status',
     );
     parsePickupTaskStatus(taskStatus);
+    if (!data.containsKey('completion_status')) {
+      throw const ApiContractException('delivery.completion.completion_status');
+    }
     return CompletionProjection(
       taskId: _requiredString(data['task_id'], 'delivery.completion.task_id'),
       taskStatus: taskStatus,
-      completionStatus: _requiredString(
+      completionStatus: _nullableString(
         data['completion_status'],
         'delivery.completion.completion_status',
       ),
@@ -219,6 +222,27 @@ class CompletionProjection {
       revision: _nullableInt(data['revision']),
     );
   }
+}
+
+Map<String, dynamic> _completionData(Map<String, dynamic> json) {
+  final rawData = json['data'];
+  if (rawData is Map) {
+    return Map<String, dynamic>.from(rawData);
+  }
+
+  // The documented Laravel response uses the data envelope. Keep this narrow
+  // direct-DTO compatibility for deployments that serialize this
+  // endpoint-specific projection without that envelope; never treat an
+  // arbitrary successful JSON object as a completion projection.
+  if (json['task_id'] is String &&
+      (json['task_status'] is String || json['status'] is String) &&
+      json.containsKey('completion_status') &&
+      (json['completion_status'] == null ||
+          json['completion_status'] is String)) {
+    return json;
+  }
+
+  throw const ApiContractException('delivery.completion.data');
 }
 
 String? _contactString(
@@ -260,12 +284,12 @@ String _requiredString(Object? value, String field) {
   return value.trim();
 }
 
-String? _nullableString(Object? value) {
+String? _nullableString(Object? value, [String field = 'delivery.value']) {
   if (value == null) {
     return null;
   }
   if (value is! String) {
-    throw const ApiContractException('delivery.value');
+    throw ApiContractException(field);
   }
   final normalized = value.trim();
   return normalized.isEmpty ? null : normalized;

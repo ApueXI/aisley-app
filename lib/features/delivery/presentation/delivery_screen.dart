@@ -172,7 +172,7 @@ class _DeliveryTaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final destination = task.destinationArea?.areaSummary;
-    final order = task.order?.displayReference ?? 'Order reference unavailable';
+    final order = task.order?.reference ?? 'Order reference unavailable';
     final details = <String>[
       'Final-mile delivery',
       _deliveryStatusLabel(task.rawStatus),
@@ -336,7 +336,7 @@ class _DeliveryTaskScreenState extends State<DeliveryTaskScreen> {
         showPolicyAction: widget.policyController != null,
       );
     }
-    if (task.status == PickupTaskStatus.outForDelivery) {
+    if (task.isFinalMile && task.status == PickupTaskStatus.outForDelivery) {
       return _ProofAndCompletionCard(
         task: task,
         controller: widget.deliveryController,
@@ -397,7 +397,7 @@ class _DeliveryIdentity extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              task.order?.displayReference ?? 'Order reference unavailable',
+              task.order?.reference ?? 'Order reference unavailable',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 color: scheme.onSecondaryContainer,
                 fontWeight: FontWeight.w800,
@@ -405,7 +405,7 @@ class _DeliveryIdentity extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              task.waybill?.displayReference ?? 'Waybill reference unavailable',
+              task.waybill?.reference ?? 'Waybill reference unavailable',
               style: Theme.of(context).textTheme.bodyMedium
                   ?.copyWith(color: scheme.onSecondaryContainer),
             ),
@@ -698,21 +698,16 @@ class _ProofAndCompletionCard extends StatelessWidget {
     final actionError = controller.actionError(task);
     final completion = controller.completions[task.id];
     final proof = controller.proofs[task.id];
-    final evidenceId = completion?.evidenceId ?? proof?.proofId;
-    final evidenceStatus = completion?.evidenceStatus ?? proof?.evidenceStatus;
+    final evidenceId = proof?.proofId ?? completion?.evidenceId;
+    final evidenceStatus = proof?.evidenceStatus ?? completion?.evidenceStatus;
     final proofRecorded = proof != null || completion?.evidenceId != null;
     final proofRejected = evidenceStatus == 'rejected';
     final busy = controller.isActionBusy(task);
     final proofPending =
         actionStatus == DeliveryActionStatus.proofAwaitingValidation ||
         evidenceStatus == 'awaiting_validation';
-    final completionPending =
-        actionStatus == DeliveryActionStatus.completionAwaitingValidation ||
-        completion?.isAwaitingValidation == true;
+    final completionPending = controller.isCompletionPending(task);
     final actionBlocked = !controller.canStartAction(task);
-    final proofValidated = evidenceStatus == 'validated';
-    final completionLoaded =
-        controller.completionStatuses[task.id] == DeliveryLoadStatus.loaded;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -760,9 +755,11 @@ class _ProofAndCompletionCard extends StatelessWidget {
               enableSuggestions: false,
               decoration: InputDecoration(
                 labelText: identifierType == 'qr'
-                    ? 'Recipient QR payload'
-                    : 'Printed Order ID/reference',
-                helperText: 'The value is treated as untrusted text and checked by the server.',
+                    ? 'Raw delivery QR payload'
+                    : 'Public Order reference',
+                helperText: identifierType == 'qr'
+                    ? 'Submit the QR payload exactly as scanned; the server verifies it for this task.'
+                    : 'Enter the public Order reference shown above. Database IDs and waybill references are not accepted.',
                 border: const OutlineInputBorder(),
               ),
             ),
@@ -779,39 +776,35 @@ class _ProofAndCompletionCard extends StatelessWidget {
                   icon: const Icon(Icons.policy_outlined),
                   label: const Text('Review policies'),
                 ),
-              if (_canRetry(actionStatus) && controller.hasPendingProof(task))
-                actionStatus == DeliveryActionStatus.conflict
-                    ? TextButton.icon(
-                        onPressed: busy || !controller.canRetryRateLimit
-                            ? null
-                            : controller.load,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Refresh task before retrying'),
-                      )
-                    : TextButton.icon(
-                        onPressed: busy || !controller.canRetryRateLimit
-                            ? null
-                            : () => controller.retryProof(task),
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Retry same proof attempt'),
-                      ),
               if (_canRetry(actionStatus) &&
+                  actionStatus == DeliveryActionStatus.conflict)
+                TextButton.icon(
+                  onPressed: busy || !controller.canRetryRateLimit
+                      ? null
+                      : () => controller.loadDetails(task),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Refresh task before retrying'),
+                ),
+              if (_canRetry(actionStatus) &&
+                  actionStatus != DeliveryActionStatus.conflict &&
+                  controller.hasPendingProof(task))
+                TextButton.icon(
+                  onPressed: busy || !controller.canRetryRateLimit
+                      ? null
+                      : () => controller.retryProof(task),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry same proof attempt'),
+                ),
+              if (_canRetry(actionStatus) &&
+                  actionStatus != DeliveryActionStatus.conflict &&
                   controller.hasPendingCompletion(task))
-                actionStatus == DeliveryActionStatus.conflict
-                    ? TextButton.icon(
-                        onPressed: busy || !controller.canRetryRateLimit
-                            ? null
-                            : () => controller.loadCompletion(task),
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Refresh completion status'),
-                      )
-                    : TextButton.icon(
-                        onPressed: busy || !controller.canRetryRateLimit
-                            ? null
-                            : () => controller.retryCompletion(task),
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Retry same completion attempt'),
-                      ),
+                TextButton.icon(
+                  onPressed: busy || !controller.canRetryRateLimit
+                      ? null
+                      : () => controller.retryCompletion(task),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry same completion attempt'),
+                ),
             ],
             if (proofPending || (proofRecorded && !proofRejected)) ...[
               const SizedBox(height: 12),
@@ -875,12 +868,10 @@ class _ProofAndCompletionCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
             ],
-            if (!completionLoaded && completion == null)
-              const Text('Completion status has not loaded yet.')
+            if (completionPending)
+              const _AwaitingCompletionText()
             else if (completion?.isDelivered == true)
               const _DeliveredStatusText()
-            else if (completionPending)
-              const _AwaitingCompletionText()
             else if (evidenceId == null)
               const Text(
                 'Submit the required proof before sending completion intent.',
@@ -889,15 +880,11 @@ class _ProofAndCompletionCard extends StatelessWidget {
               const Text(
                 'Correct and resubmit the proof after Logistics rejected the previous evidence.',
               )
-            else if (!proofValidated)
-              const Text(
-                'Wait for Logistics to validate the proof before sending completion intent.',
-              )
             else ...[
               Text(
-                completion?.evidenceStatus == 'validated'
-                    ? 'Logistics has validated the proof. You can submit completion intent.'
-                    : 'Completion intent can be submitted; Logistics performs the final proof check.',
+                evidenceStatus == 'awaiting_validation'
+                    ? 'Proof is awaiting Logistics validation. Submit completion intent so Logistics can continue validation.'
+                    : 'The server returned proof for this task. Submit completion intent to finish the Courier handoff.',
               ),
               const SizedBox(height: 12),
               FilledButton.icon(
@@ -911,7 +898,7 @@ class _ProofAndCompletionCard extends StatelessWidget {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.done_all),
-                label: const Text('Submit completion intent'),
+                label: const Text('Submit completion'),
               ),
             ],
             OutlinedButton.icon(
@@ -1044,7 +1031,7 @@ class _AwaitingCompletionText extends StatelessWidget {
       liveRegion: true,
       label: 'Awaiting Logistics validation for completion',
       child: Text(
-        'Awaiting Logistics validation. Refresh to see whether delivery was finalized.',
+        'Completion intent accepted by the server. Awaiting Logistics validation. Refresh to see whether delivery was finalized.',
       ),
     );
   }

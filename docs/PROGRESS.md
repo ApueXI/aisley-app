@@ -140,3 +140,45 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Kept route/location telemetry, map/navigation, camera QR decoding, photo/signature proof, chat, earnings, notification transport, offline mutation, and dashboard aggregation unavailable; no client-generated status, route, ETA, ownership, or delivery completion is used.
 - Added repository/controller contract coverage for movement, proof, completion, history, bearer paths, request bodies, idempotency, pending 202 responses, and 401 delegation; synchronized the architecture, feature index, mobile design guide, and the dashboard/history spec status/checklists (dashboard v2.4, history v1.4).
 - Verification: direct Dart analysis passes and `git diff --check` passes. `flutter test`/`flutter analyze` could not run because this environment's Flutter SDK attempts to write cache/build-hook files outside the project; direct `dart test` was stopped after the external build-hook remained stalled.
+
+## 2026-09-13
+
+- Fixed the final-mile completion handoff against backend commit `d1abeee73d0141e1fd7dda4bea0ee3fead370378`: an HTTP 202 proof response now stores its `proof_id` and immediately enables the separate completion-intent action while evidence remains `awaiting_validation`.
+- Final-mile proof is gated to `out_for_delivery`; manual input is sent as the public Order reference with `identifier_type: order_id`, QR input preserves the raw payload with `identifier_type: qr`, and completion uses the latest known revision plus a distinct UUID idempotency key.
+- HTTP 202 completion responses remain “Awaiting Logistics validation” and never mark the task or Order delivered locally. Completion GET remains the authority for evidence, completion, task, Order, revision, and delivered timestamp projections; conflicts refresh task details and completion state.
+- Added repository, controller, and widget coverage for raw/manual identifiers, proof-ID handoff, pending validation, wrong parcel references, stale revisions, retry-key reuse, offline recovery, latest revision selection, and non-delivered completion acknowledgment.
+- Verification: direct Dart analysis passes; focused Flutter tests remain blocked by the installed SDK's external build-hook/cache writes in this environment.
+
+## 2026-09-13
+
+- Hardened the final-mile proof-to-completion handoff against stale completion projections: the latest server-returned proof ID now remains the completion evidence source, and an older intent for another proof cannot hide or block the current `Submit completion` action.
+- Made the pending completion state explicit in the UI by confirming that the server accepted the completion intent while preserving the required “Awaiting Logistics validation” state; the task remains undelivered until a server completion read reports `delivered`.
+- Added controller coverage for stale proof/intent projections and widget coverage that taps the completion confirmation and verifies the completion request receives the proof ID.
+- Verification: direct Dart analysis passes; focused Flutter tests remain blocked by the installed SDK's external build-hook/cache writes in this environment.
+
+## 2026-09-13
+
+- Fixed completion projection parsing for the deployed API serialization: Flutter now accepts the documented `data` envelope and a complete direct completion DTO without weakening required task, status, or completion fields.
+- A successful HTTP 202 completion acknowledgment with an empty or otherwise unsupported body now falls back to the documented completion GET, whose projection remains authoritative; incomplete GET projections still fail closed.
+- Completion contract failures now identify the safe rejected field path so an API-shape mismatch is distinguishable from Logistics proof validation; response bodies, tokens, and private delivery data remain hidden.
+- Added repository coverage for direct and empty-body HTTP 202 completion responses and controller coverage for contract-field diagnostics. No Laravel endpoint, request body, status authority, or delivery transition was changed.
+- Verification: direct Dart analysis passes; focused Flutter tests remain blocked by the installed SDK's external build-hook/cache writes in this environment.
+
+## 2026-09-13
+
+- Reconciled the imported Complete Delivery specification from the webapp project into the canonical Flutter copy: adopted version 1.4 while preserving the same backend commit, endpoints, response envelope, and server authority.
+- Documented that an initial completion GET may return `completion_status: null` when no completion intent exists; Flutter now models that field as nullable and continues to require a server-confirmed `delivered` projection before showing completion.
+- Updated contract diagnostics to identify the documented JSON location `data.completion_status`. Added repository coverage for an initial projection with no completion intent; the imported `specs-from-webapp.md` comparison file remains unchanged and uncommitted.
+
+## 2026-09-13
+
+- Reconciled the v1.5 Proof of Delivery and Complete Delivery specifications from the webapp project: pending QR/reference proof now explicitly hands its `proof_id` to Courier completion, pending evidence does not block intent submission, and Logistics validates the matching proof and intent during finalization.
+- Kept the API contract on the documented `data` envelope, recorded nullable initial `completion_status` and `evidence_id`, clarified Courier task versus Logistics Shipment revisions, and corrected copied domain-document paths to this repository's `docs/domain/` layout.
+- Updated Flutter completion parsing and tests to accept explicit null initial status while rejecting an omitted or malformed `completion_status`; no endpoint, request field, status authority, or Laravel code changed.
+- Verification: direct Dart analysis and diff/spec-length checks pass; focused Flutter tests remain blocked by the installed SDK's external build-hook/cache writes in this environment.
+
+## 2026-09-13
+
+- Stabilized the Flutter tests against backend contract `d1abeee73d0141e1fd7dda4bea0ee3fead370378`: nested registration validation assertions now match individual messages, the completion widget test scrolls its action into the test viewport, and registration validation uses bounded pumps while PSGC/organization loading indicators are active.
+- No production endpoint, status authority, secure-storage behavior, or Laravel code changed.
+- Verification: `flutter analyze` passes and `flutter test` passes with 102 tests; `git diff --check` passes.
