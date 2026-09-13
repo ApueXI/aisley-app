@@ -4,7 +4,7 @@ system: AISLEY
 type: Design Guide
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active — authentication, account management, policy consent, and pickup UI implemented; other delivery UI deferred
+status: Active — authentication, account management, policy consent, pickup, delivery, and history UI implemented; route/location/media extensions deferred
 ---
 
 # Courier Mobile Design Guide
@@ -13,7 +13,7 @@ status: Active — authentication, account management, policy consent, and picku
 
 This guide applies to the external Flutter Courier application. It does not define the Customer storefront or the React Admin, Seller, or Logistics dashboards. Courier UI is implemented in the Flutter project; the Laravel repository provides the API and remains authoritative for identity, approval, ownership, and operational state.
 
-The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, Phase 1 account management, policy consent, and the approved first-mile/final-mile pickup workflow. Delivery movement, camera scanning, routing, proof-of-delivery media, earnings, notifications, and offline task screens remain deferred until their own contracts and client choices are approved.
+The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, Phase 1 account management, policy consent, the approved first-mile/final-mile pickup workflow, final-mile movement, P0 QR/reference proof, completion intent, and read-only delivered history. Route/location telemetry, camera scanning, photo/signature proof media, earnings, notifications, and offline task screens remain deferred.
 
 ## Design goals
 
@@ -50,7 +50,7 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 ## Navigation and layout
 
 - Use a single, predictable authentication stack: Logistics selection → registration → pending result, or login → authenticated state.
-- Do not add navigation destinations for deferred delivery features until the corresponding endpoint and feature spec exist. A future placeholder must state that the capability is unavailable rather than showing fabricated jobs.
+- Navigate to the implemented Pickup orders, Delivery work, and Delivery history screens from the dashboard. Deferred route/location and media capabilities must state that they are unavailable rather than showing fabricated jobs or controls.
 - Use Flutter's adaptive navigation primitives. Phones are the primary target; tablets may use wider constrained content but must not become a desktop sidebar clone.
 - Preserve user input when validation or a recoverable network error returns. Confirm before discarding a partially completed registration.
 - Keep primary actions reachable above the keyboard when possible; use bottom action areas only when they do not obscure content or accessibility focus.
@@ -104,6 +104,20 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 - Require an explicit confirmation after the QR/manual identifier candidate is entered. A waybill QR payload is untrusted text; the current client supports scanner keyboard/paste input and a manual Order ID/reference fallback, not camera decoding.
 - Use the documented idempotency key for physical first-mile confirmation and preserve the same key and identifier after an uncertain response. Final-mile hub evidence must remain visibly “Awaiting Logistics validation” until the server reports validated custody.
 - Present the schedule route manifest as an ordered, accessible stop list. It is not a Buyer delivery route, and the client does not add map credentials, provider calls, or turn-by-turn navigation.
+
+### Delivery work
+
+- Show only server-returned final-mile tasks. Keep `delivery_assigned`/`delivery_accepted` visibly separate from hub custody; accepting an offer does not mean the parcel was picked up.
+- After the server records `picked_up_from_hub`, show one explicit movement action at a time: `in_transit`, then `out_for_delivery`. Each action confirms the server-authorized transition and revision; it never writes an Order status locally.
+- Show the authorized hub, destination, recipient contact, instructions, and optional advisory metrics returned by the delivery-context endpoint. Missing route metrics remain visibly unavailable; no map, GPS, local ETA, or fabricated zero distance is shown.
+- At `out_for_delivery`, offer only the live P0 QR/reference proof input. Show `awaiting_validation` after the 202 response, map the returned proof reference to completion, and never treat a scan or completion intent as delivered.
+- Completion is an explicit intent followed by a fresh completion read. Display delivered only when the server returns the committed `delivered` projection.
+
+### Delivery history
+
+- Present delivered final-mile records as read-only cards with order reference, delivered time, pickup/destination areas, item count, and safe proof/completion status.
+- History detail may show immutable item snapshots and opaque proof references, but never street addresses, contact phone numbers, raw proof bytes, storage paths, or mutation controls.
+- Keep cursor pagination unavailable when the server does not provide a usable cursor; distinguish an empty successful list from unavailable, unauthorized, offline, and retryable states.
 
 ## Status, error, and network presentation
 

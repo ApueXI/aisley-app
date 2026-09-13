@@ -7,6 +7,10 @@ import '../../account/presentation/account_controller.dart';
 import '../../account/presentation/account_screen.dart';
 import '../../auth/domain/auth_models.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../delivery/presentation/delivery_controller.dart';
+import '../../delivery/presentation/delivery_screen.dart';
+import '../../history/presentation/history_controller.dart';
+import '../../history/presentation/history_screen.dart';
 import '../../policy/presentation/policy_controller.dart';
 import '../../pickup/presentation/pickup_controller.dart';
 import '../../pickup/presentation/pickup_screen.dart';
@@ -18,6 +22,8 @@ class DashboardScreen extends StatefulWidget {
     this.accountController,
     this.policyController,
     this.pickupController,
+    this.deliveryController,
+    this.historyController,
     super.key,
   });
 
@@ -25,6 +31,8 @@ class DashboardScreen extends StatefulWidget {
   final AccountController? accountController;
   final PolicyController? policyController;
   final PickupController? pickupController;
+  final DeliveryController? deliveryController;
+  final HistoryController? historyController;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -115,6 +123,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
           authController: widget.authController,
           pickupController: pickupController,
           policyController: widget.policyController,
+          onOpenDelivery: _openDeliveries,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openDeliveries() async {
+    final deliveryController = widget.deliveryController;
+    if (deliveryController == null || !mounted) {
+      return;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => DeliveryScreen(
+          authController: widget.authController,
+          deliveryController: deliveryController,
+          policyController: widget.policyController,
+          onOpenPickup: _openPickups,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openHistory() async {
+    final historyController = widget.historyController;
+    if (historyController == null || !mounted) {
+      return;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => HistoryScreen(
+          authController: widget.authController,
+          historyController: historyController,
+          policyController: widget.policyController,
         ),
       ),
     );
@@ -134,11 +178,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
           appBar: AppBar(
             title: const Text('Courier dashboard'),
             actions: [
-              if (widget.pickupController != null)
-                IconButton(
-                  onPressed: _openPickups,
-                  tooltip: 'Pickup orders',
+              if (widget.pickupController != null ||
+                  widget.deliveryController != null ||
+                  widget.historyController != null)
+                PopupMenuButton<String>(
+                  tooltip: 'Courier work',
                   icon: const Icon(Icons.local_shipping_outlined),
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'pickup':
+                        _openPickups();
+                      case 'delivery':
+                        _openDeliveries();
+                      case 'history':
+                        _openHistory();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    if (widget.pickupController != null)
+                      const PopupMenuItem<String>(
+                        value: 'pickup',
+                        child: Text('Pickup orders'),
+                      ),
+                    if (widget.deliveryController != null)
+                      const PopupMenuItem<String>(
+                        value: 'delivery',
+                        child: Text('Delivery work'),
+                      ),
+                    if (widget.historyController != null)
+                      const PopupMenuItem<String>(
+                        value: 'history',
+                        child: Text('Delivery history'),
+                      ),
+                  ],
                 ),
               if (widget.accountController != null)
                 IconButton(
@@ -170,6 +242,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     onSignOut: _confirmSignOut,
                     pickupController: widget.pickupController,
                     onOpenPickups: _openPickups,
+                    deliveryController: widget.deliveryController,
+                    historyController: widget.historyController,
+                    onOpenDeliveries: _openDeliveries,
+                    onOpenHistory: _openHistory,
                   )
                 : AnimatedBuilder(
                     animation: widget.accountController!,
@@ -178,6 +254,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       onSignOut: _confirmSignOut,
                       pickupController: widget.pickupController,
                       onOpenPickups: _openPickups,
+                      deliveryController: widget.deliveryController,
+                      historyController: widget.historyController,
+                      onOpenDeliveries: _openDeliveries,
+                      onOpenHistory: _openHistory,
                       profilePhoto: widget.accountController!.profilePhoto,
                     ),
                   ),
@@ -194,6 +274,10 @@ class _DashboardBody extends StatelessWidget {
     required this.onSignOut,
     this.pickupController,
     required this.onOpenPickups,
+    this.deliveryController,
+    this.historyController,
+    required this.onOpenDeliveries,
+    required this.onOpenHistory,
     this.profilePhoto,
   });
 
@@ -201,6 +285,10 @@ class _DashboardBody extends StatelessWidget {
   final VoidCallback onSignOut;
   final PickupController? pickupController;
   final VoidCallback onOpenPickups;
+  final DeliveryController? deliveryController;
+  final HistoryController? historyController;
+  final VoidCallback onOpenDeliveries;
+  final VoidCallback onOpenHistory;
   final ProfilePhotoData? profilePhoto;
 
   @override
@@ -274,6 +362,22 @@ class _DashboardBody extends StatelessWidget {
             onPressed: onOpenPickups,
             icon: const Icon(Icons.local_shipping_outlined),
             label: const Text('Open pickup orders'),
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (deliveryController != null) ...[
+          OutlinedButton.icon(
+            onPressed: onOpenDeliveries,
+            icon: const Icon(Icons.route_outlined),
+            label: const Text('Open delivery work'),
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (historyController != null) ...[
+          OutlinedButton.icon(
+            onPressed: onOpenHistory,
+            icon: const Icon(Icons.history_outlined),
+            label: const Text('View delivery history'),
           ),
           const SizedBox(height: 12),
         ],

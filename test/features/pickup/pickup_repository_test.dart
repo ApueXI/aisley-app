@@ -169,6 +169,37 @@ void main() {
     expect(result.custodyState, 'delivery_accepted');
   });
 
+  test('rejects a final-mile offer with the documented reason and key', () async {
+    late http.Request request;
+    final repository = _repository((incoming) async {
+      request = incoming;
+      return http.Response(jsonEncode(_finalMileRejectionResponse), 200);
+    });
+
+    final result = await repository.rejectFinalMileTask(
+      taskId: 'delivery-task-1',
+      reason: ' Unable to take this task today ',
+      idempotencyKey: '33333333-3333-4333-8333-333333333333',
+    );
+
+    expect(request.method, 'POST');
+    expect(
+      request.url.path,
+      '/api/v1/courier/final-mile-tasks/delivery-task-1/reject',
+    );
+    expect(request.headers['authorization'], 'Bearer pickup-token');
+    expect(
+      request.headers['idempotency-key'],
+      '33333333-3333-4333-8333-333333333333',
+    );
+    expect(jsonDecode(request.body), <String, dynamic>{
+      'reason': 'Unable to take this task today',
+    });
+    expect(result.taskId, 'delivery-task-1');
+    expect(result.status, 'rejected');
+    expect(result.rejectionReason, 'Unable to take this task today');
+  });
+
   test(
     'loads the schedule-scoped route manifest without map credentials',
     () async {
@@ -298,6 +329,17 @@ const _finalMilePickupResponse = <String, dynamic>{
     'evidence_status': 'awaiting_validation',
     'custody_state': 'delivery_accepted',
     'submitted_at': '2026-09-12T03:10:00Z',
+  },
+};
+
+const _finalMileRejectionResponse = <String, dynamic>{
+  'data': <String, dynamic>{
+    'task_id': 'delivery-task-1',
+    'status': 'rejected',
+    'offer': <String, dynamic>{
+      'responded_at': '2026-09-12T03:12:00Z',
+      'rejection_reason': 'Unable to take this task today',
+    },
   },
 };
 

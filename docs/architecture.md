@@ -4,8 +4,8 @@ system: AISLEY
 type: Client Architecture
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active — authentication, account, policy, and pickup client; other operational delivery client deferred
-backend_contract_commit: d5c160d4a5a21272e487b6f46a82de35e81395cb
+status: Active — authentication, account, policy, pickup, delivery, and history client; route/location/media extensions deferred
+backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378
 ---
 
 # Scope
@@ -16,7 +16,7 @@ The Laravel API remains the source of truth for identity, approval, role access,
 
 ## Current implementation boundary
 
-The backend currently exposes Courier authentication, Phase 1 account management, policy consent, and the approved pickup workflow:
+The backend currently exposes Courier authentication, Phase 1 account management, policy consent, and the approved first-mile/final-mile task workflow:
 
 - `GET /api/v1/courier/auth/logistics-options`
 - `POST /api/v1/courier/auth/register`
@@ -39,9 +39,15 @@ The backend currently exposes Courier authentication, Phase 1 account management
 - `GET /api/v1/courier/pickup-schedules/{schedule}/route-manifest` (authenticated ordered manifest)
 - `GET /api/v1/courier/final-mile-tasks` and `GET /api/v1/courier/final-mile-tasks/{task}` (authenticated)
 - `POST /api/v1/courier/final-mile-tasks/{task}/accept` (authenticated task acceptance)
+- `POST /api/v1/courier/final-mile-tasks/{task}/reject` (authenticated final-mile offer rejection)
 - `POST /api/v1/courier/final-mile-tasks/{task}/pickup` (authenticated pending hub-handoff evidence)
+- `GET /api/v1/courier/tasks/{task}/delivery` (authenticated accepted-task delivery context)
+- `POST /api/v1/courier/final-mile-tasks/{task}/status` (authenticated revision-checked movement)
+- `POST /api/v1/courier/tasks/{task}/proof-of-delivery` (authenticated P0 QR/reference proof submission)
+- `GET /api/v1/courier/tasks/{task}/completion` and `POST /api/v1/courier/tasks/{task}/completion` (authenticated completion projection/intent)
+- `GET /api/v1/courier/delivery-history` and `GET /api/v1/courier/delivery-history/{task}` (authenticated read-only delivered history)
 
-Other delivery movement, proof-media, routing/ETA, chat, earnings, notification, and offline synchronization endpoints are not currently available. The app may provide an honest scaffold or unavailable state for those capabilities, but must not fabricate jobs or call conceptual routes from draft specifications.
+The dashboard aggregation remains a read-only scaffold. Route/location, camera QR decoding, photo/signature proof media, chat, earnings, notification transport, and offline synchronization endpoints are not currently available. The app renders explicit unavailable states for those capabilities and must not fabricate jobs or call conceptual routes from draft specifications.
 
 ## Client structure
 
@@ -64,10 +70,18 @@ lib/
 │       ├── data/         # Account DTOs, photo transport, authenticated repository
 │       ├── domain/       # Private account projection and in-memory photo data
 │       └── presentation/ # Account form, photo controls, and password/session controls
-│   └── pickup/
-│       ├── data/         # Pickup task, manifest, and handoff repositories
-│       ├── domain/       # Server status, task, manifest, and handoff models
-│       └── presentation/ # Pickup list, detail, verification, and route-order screens
+│   ├── pickup/
+│   │   ├── data/         # Pickup task, manifest, and handoff repositories
+│   │   ├── domain/       # Server status, task, manifest, and handoff models
+│   │   └── presentation/ # Pickup list, detail, verification, and route-order screens
+│   ├── delivery/
+│   │   ├── data/         # Final-mile delivery repository
+│   │   ├── domain/       # Delivery context, movement, proof, and completion models
+│   │   └── presentation/ # Delivery work, movement, proof, and completion screens
+│   └── history/
+│       ├── data/         # Read-only delivered-history repository
+│       ├── domain/       # Immutable history projections
+│       └── presentation/ # History list and detail screens
 └── main.dart
 test/
 ├── unit/

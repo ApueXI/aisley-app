@@ -6,6 +6,8 @@ import '../features/auth/presentation/blocked_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/registration_screen.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
+import '../features/delivery/presentation/delivery_controller.dart';
+import '../features/history/presentation/history_controller.dart';
 import '../features/policy/presentation/policy_controller.dart';
 import '../features/policy/presentation/policy_screen.dart';
 import '../features/pickup/presentation/pickup_controller.dart';
@@ -16,6 +18,8 @@ class CourierApp extends StatelessWidget {
     this.accountController,
     this.policyController,
     this.pickupController,
+    this.deliveryController,
+    this.historyController,
     super.key,
   });
 
@@ -23,6 +27,8 @@ class CourierApp extends StatelessWidget {
   final AccountController? accountController;
   final PolicyController? policyController;
   final PickupController? pickupController;
+  final DeliveryController? deliveryController;
+  final HistoryController? historyController;
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +42,8 @@ class CourierApp extends StatelessWidget {
         accountController: accountController,
         policyController: policyController,
         pickupController: pickupController,
+        deliveryController: deliveryController,
+        historyController: historyController,
       ),
     );
   }
@@ -47,6 +55,8 @@ class AuthGate extends StatefulWidget {
     this.accountController,
     this.policyController,
     this.pickupController,
+    this.deliveryController,
+    this.historyController,
     super.key,
   });
 
@@ -54,6 +64,8 @@ class AuthGate extends StatefulWidget {
   final AccountController? accountController;
   final PolicyController? policyController;
   final PickupController? pickupController;
+  final DeliveryController? deliveryController;
+  final HistoryController? historyController;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -90,6 +102,8 @@ class _AuthGateState extends State<AuthGate> {
             accountController: widget.accountController,
             policyController: widget.policyController,
             pickupController: widget.pickupController,
+            deliveryController: widget.deliveryController,
+            historyController: widget.historyController,
           ),
           AuthStatus.pendingApproval => BlockedAccessScreen.pending(
             key: const ValueKey('pending-approval'),

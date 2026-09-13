@@ -237,6 +237,8 @@ class PickupTask {
     this.distanceKm,
     this.estimatedDurationMinutes,
     this.evidenceStatus,
+    this.rejectionReason,
+    this.offerRespondedAt,
   });
 
   final String id;
@@ -253,6 +255,8 @@ class PickupTask {
   final double? distanceKm;
   final int? estimatedDurationMinutes;
   final String? evidenceStatus;
+  final String? rejectionReason;
+  final DateTime? offerRespondedAt;
 
   PickupTaskStatus get status => parsePickupTaskStatus(rawStatus);
 
@@ -272,12 +276,18 @@ class PickupTask {
       status == PickupTaskStatus.pickedUpFromSeller ||
       status == PickupTaskStatus.pickedUpFromHub;
 
-  PickupTask copyWith({String? rawStatus, DateTime? pickedUpAt}) {
+  PickupTask copyWith({
+    String? rawStatus,
+    DateTime? pickedUpAt,
+    int? revision,
+    String? rejectionReason,
+    DateTime? offerRespondedAt,
+  }) {
     return PickupTask(
       id: id,
       leg: leg,
       rawStatus: rawStatus ?? this.rawStatus,
-      revision: revision,
+      revision: revision ?? this.revision,
       pickedUpAt: pickedUpAt ?? this.pickedUpAt,
       order: order,
       waybill: waybill,
@@ -288,6 +298,8 @@ class PickupTask {
       distanceKm: distanceKm,
       estimatedDurationMinutes: estimatedDurationMinutes,
       evidenceStatus: evidenceStatus,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
+      offerRespondedAt: offerRespondedAt ?? this.offerRespondedAt,
     );
   }
 
@@ -310,6 +322,10 @@ class PickupTask {
     );
     final rawPickup = json['pickup'] ?? json['hub'];
     final rawDestination = json['destination_area'] ?? json['destination'];
+    final rawOffer = json['offer'];
+    final offer = rawOffer is Map
+        ? Map<String, dynamic>.from(rawOffer)
+        : const <String, dynamic>{};
 
     return PickupTask(
       id: id,
@@ -336,6 +352,12 @@ class PickupTask {
         json['estimated_duration_minutes'],
       ),
       evidenceStatus: _nullableString(json['evidence_status']),
+      rejectionReason: _nullableString(
+        json['rejection_reason'] ?? offer['rejection_reason'],
+      ),
+      offerRespondedAt: _nullableUtc(
+        json['responded_at'] ?? offer['responded_at'],
+      ),
     );
   }
 }
@@ -502,6 +524,46 @@ class FinalMilePickupSubmission {
         'pickup.final_mile.custody_state',
       ),
       submittedAt: _nullableUtc(data['submitted_at']),
+    );
+  }
+}
+
+class FinalMileRejectionResult {
+  const FinalMileRejectionResult({
+    required this.taskId,
+    required this.status,
+    this.rejectionReason,
+    this.respondedAt,
+  });
+
+  final String taskId;
+  final String status;
+  final String? rejectionReason;
+  final DateTime? respondedAt;
+
+  factory FinalMileRejectionResult.fromResponse(Map<String, dynamic> json) {
+    final data = _requiredMap(json['data'], 'pickup.final_mile.reject.data');
+    final status = _requiredString(
+      data['status'],
+      'pickup.final_mile.reject.status',
+    );
+    if (status != 'rejected') {
+      throw const ApiContractException('pickup.final_mile.reject.state');
+    }
+    final rawOffer = data['offer'];
+    final offer = rawOffer is Map
+        ? Map<String, dynamic>.from(rawOffer)
+        : const <String, dynamic>{};
+    return FinalMileRejectionResult(
+      taskId: _requiredString(
+        data['task_id'],
+        'pickup.final_mile.reject.task_id',
+      ),
+      status: status,
+      rejectionReason: _nullableString(
+        data['rejection_reason'] ?? offer['rejection_reason'],
+      ),
+      respondedAt: _nullableUtc(data['responded_at'] ?? offer['responded_at']),
     );
   }
 }

@@ -10,6 +10,10 @@ import '../features/account/presentation/account_controller.dart';
 import '../features/auth/data/auth_repository.dart';
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/dashboard/data/dashboard_repository.dart';
+import '../features/delivery/data/delivery_repository.dart';
+import '../features/delivery/presentation/delivery_controller.dart';
+import '../features/history/data/history_repository.dart';
+import '../features/history/presentation/history_controller.dart';
 import '../features/policy/data/policy_repository.dart';
 import '../features/policy/presentation/policy_controller.dart';
 import '../features/pickup/data/pickup_repository.dart';
@@ -28,6 +32,8 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
   AccountController? _accountController;
   PolicyController? _policyController;
   PickupController? _pickupController;
+  DeliveryController? _deliveryController;
+  HistoryController? _historyController;
   bool _hasStartupError = false;
 
   @override
@@ -53,6 +59,8 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
       late final AccountController accountController;
       late final PolicyController policyController;
       late final PickupController pickupController;
+      late final DeliveryController deliveryController;
+      late final HistoryController historyController;
       final authController = AuthController(
         authRepository: ApiAuthRepository(
           client: apiClient,
@@ -63,6 +71,8 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
           accountController.clear();
           policyController.clear();
           pickupController.clear();
+          deliveryController.clear();
+          historyController.clear();
         },
       );
       accountController = AccountController(
@@ -79,6 +89,14 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         pickupRepository: ApiPickupRepository(client: apiClient),
         onAuthFailure: authController.handlePickupAuthFailure,
       );
+      deliveryController = DeliveryController(
+        deliveryRepository: ApiDeliveryRepository(client: apiClient),
+        onAuthFailure: authController.handleDeliveryAuthFailure,
+      );
+      historyController = HistoryController(
+        historyRepository: ApiHistoryRepository(client: apiClient),
+        onAuthFailure: authController.handleHistoryAuthFailure,
+      );
 
       if (!mounted) {
         return;
@@ -89,6 +107,8 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         _accountController = accountController;
         _policyController = policyController;
         _pickupController = pickupController;
+        _deliveryController = deliveryController;
+        _historyController = historyController;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -115,6 +135,8 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         accountController: _accountController,
         policyController: _policyController,
         pickupController: _pickupController,
+        deliveryController: _deliveryController,
+        historyController: _historyController,
       );
     }
 
