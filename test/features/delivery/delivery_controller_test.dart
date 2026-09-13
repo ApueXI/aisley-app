@@ -28,6 +28,27 @@ void main() {
     },
   );
 
+  test('movement retry reuses the exact request and idempotency key', () async {
+    final repository = _FakeDeliveryRepository()
+      ..movementError = const ApiException.network('offline');
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..tasks = <PickupTask>[_pickedUpTask];
+
+    final first = await controller.advanceStatus(_pickedUpTask);
+    repository.movementError = null;
+    final retry = await controller.retryMovement(_pickedUpTask);
+
+    expect(first, isFalse);
+    expect(retry, isTrue);
+    expect(repository.movementIdempotencyKeys.length, 2);
+    expect(
+      repository.movementIdempotencyKeys.first,
+      repository.movementIdempotencyKeys.last,
+    );
+    expect(repository.movementExpectedRevisions, <int>[4, 4]);
+    expect(controller.hasPendingMovement(_pickedUpTask), isFalse);
+  });
+
   test('proof stays pending and completion is not inferred', () async {
     final controller = DeliveryController(
       deliveryRepository: _FakeDeliveryRepository(),
@@ -380,6 +401,7 @@ class _FakeDeliveryRepository implements DeliveryRepository {
   Object? loadError;
   Object? proofError;
   Object? completionError;
+  Object? movementError;
   bool failCompletionOnce = false;
   String? movementStatus;
   String? proofIdentifier;
@@ -397,6 +419,8 @@ class _FakeDeliveryRepository implements DeliveryRepository {
   final List<int> completionExpectedRevisions = <int>[];
   final List<String> proofIdempotencyKeys = <String>[];
   final List<String> completionIdempotencyKeys = <String>[];
+  final List<int> movementExpectedRevisions = <int>[];
+  final List<String> movementIdempotencyKeys = <String>[];
 
   @override
   Future<List<PickupTask>> fetchFinalMileTasks() async {
@@ -419,8 +443,14 @@ class _FakeDeliveryRepository implements DeliveryRepository {
     required String taskId,
     required String status,
     required int expectedRevision,
+    required String idempotencyKey,
   }) async {
     movementStatus = status;
+    movementExpectedRevisions.add(expectedRevision);
+    movementIdempotencyKeys.add(idempotencyKey);
+    if (movementError != null) {
+      throw movementError!;
+    }
     return DeliveryStatusUpdate(
       taskId: taskId,
       status: status,

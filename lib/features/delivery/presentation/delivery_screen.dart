@@ -609,9 +609,15 @@ class _MovementCard extends StatelessWidget {
                 TextButton.icon(
                   onPressed: busy || !controller.canRetryRateLimit
                       ? null
+                      : controller.hasPendingMovement(task)
+                      ? () => controller.retryMovement(task)
                       : controller.load,
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Refresh task'),
+                  label: Text(
+                    controller.hasPendingMovement(task)
+                        ? 'Retry same movement attempt'
+                        : 'Refresh task',
+                  ),
                 ),
             ],
             const SizedBox(height: 16),

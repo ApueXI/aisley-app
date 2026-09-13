@@ -604,7 +604,7 @@ class _PickupTaskDetailScreenState extends State<PickupTaskDetailScreen> {
         return Scaffold(
           appBar: AppBar(title: const Text('Pickup order')),
           body: RefreshIndicator(
-            onRefresh: widget.pickupController.load,
+            onRefresh: () => _refreshTask(task),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
@@ -1127,6 +1127,14 @@ class _PickupTaskDetailScreenState extends State<PickupTaskDetailScreen> {
     }
   }
 
+  Future<void> _refreshTask(PickupTask task) async {
+    if (task.isFinalMile) {
+      await widget.pickupController.refreshFinalMileTask(task);
+    } else {
+      await widget.pickupController.load();
+    }
+  }
+
   static bool _canRetryAction(PickupTaskActionStatus status) {
     return status == PickupTaskActionStatus.offline ||
         status == PickupTaskActionStatus.timeout ||
@@ -1298,6 +1306,8 @@ class _CompletedPickup extends StatelessWidget {
         controller.actionStatus(task) ==
             PickupTaskActionStatus.awaitingValidation &&
         finalResult?.taskId == task.id;
+    final refreshError = controller.taskRefreshError(task);
+    final refreshBusy = controller.isTaskRefreshBusy(task);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -1339,12 +1349,32 @@ class _CompletedPickup extends StatelessWidget {
                   'Recorded ${_formatManilaTimestamp(task.pickedUpAt!)}',
                 ),
               ),
+            if (refreshError != null) ...[
+              const SizedBox(height: 10),
+              Text(refreshError, style: TextStyle(color: scheme.error)),
+            ],
             if (task.isFinalMile && onOpenDelivery != null) ...[
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 onPressed: onOpenDelivery,
                 icon: const Icon(Icons.route_outlined),
                 label: const Text('Open delivery work'),
+              ),
+            ],
+            if (task.isFinalMile) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: refreshBusy
+                    ? null
+                    : () => controller.refreshFinalMileTask(task),
+                icon: refreshBusy
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
+                label: const Text('Refresh pickup state'),
               ),
             ],
           ],

@@ -80,6 +80,8 @@ class DeliveryController extends ChangeNotifier {
       <String, _PendingIdentifierAttempt>{};
   final Map<String, _PendingCompletionAttempt> _pendingCompletions =
       <String, _PendingCompletionAttempt>{};
+  final Map<String, _PendingMovementAttempt> _pendingMovements =
+      <String, _PendingMovementAttempt>{};
 
   int _loadEpoch = 0;
   bool _loadInFlight = false;
@@ -135,6 +137,9 @@ class DeliveryController extends ChangeNotifier {
   bool hasPendingCompletion(PickupTask task) =>
       _pendingCompletions.containsKey(task.id);
 
+  bool hasPendingMovement(PickupTask task) =>
+      _pendingMovements.containsKey(task.id);
+
   bool isCompletionPending(PickupTask task) {
     final completion = completions[task.id];
     final proofId = proofs[task.id]?.proofId;
@@ -172,6 +177,7 @@ class DeliveryController extends ChangeNotifier {
       }
       tasks = List<PickupTask>.unmodifiable(loadedTasks);
       for (final task in loadedTasks) {
+        _reconcileMovementWithTask(task);
         if (_actionStatuses[task.id] == DeliveryActionStatus.conflict) {
           _actionStatuses.remove(task.id);
           _actionErrors.remove(task.id);
@@ -223,12 +229,12 @@ class DeliveryController extends ChangeNotifier {
       contexts[taskId] = context;
       final currentTask = taskById(taskId);
       if (currentTask != null) {
-        _replaceTask(
-          currentTask.copyWith(
-            rawStatus: context.status,
-            revision: context.revision,
-          ),
+        final updatedTask = currentTask.copyWith(
+          rawStatus: context.status,
+          revision: context.revision,
         );
+        _replaceTask(updatedTask);
+        _reconcileMovementWithTask(updatedTask);
       }
       contextStatuses[taskId] = DeliveryLoadStatus.loaded;
       contextErrors[taskId] = null;
@@ -293,32 +299,69 @@ class DeliveryController extends ChangeNotifier {
     if (!canStartAction(task)) {
       return false;
     }
-    _actionStatuses[taskId] = DeliveryActionStatus.moving;
-    _actionErrors[taskId] = null;
-    _actionRetryAfter[taskId] = null;
+    final pending = _pendingMovements[taskId];
+    final attempt =
+        pending != null &&
+            pending.targetStatus == nextStatus &&
+            pending.expectedRevision == revision
+        ? pending
+        : _PendingMovementAttempt(
+            targetStatus: nextStatus,
+            expectedRevision: revision,
+            idempotencyKey: _newUuid(),
+          );
+    _pendingMovements[taskId] = attempt;
+    return _performMovement(task, attempt);
+  }
+
+  Future<bool> retryMovement(PickupTask task) async {
+    final attempt = _pendingMovements[task.id];
+    if (attempt == null) {
+      return false;
+    }
+    return _performMovement(task, attempt);
+  }
+
+  Future<bool> _performMovement(
+    PickupTask task,
+    _PendingMovementAttempt attempt,
+  ) async {
+    if (!task.isFinalMile ||
+        nextStatusFor(task.status) != attempt.targetStatus ||
+        !canStartAction(task)) {
+      return false;
+    }
+    _actionStatuses[task.id] = DeliveryActionStatus.moving;
+    _actionErrors[task.id] = null;
+    _actionRetryAfter[task.id] = null;
     notifyListeners();
     try {
       final update = await deliveryRepository.advanceStatus(
-        taskId: taskId,
-        status: nextStatus,
-        expectedRevision: revision,
+        taskId: task.id,
+        status: attempt.targetStatus,
+        expectedRevision: attempt.expectedRevision,
+        idempotencyKey: attempt.idempotencyKey,
       );
+      _pendingMovements.remove(task.id);
       final updated = task.copyWith(
         rawStatus: update.status,
         revision: update.revision,
       );
       _replaceTask(updated);
-      final context = contexts[taskId];
+      final context = contexts[task.id];
       if (context != null) {
-        contexts[taskId] = context.copyWith(
+        contexts[task.id] = context.copyWith(
           status: update.status,
           revision: update.revision,
         );
       }
-      _actionStatuses[taskId] = DeliveryActionStatus.moved;
+      _actionStatuses[task.id] = DeliveryActionStatus.moved;
       notifyListeners();
       return true;
     } on ApiException catch (error) {
+      if (_isDefinitiveMutationError(error)) {
+        _pendingMovements.remove(task.id);
+      }
       await _setActionError(task, error);
     } on TokenStorageException {
       _setStorageActionError(task);
@@ -553,6 +596,7 @@ class DeliveryController extends ChangeNotifier {
     _actionRetryAfter.clear();
     _pendingProofs.clear();
     _pendingCompletions.clear();
+    _pendingMovements.clear();
     notifyListeners();
   }
 
@@ -645,6 +689,18 @@ class DeliveryController extends ChangeNotifier {
     tasks = List<PickupTask>.unmodifiable(
       tasks.map((task) => task.id == updated.id ? updated : task),
     );
+  }
+
+  void _reconcileMovementWithTask(PickupTask task) {
+    final attempt = _pendingMovements[task.id];
+    if (attempt == null ||
+        parsePickupTaskStatus(attempt.targetStatus) != task.status) {
+      return;
+    }
+    _pendingMovements.remove(task.id);
+    _actionStatuses[task.id] = DeliveryActionStatus.moved;
+    _actionErrors.remove(task.id);
+    _actionRetryAfter.remove(task.id);
   }
 
   void _syncTaskFromCompletion(
@@ -882,6 +938,18 @@ class _PendingCompletionAttempt {
   });
 
   final String evidenceId;
+  final int expectedRevision;
+  final String idempotencyKey;
+}
+
+class _PendingMovementAttempt {
+  const _PendingMovementAttempt({
+    required this.targetStatus,
+    required this.expectedRevision,
+    required this.idempotencyKey,
+  });
+
+  final String targetStatus;
   final int expectedRevision;
   final String idempotencyKey;
 }

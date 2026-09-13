@@ -42,7 +42,8 @@ class DeliveryContext {
       source['task_id'] ?? source['id'],
       'delivery.context.task_id',
     );
-    final rawStatus = source['status'] ?? source['state'];
+    final rawStatus =
+        source['status'] ?? source['task_status'] ?? source['state'];
     final status = _requiredString(rawStatus, 'delivery.context.status');
     parsePickupTaskStatus(status);
 
@@ -115,7 +116,7 @@ class DeliveryStatusUpdate {
       'delivery.status.task_id',
     );
     final status = _requiredString(
-      data['status'] ?? data['state'],
+      data['status'] ?? data['task_status'] ?? data['state'],
       'delivery.status.status',
     );
     parsePickupTaskStatus(status);

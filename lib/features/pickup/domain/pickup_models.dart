@@ -274,7 +274,10 @@ class PickupTask {
 
   bool get hasBeenPickedUp =>
       status == PickupTaskStatus.pickedUpFromSeller ||
-      status == PickupTaskStatus.pickedUpFromHub;
+      status == PickupTaskStatus.pickedUpFromHub ||
+      status == PickupTaskStatus.inTransit ||
+      status == PickupTaskStatus.outForDelivery ||
+      status == PickupTaskStatus.delivered;
 
   PickupTask copyWith({
     String? rawStatus,

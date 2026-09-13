@@ -46,10 +46,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      await tester.drag(
-        find.byType(ListView).first,
-        const Offset(0, -500),
-      );
+      await tester.drag(find.byType(ListView).first, const Offset(0, -500));
       await tester.pump();
       expect(find.text('Submit completion'), findsOneWidget);
       expect(find.text('Delivery completed by the server.'), findsNothing);
@@ -119,6 +116,7 @@ class _WidgetDeliveryRepository implements DeliveryRepository {
     required String taskId,
     required String status,
     required int expectedRevision,
+    required String idempotencyKey,
   }) async {
     return DeliveryStatusUpdate(
       taskId: taskId,

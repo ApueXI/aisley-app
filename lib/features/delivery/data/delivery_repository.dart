@@ -14,6 +14,7 @@ abstract interface class DeliveryRepository {
     required String taskId,
     required String status,
     required int expectedRevision,
+    required String idempotencyKey,
   });
 
   Future<ProofSubmission> submitProof({
@@ -79,12 +80,14 @@ class ApiDeliveryRepository implements DeliveryRepository {
     required String taskId,
     required String status,
     required int expectedRevision,
+    required String idempotencyKey,
   }) async {
     final response = await _client.postJson(
       '/courier/final-mile-tasks/${_pathSegment(taskId)}/status',
       authenticated: true,
+      headers: <String, String>{'Idempotency-Key': idempotencyKey},
       body: <String, Object?>{
-        'status': status,
+        'target_state': status,
         'expected_revision': expectedRevision,
       },
     );

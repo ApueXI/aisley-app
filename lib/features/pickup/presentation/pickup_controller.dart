@@ -73,6 +73,9 @@ class PickupController extends ChangeNotifier {
   final Map<String, PickupSectionStatus> routeStatuses =
       <String, PickupSectionStatus>{};
   final Map<String, String?> routeErrors = <String, String?>{};
+  final Map<String, PickupSectionStatus> taskRefreshStatuses =
+      <String, PickupSectionStatus>{};
+  final Map<String, String?> taskRefreshErrors = <String, String?>{};
 
   final Map<String, PickupTaskActionStatus> _actionStatuses =
       <String, PickupTaskActionStatus>{};
@@ -130,6 +133,51 @@ class PickupController extends ChangeNotifier {
       }
     }
     return task;
+  }
+
+  PickupSectionStatus taskRefreshStatus(PickupTask task) {
+    return taskRefreshStatuses[_taskKey(task)] ?? PickupSectionStatus.idle;
+  }
+
+  String? taskRefreshError(PickupTask task) =>
+      taskRefreshErrors[_taskKey(task)];
+
+  bool isTaskRefreshBusy(PickupTask task) =>
+      taskRefreshStatus(task) == PickupSectionStatus.loading;
+
+  Future<PickupTask?> refreshFinalMileTask(PickupTask task) async {
+    if (!task.isFinalMile || !canRetryRateLimit || isTaskRefreshBusy(task)) {
+      return taskWithId(task);
+    }
+
+    final key = _taskKey(task);
+    taskRefreshStatuses[key] = PickupSectionStatus.loading;
+    taskRefreshErrors[key] = null;
+    notifyListeners();
+    try {
+      final updated = await pickupRepository.fetchFinalMileTask(task.id);
+      if (!updated.isFinalMile || updated.id != task.id) {
+        throw const ApiContractException('pickup.final_mile.detail.task');
+      }
+      _replaceTask(updated);
+      _reconcileFinalMilePickup(updated);
+      taskRefreshStatuses[key] = PickupSectionStatus.loaded;
+      taskRefreshErrors[key] = null;
+      notifyListeners();
+      return updated;
+    } on ApiException catch (error) {
+      await _setTaskRefreshError(task, error);
+    } on TokenStorageException {
+      taskRefreshStatuses[key] = PickupSectionStatus.secureStorageFailure;
+      taskRefreshErrors[key] = 'Secure session storage is unavailable. The pickup state cannot be refreshed.';
+      notifyListeners();
+    } on ApiContractException {
+      taskRefreshStatuses[key] = PickupSectionStatus.failed;
+      taskRefreshErrors[key] =
+          'The hub pickup response was not understood. Please retry.';
+      notifyListeners();
+    }
+    return taskWithId(task);
   }
 
   Future<void> load() async {
@@ -198,6 +246,9 @@ class PickupController extends ChangeNotifier {
         return;
       }
       finalMileTasks = List<PickupTask>.unmodifiable(tasks);
+      for (final task in tasks) {
+        _reconcileFinalMilePickup(task);
+      }
       finalMileStatus = tasks.isEmpty
           ? PickupSectionStatus.empty
           : PickupSectionStatus.loaded;
@@ -245,6 +296,19 @@ class PickupController extends ChangeNotifier {
     }
     notifyListeners();
 
+    if (error.statusCode == 401) {
+      await _notifyAuthFailure(error);
+    }
+  }
+
+  Future<void> _setTaskRefreshError(PickupTask task, ApiException error) async {
+    final key = _taskKey(task);
+    taskRefreshStatuses[key] = _sectionStateFor(error);
+    taskRefreshErrors[key] = _messageForError(error);
+    if (taskRefreshStatuses[key] == PickupSectionStatus.rateLimited) {
+      _startRetryDelay(error.retryAfter);
+    }
+    notifyListeners();
     if (error.statusCode == 401) {
       await _notifyAuthFailure(error);
     }
@@ -508,7 +572,10 @@ class PickupController extends ChangeNotifier {
     _PendingPickupAttempt pending,
   ) async {
     final key = _taskKey(task);
-    if (isActionBusy(task) || task.revision == null) {
+    if (!task.isFinalMile ||
+        task.status != PickupTaskStatus.deliveryAccepted ||
+        isActionBusy(task) ||
+        pending.expectedRevision == null) {
       return false;
     }
     _actionStatuses[key] = PickupTaskActionStatus.confirming;
@@ -521,15 +588,22 @@ class PickupController extends ChangeNotifier {
         taskId: task.id,
         identifierType: pending.identifierType,
         identifier: pending.identifier,
-        expectedRevision: task.revision!,
+        expectedRevision: pending.expectedRevision!,
         idempotencyKey: pending.idempotencyKey,
       );
       lastFinalMilePickup = result;
       _pendingAttempts.remove(key);
       _actionStatuses[key] = PickupTaskActionStatus.awaitingValidation;
       notifyListeners();
+      // A 202 records pending evidence only. Refetch the task projection so a
+      // later Logistics validation can unlock delivery without requiring the
+      // user to leave and reopen the feature.
+      await refreshFinalMileTask(task);
       return true;
     } on ApiException catch (error) {
+      if (_isDefinitiveMutationError(error)) {
+        _pendingAttempts.remove(key);
+      }
       await _setActionError(task, error);
     } on TokenStorageException {
       _setActionStorageError(task);
@@ -611,6 +685,8 @@ class PickupController extends ChangeNotifier {
     routeManifests.clear();
     routeStatuses.clear();
     routeErrors.clear();
+    taskRefreshStatuses.clear();
+    taskRefreshErrors.clear();
     _actionStatuses.clear();
     _actionErrors.clear();
     _actionRetryAfter.clear();
@@ -628,17 +704,59 @@ class PickupController extends ChangeNotifier {
   void _replaceTask(PickupTask updated) {
     if (updated.isFirstMile) {
       firstMileTasks = List<PickupTask>.unmodifiable(
-        firstMileTasks
-            .map((task) => _taskKey(task) == _taskKey(updated) ? updated : task)
-            .toList(growable: false),
+        _replaceOrAppend(firstMileTasks, updated),
       );
     } else {
       finalMileTasks = List<PickupTask>.unmodifiable(
-        finalMileTasks
-            .map((task) => _taskKey(task) == _taskKey(updated) ? updated : task)
-            .toList(growable: false),
+        _replaceOrAppend(finalMileTasks, updated),
       );
     }
+  }
+
+  List<PickupTask> _replaceOrAppend(
+    List<PickupTask> tasks,
+    PickupTask updated,
+  ) {
+    var replaced = false;
+    final result = tasks
+        .map((task) {
+          if (_taskKey(task) != _taskKey(updated)) {
+            return task;
+          }
+          replaced = true;
+          return updated;
+        })
+        .toList(growable: true);
+    if (!replaced) {
+      result.add(updated);
+    }
+    return result;
+  }
+
+  void _reconcileFinalMilePickup(PickupTask task) {
+    if (!task.isFinalMile) {
+      return;
+    }
+    final key = _taskKey(task);
+    final action = _actionStatuses[key];
+    if (action != PickupTaskActionStatus.awaitingValidation &&
+        action != PickupTaskActionStatus.confirming) {
+      return;
+    }
+    final custodyRecorded = switch (task.status) {
+      PickupTaskStatus.pickedUpFromHub ||
+      PickupTaskStatus.inTransit ||
+      PickupTaskStatus.outForDelivery ||
+      PickupTaskStatus.delivered => true,
+      _ => false,
+    };
+    if (!custodyRecorded) {
+      return;
+    }
+    _pendingAttempts.remove(key);
+    _actionStatuses[key] = PickupTaskActionStatus.succeeded;
+    _actionErrors.remove(key);
+    _actionRetryAfter.remove(key);
   }
 
   Future<void> _setActionError(PickupTask task, ApiException error) async {
@@ -687,9 +805,11 @@ class PickupController extends ChangeNotifier {
   }) {
     final key = _taskKey(task);
     final existing = _pendingAttempts[key];
+    final expectedRevision = task.isFinalMile ? task.revision : null;
     if (existing != null &&
         existing.identifierType == identifierType &&
-        existing.identifier == identifier) {
+        existing.identifier == identifier &&
+        existing.expectedRevision == expectedRevision) {
       return existing;
     }
 
@@ -697,6 +817,7 @@ class PickupController extends ChangeNotifier {
       leg: task.leg,
       identifierType: identifierType,
       identifier: identifier,
+      expectedRevision: expectedRevision,
       idempotencyKey: _newUuid(),
     );
     _pendingAttempts[key] = pending;
@@ -811,6 +932,12 @@ class PickupController extends ChangeNotifier {
         identifier.length <= 128;
   }
 
+  static bool _isDefinitiveMutationError(ApiException error) {
+    return error.statusCode == 404 ||
+        error.statusCode == 409 ||
+        error.statusCode == 422;
+  }
+
   static String _taskKey(PickupTask task) => '${task.leg.apiValue}:${task.id}';
 
   static String _newUuid() {
@@ -833,12 +960,14 @@ class _PendingPickupAttempt {
     required this.leg,
     required this.identifierType,
     required this.identifier,
+    this.expectedRevision,
     required this.idempotencyKey,
   });
 
   final PickupTaskLeg leg;
   final String identifierType;
   final String identifier;
+  final int? expectedRevision;
   final String idempotencyKey;
 }
 

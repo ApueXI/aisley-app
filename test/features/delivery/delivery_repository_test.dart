@@ -47,6 +47,7 @@ void main() {
       taskId: 'delivery-task-1',
       status: 'in_transit',
       expectedRevision: 4,
+      idempotencyKey: '00000000-0000-4000-8000-000000000001',
     );
 
     expect(request.method, 'POST');
@@ -55,8 +56,12 @@ void main() {
       '/api/v1/courier/final-mile-tasks/delivery-task-1/status',
     );
     expect(request.headers['authorization'], 'Bearer delivery-token');
+    expect(
+      request.headers['idempotency-key'],
+      '00000000-0000-4000-8000-000000000001',
+    );
     expect(jsonDecode(request.body), <String, dynamic>{
-      'status': 'in_transit',
+      'target_state': 'in_transit',
       'expected_revision': 4,
     });
     expect(update.status, 'in_transit');

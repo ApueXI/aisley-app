@@ -174,3 +174,11 @@ This is the progress log for the external Courier Flutter application. It is sep
 
 - Audited all 34 imported documentation files against backend `9a2e1af987fadd91d17979e7defbffdbb0e5ca44`. Refreshed shared contracts and Courier handoff details, clarified Admin-controlled consent and descriptor/envelope parsing, corrected auth-only indexes and upstream/local paths, and isolated historical drafts/comparison copies from implementation authority.
 - Preserved prior Flutter implementation reports and test limitations. No Flutter/Laravel runtime was changed or tested; latest full Flutter test execution, PostgreSQL verification, and live completion-failure diagnosis remain unresolved. See `docs/AUDIT.md`.
+
+## 2026-09-14
+
+- Fixed the final-mile Courier handoff against the audited backend/API snapshot `9a2e1af987fadd91d17979e7defbffdbb0e5ca44`: movement now sends canonical `target_state` and integer `expected_revision` with a UUID idempotency key, retaining the exact request for timeout/offline retry.
+- Final-mile hub pickup keeps its original revision and idempotency key on retry, treats HTTP 202 as pending evidence, and refreshes the task-detail projection so only Logistics-recorded `picked_up_from_hub` custody unlocks delivery work.
+- Delivery status parsing accepts the server task projection fields, while proof/completion continue to hand off the server `proof_id` as `evidence_id`; pending acknowledgments never mark the task or Order delivered locally.
+- Added controller, repository, and UI coverage for movement retry, final-mile custody refresh, pending hub evidence, and exact revision/key reuse. No Laravel source or Courier feature contract was changed.
+- Verification: `flutter analyze`, full `flutter test --reporter compact`, and `git diff --check` pass.

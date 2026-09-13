@@ -87,7 +87,67 @@ void main() {
       controller.lastFinalMilePickup?.evidenceStatus,
       'awaiting_validation',
     );
+    expect(repository.finalMileDetailFetches, 1);
   });
+
+  test('unlocks delivery when the refreshed task shows hub custody', () async {
+    final repository = _FakePickupRepository()
+      ..finalMileDetail = _finalMileTask.copyWith(
+        rawStatus: 'picked_up_from_hub',
+        pickedUpAt: DateTime.utc(2026, 9, 14, 4),
+      );
+    final controller = PickupController(pickupRepository: repository);
+    await controller.load();
+
+    final submitted = await controller.submitFinalMilePickup(
+      controller.finalMileTasks.single,
+      identifierType: 'order_id',
+      identifier: 'ORD-100',
+    );
+
+    expect(submitted, isTrue);
+    expect(
+      controller.finalMileTasks.single.status,
+      PickupTaskStatus.pickedUpFromHub,
+    );
+    expect(
+      controller.actionStatus(controller.finalMileTasks.single),
+      PickupTaskActionStatus.succeeded,
+    );
+    expect(controller.finalMileTasks.single.pickedUpAt, isNotNull);
+  });
+
+  test(
+    'final-mile pickup retry reuses its original revision and key',
+    () async {
+      final repository = _FakePickupRepository()
+        ..finalMilePickupError = const ApiException.network(
+          'timed out',
+          networkFailure: ApiNetworkFailure.timeout,
+        )
+        ..failFinalMilePickupOnce = true;
+      final controller = PickupController(pickupRepository: repository);
+      await controller.load();
+      final task = controller.finalMileTasks.single;
+
+      final first = await controller.submitFinalMilePickup(
+        task,
+        identifierType: 'order_id',
+        identifier: 'ORD-100',
+      );
+      final retry = await controller.retryFinalMilePickup(
+        task.copyWith(revision: 99),
+      );
+
+      expect(first, isFalse);
+      expect(retry, isTrue);
+      expect(repository.finalMileExpectedRevisions, <int>[4, 4]);
+      expect(
+        repository.finalMileIdempotencyKeys.first,
+        repository.finalMileIdempotencyKeys.last,
+      );
+    },
+  );
 
   test('records a final-mile rejection without changing the Order', () async {
     final repository = _FakePickupRepository();
@@ -168,8 +228,14 @@ class _FakePickupRepository implements PickupRepository {
   Object? firstMileLoadError;
   Object? finalMileLoadError;
   Object? firstMilePickupError;
+  Object? finalMilePickupError;
   bool failFirstMilePickupOnce = false;
+  bool failFinalMilePickupOnce = false;
+  int finalMileDetailFetches = 0;
+  PickupTask finalMileDetail = _finalMileTask;
   final List<String> firstMileIdempotencyKeys = <String>[];
+  final List<int> finalMileExpectedRevisions = <int>[];
+  final List<String> finalMileIdempotencyKeys = <String>[];
 
   @override
   Future<FirstMileTaskPage> fetchFirstMileTasks({
@@ -232,7 +298,8 @@ class _FakePickupRepository implements PickupRepository {
 
   @override
   Future<PickupTask> fetchFinalMileTask(String taskId) async {
-    return _finalMileTask;
+    finalMileDetailFetches++;
+    return finalMileDetail;
   }
 
   @override
@@ -262,6 +329,12 @@ class _FakePickupRepository implements PickupRepository {
     required int expectedRevision,
     required String idempotencyKey,
   }) async {
+    finalMileExpectedRevisions.add(expectedRevision);
+    finalMileIdempotencyKeys.add(idempotencyKey);
+    if (failFinalMilePickupOnce) {
+      failFinalMilePickupOnce = false;
+      throw finalMilePickupError!;
+    }
     return const FinalMilePickupSubmission(
       taskId: 'delivery-task-1',
       evidenceId: 'evidence-1',
