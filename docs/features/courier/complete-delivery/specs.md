@@ -3,10 +3,10 @@ feature: courier-complete-delivery
 title: Complete Delivery
 system: AISLEY
 type: Feature Specification
-version: 1.5
-status: Implemented P0 QR completion flow; advanced proof methods deferred
-implementation_status: Completion intent, Logistics proof validation, atomic delivered transition, and history records are implemented; Flutter UI is external
-flutter_status: Both-leg client slices reported implemented in the supplied 2026-09-13 Flutter handoff; source/runtime and full test verification not performed here
+ version: 1.5
+ status: Implemented P0 QR completion flow; advanced proof methods deferred
+ implementation_status: Completion intent, Logistics proof validation, atomic delivered transition, and history records are implemented; Flutter UI is external
+ flutter_status: Both-leg client slices reported implemented in the supplied 2026-09-13 Flutter handoff; source/runtime and full test verification not performed here
 canonical: true
 role: Courier
 scope: Laravel API and external Flutter application
@@ -143,7 +143,7 @@ out_for_delivery
 - GET has no body and no client-controlled ownership parameters.
 - New intent and matching replay return 202. Replay may reflect updated intent/task state but still returns `delivered_at: null`; use GET for the authoritative completion projection and timestamp.
 - Finalization is visible through a fresh GET, not inferred from an earlier 202.
-- Initial GET may return `intent_id: null`, `completion_status: null`, `evidence_id: null`, and `delivered_at: null`; no intent is a valid state, not a parsing error.
+ - Initial GET may return `intent_id: null`, `completion_status: null`, `evidence_id: null`, and `delivered_at: null`; no intent is a valid state, not a parsing error.
 
 ```json
 {"expected_revision":4,"evidence_id":"00000000-0000-4000-8000-000000000001","confirmed":true}
