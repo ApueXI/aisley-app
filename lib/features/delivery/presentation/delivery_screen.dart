@@ -698,15 +698,8 @@ class _ProofAndCompletionCard extends StatelessWidget {
     final actionError = controller.actionError(task);
     final completion = controller.completions[task.id];
     final proof = controller.proofs[task.id];
-    final submittedProofIsCurrent =
-        actionStatus == DeliveryActionStatus.proofAwaitingValidation ||
-        actionStatus == DeliveryActionStatus.proofSubmitting;
-    final evidenceId = submittedProofIsCurrent
-        ? proof?.proofId ?? completion?.evidenceId
-        : completion?.evidenceId ?? proof?.proofId;
-    final evidenceStatus = submittedProofIsCurrent
-        ? proof?.evidenceStatus ?? completion?.evidenceStatus
-        : completion?.evidenceStatus ?? proof?.evidenceStatus;
+    final evidenceId = proof?.proofId ?? completion?.evidenceId;
+    final evidenceStatus = proof?.evidenceStatus ?? completion?.evidenceStatus;
     final proofRecorded = proof != null || completion?.evidenceId != null;
     final proofRejected = evidenceStatus == 'rejected';
     final busy = controller.isActionBusy(task);
