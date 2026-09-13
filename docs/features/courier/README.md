@@ -4,14 +4,14 @@ system: AISLEY
 type: Feature Index
 role: Courier / Rider
 platform: Flutter / Dart
-status: Auth, account management, policy consent, and pickup workflow implemented; other operational features deferred
+status: Auth, account management, policy consent, first/final-mile pickup, delivery, and read-only history implemented; route/location/media extensions deferred
 ---
 
 # Courier feature index
 
 ## Implementation rule
 
-`auth/spec.md`, the Phase 1 `account-management/specs.md`, the policy-consent specification, and `pick-up-order/specs.md` describe currently implemented APIs. The remaining Courier specifications are planning drafts copied for future design work. They are not endpoint contracts and must not be used to invent Flutter requests, response fields, statuses, providers, or offline behavior.
+`auth/spec.md`, the Phase 1 `account-management/specs.md`, the policy-consent specification, `accept-delivery-requests/specs.md`, `pick-up-order/specs.md`, `delivery-order/specs.md`, `proof-of-delivery/specs.md`, `complete-delivery/specs.md`, and `delivery-history/specs.md` describe the currently implemented API slices. The remaining Courier specifications are planning drafts copied for future design work. They are not endpoint contracts and must not be used to invent Flutter requests, response fields, statuses, providers, or offline behavior.
 
 Before implementing any other non-auth feature, the backend must first provide:
 
@@ -20,7 +20,7 @@ Before implementing any other non-auth feature, the backend must first provide:
 3. the shared Shipment/Delivery Task schema and transition rules; and
 4. integration/contract-test coverage.
 
-Until then, implement only a truthful scaffold or unavailable state. Do not fabricate delivery requests, task counts, routes, proof requirements, earnings, notifications, or history.
+Until then, implement only a truthful scaffold or unavailable state for the missing capability. Do not fabricate delivery requests, task counts, routes, proof requirements, earnings, notifications, or history.
 
 ## Current Courier API
 
@@ -48,9 +48,15 @@ Until then, implement only a truthful scaffold or unavailable state. Do not fabr
 - `GET /api/v1/courier/pickup-schedules/{schedule}/route-manifest` (authenticated ordered manifest)
 - `GET /api/v1/courier/final-mile-tasks` and `GET /api/v1/courier/final-mile-tasks/{task}` (authenticated final-mile reads)
 - `POST /api/v1/courier/final-mile-tasks/{task}/accept` (authenticated final-mile acceptance)
+- `POST /api/v1/courier/final-mile-tasks/{task}/reject` (authenticated final-mile rejection with idempotency)
 - `POST /api/v1/courier/final-mile-tasks/{task}/pickup` (authenticated pending hub-handoff evidence)
+- `GET /api/v1/courier/tasks/{task}/delivery` (authenticated accepted-task context)
+- `POST /api/v1/courier/final-mile-tasks/{task}/status` (authenticated movement transition)
+- `POST /api/v1/courier/tasks/{task}/proof-of-delivery` (authenticated QR/reference proof)
+- `GET /api/v1/courier/tasks/{task}/completion` and `POST /api/v1/courier/tasks/{task}/completion` (authenticated completion projection/intent)
+- `GET /api/v1/courier/delivery-history` and `GET /api/v1/courier/delivery-history/{task}` (authenticated delivered history)
 
-All other routes shown in the draft files are conceptual placeholders. They are not implemented merely because they appear in a specification. The pickup client deliberately uses the accessible ordered manifest list and scanner keyboard/paste/manual identifier input; camera scanning, delivery routing, and proof media remain separate work.
+All other routes shown in the draft files are conceptual placeholders. They are not implemented merely because they appear in a specification. The client deliberately uses text/area delivery context, revision-checked movement, P0 QR/reference proof, and read-only completion/history projections; camera scanning, route/location telemetry, and proof media remain unavailable.
 
 ## Canonical constraints for future features
 
@@ -62,4 +68,4 @@ All other routes shown in the draft files are conceptual placeholders. They are 
 
 ## Draft files
 
-The following files remain backlog material: Accept Delivery Requests as a standalone screen, Chat/Messaging, Complete Delivery, Dashboard operational sections, Delivery History, Deliver Order, Incident Reporting, Profit Dashboard, and Proof of Delivery. Pickup includes the documented acceptance prerequisite; revise each remaining feature against its real API before implementation.
+The following files remain backlog material: Chat/Messaging, Dashboard operational aggregation, Incident Reporting, Profit Dashboard, and route/location extensions. Acceptance, Deliver Order movement, P0 Proof of Delivery, Complete Delivery intent, and Delivery History are implemented through the dedicated Flutter flows and their owning contracts; photo/signature proof and camera scanning remain deferred.

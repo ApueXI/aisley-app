@@ -30,6 +30,8 @@ enum PickupTaskActionStatus {
   idle,
   accepting,
   accepted,
+  rejecting,
+  rejected,
   confirming,
   awaitingValidation,
   succeeded,
@@ -78,6 +80,8 @@ class PickupController extends ChangeNotifier {
   final Map<String, Duration?> _actionRetryAfter = <String, Duration?>{};
   final Map<String, _PendingPickupAttempt> _pendingAttempts =
       <String, _PendingPickupAttempt>{};
+  final Map<String, _PendingRejectionAttempt> _pendingRejections =
+      <String, _PendingRejectionAttempt>{};
 
   int _loadEpoch = 0;
   bool _loadInFlight = false;
@@ -108,11 +112,15 @@ class PickupController extends ChangeNotifier {
   bool isActionBusy(PickupTask task) {
     final status = actionStatus(task);
     return status == PickupTaskActionStatus.accepting ||
+        status == PickupTaskActionStatus.rejecting ||
         status == PickupTaskActionStatus.confirming;
   }
 
   bool hasPendingAttempt(PickupTask task) =>
       _pendingAttempts.containsKey(_taskKey(task));
+
+  bool hasPendingRejection(PickupTask task) =>
+      _pendingRejections.containsKey(_taskKey(task));
 
   PickupTask taskWithId(PickupTask task) {
     final tasks = task.isFirstMile ? firstMileTasks : finalMileTasks;
@@ -302,6 +310,85 @@ class PickupController extends ChangeNotifier {
       notifyListeners();
     }
     return null;
+  }
+
+  Future<bool> rejectFinalMileTask(
+    PickupTask task, {
+    required String reason,
+  }) async {
+    if (!task.isFinalMile ||
+        task.status != PickupTaskStatus.deliveryAssigned ||
+        isActionBusy(task)) {
+      return false;
+    }
+
+    final normalizedReason = reason.trim();
+    if (normalizedReason.length < 3 || normalizedReason.length > 1000) {
+      _setLocalValidationError(
+        task,
+        'Enter a rejection reason between 3 and 1,000 characters.',
+      );
+      return false;
+    }
+
+    final key = _taskKey(task);
+    final pending = _pendingRejections[key];
+    final attempt = pending != null && pending.reason == normalizedReason
+        ? pending
+        : _PendingRejectionAttempt(
+            reason: normalizedReason,
+            idempotencyKey: _newUuid(),
+          );
+    _pendingRejections[key] = attempt;
+    return _performFinalMileRejection(task, attempt);
+  }
+
+  Future<bool> retryFinalMileRejection(PickupTask task) async {
+    final attempt = _pendingRejections[_taskKey(task)];
+    if (attempt == null || !task.isFinalMile) {
+      return false;
+    }
+    return _performFinalMileRejection(task, attempt);
+  }
+
+  Future<bool> _performFinalMileRejection(
+    PickupTask task,
+    _PendingRejectionAttempt attempt,
+  ) async {
+    final key = _taskKey(task);
+    if (isActionBusy(task)) {
+      return false;
+    }
+    _actionStatuses[key] = PickupTaskActionStatus.rejecting;
+    _actionErrors[key] = null;
+    _actionRetryAfter[key] = null;
+    notifyListeners();
+
+    try {
+      final result = await pickupRepository.rejectFinalMileTask(
+        taskId: task.id,
+        reason: attempt.reason,
+        idempotencyKey: attempt.idempotencyKey,
+      );
+      _pendingRejections.remove(key);
+      _replaceTask(
+        task.copyWith(
+          rawStatus: result.status,
+          rejectionReason: result.rejectionReason ?? attempt.reason,
+          offerRespondedAt: result.respondedAt,
+        ),
+      );
+      _actionStatuses[key] = PickupTaskActionStatus.rejected;
+      notifyListeners();
+      return true;
+    } on ApiException catch (error) {
+      await _setActionError(task, error);
+    } on TokenStorageException {
+      _setActionStorageError(task);
+    } on ApiContractException {
+      _setActionContractError(task);
+    }
+    return false;
   }
 
   Future<bool> confirmFirstMilePickup(
@@ -528,6 +615,7 @@ class PickupController extends ChangeNotifier {
     _actionErrors.clear();
     _actionRetryAfter.clear();
     _pendingAttempts.clear();
+    _pendingRejections.clear();
     notifyListeners();
   }
 
@@ -751,5 +839,15 @@ class _PendingPickupAttempt {
   final PickupTaskLeg leg;
   final String identifierType;
   final String identifier;
+  final String idempotencyKey;
+}
+
+class _PendingRejectionAttempt {
+  const _PendingRejectionAttempt({
+    required this.reason,
+    required this.idempotencyKey,
+  });
+
+  final String reason;
   final String idempotencyKey;
 }

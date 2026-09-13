@@ -4,9 +4,9 @@ This is the progress log for the external Courier Flutter application. It is sep
 
 ## Backend contract snapshot
 
-- **Backend commit:** `d5c160d4a5a21272e487b6f46a82de35e81395cb` for `first-and-final-mile-pickup-v1`, with policy consent at `c3b9cad` and account/profile-photo behavior at `20afd9f`.
-- **Current API surface:** Courier Logistics discovery, registration, login, generic password-recovery response, `/me`, current-token logout, account profile/password management, private profile-photo upload/retrieval/removal, public Terms/Privacy reads and history, authenticated policy status/acceptance, first-mile and final-mile pickup task reads/acceptance, waybill candidate resolution, idempotent first-mile Seller handoff, ordered first-mile route manifests, pending final-mile hub-handoff evidence, and the read-only Courier dashboard scaffold.
-- **Deferred:** Delivery movement, camera QR decoding, proof-of-delivery media, routing/ETA, chat, earnings, notification transport, and offline synchronization APIs.
+- **Backend commit:** `d1abeee73d0141e1fd7dda4bea0ee3fead370378` for the first/final-mile operational contracts, with pickup foundation at `d5c160d4a5a21272e487b6f46a82de35e81395cb`, policy consent at `c3b9cad`, and account/profile-photo behavior at `20afd9f`.
+- **Current API surface:** Courier Logistics discovery, registration, login, generic password-recovery response, `/me`, current-token logout, account profile/password management, private profile-photo upload/retrieval/removal, public Terms/Privacy reads and history, authenticated policy status/acceptance, first-mile and final-mile task reads/acceptance/rejection, waybill candidate resolution, idempotent first-mile Seller handoff, ordered first-mile route manifests, pending final-mile hub-handoff evidence, accepted-task delivery context, revision-checked final-mile movement, P0 QR/reference proof, completion intent/projection, read-only delivered history, and the read-only Courier dashboard scaffold.
+- **Deferred:** Dashboard operational aggregation, camera QR decoding, photo/signature proof media, route/location telemetry, chat, earnings, notification transport, and offline synchronization APIs.
 
 ## 2026-09-08
 
@@ -130,3 +130,13 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Preserved nested validation paths such as `address.postal_code` when the API returns nested `errors` objects, allowing the form summary and inline fields to identify the rejected address field.
 - Added API error-parser coverage for nested registration validation responses; the registration endpoint and multipart field contract remain unchanged.
 - Verification: direct Dart analysis passes; Flutter tests remain blocked by the installed SDK's read-only external cache/build-hook files.
+
+## 2026-09-13
+
+- Completed the first-mile and final-mile Courier UI against backend commit `d1abeee73d0141e1fd7dda4bea0ee3fead370378`: final-mile offer rejection, accepted-task delivery context, revision-checked movement, P0 QR/reference proof, completion intent/projection, and read-only delivered history are now available from the authenticated dashboard.
+- The copied Deliver Order spec marks the movement route implemented and requires a task revision but omits an exact request-body example; this client uses the bounded `{status, expected_revision}` payload implied by the shared transition wording, and that field shape must be confirmed against the Laravel route before release.
+- Kept first-mile Seller pickup and final-mile hub pickup independent. Hub evidence remains visibly `awaiting_validation` until Logistics records custody; delivery movement begins only from the server-returned `picked_up_from_hub` state.
+- Added explicit loading, empty, unavailable, policy-consent, unauthorized, conflict, validation, timeout/offline, rate-limit, secure-storage, retry, pending-validation, and server-confirmed completion states. Uncertain proof/completion mutations retain their original idempotency attempt.
+- Kept route/location telemetry, map/navigation, camera QR decoding, photo/signature proof, chat, earnings, notification transport, offline mutation, and dashboard aggregation unavailable; no client-generated status, route, ETA, ownership, or delivery completion is used.
+- Added repository/controller contract coverage for movement, proof, completion, history, bearer paths, request bodies, idempotency, pending 202 responses, and 401 delegation; synchronized the architecture, feature index, mobile design guide, and the dashboard/history spec status/checklists (dashboard v2.4, history v1.4).
+- Verification: direct Dart analysis passes and `git diff --check` passes. `flutter test`/`flutter analyze` could not run because this environment's Flutter SDK attempts to write cache/build-hook files outside the project; direct `dart test` was stopped after the external build-hook remained stalled.

@@ -29,6 +29,12 @@ abstract interface class PickupRepository {
 
   Future<PickupTask> acceptFinalMileTask(String taskId);
 
+  Future<FinalMileRejectionResult> rejectFinalMileTask({
+    required String taskId,
+    required String reason,
+    required String idempotencyKey,
+  });
+
   Future<FinalMilePickupSubmission> submitFinalMilePickup({
     required String taskId,
     required String identifierType,
@@ -198,6 +204,22 @@ class ApiPickupRepository implements PickupRepository {
     );
     final payload = _decodeObject(response.body, 'pickup.final_mile.accept');
     return _taskFromData(payload, PickupTaskLeg.finalMile);
+  }
+
+  @override
+  Future<FinalMileRejectionResult> rejectFinalMileTask({
+    required String taskId,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    final response = await _client.postJson(
+      '/courier/final-mile-tasks/${_pathSegment(taskId)}/reject',
+      authenticated: true,
+      headers: <String, String>{'Idempotency-Key': idempotencyKey},
+      body: <String, Object?>{'reason': reason.trim()},
+    );
+    final payload = _decodeObject(response.body, 'pickup.final_mile.reject');
+    return FinalMileRejectionResult.fromResponse(payload);
   }
 
   @override

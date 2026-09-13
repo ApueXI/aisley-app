@@ -224,6 +224,20 @@ class _WidgetPickupRepository implements PickupRepository {
   Future<PickupTask> acceptFinalMileTask(String taskId) async => _finalMileTask;
 
   @override
+  Future<FinalMileRejectionResult> rejectFinalMileTask({
+    required String taskId,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    return FinalMileRejectionResult(
+      taskId: taskId,
+      status: 'rejected',
+      rejectionReason: reason,
+      respondedAt: DateTime.utc(2026, 9, 13),
+    );
+  }
+
+  @override
   Future<FinalMilePickupSubmission> submitFinalMilePickup({
     required String taskId,
     required String identifierType,

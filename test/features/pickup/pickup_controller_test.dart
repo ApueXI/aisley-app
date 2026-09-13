@@ -89,6 +89,29 @@ void main() {
     );
   });
 
+  test('records a final-mile rejection without changing the Order', () async {
+    final repository = _FakePickupRepository();
+    final controller = PickupController(pickupRepository: repository);
+    await controller.load();
+    final task = controller.finalMileTasks.single.copyWith(
+      rawStatus: 'delivery_assigned',
+    );
+    controller.finalMileTasks = <PickupTask>[task];
+
+    final rejected = await controller.rejectFinalMileTask(
+      task,
+      reason: 'Vehicle unavailable',
+    );
+
+    expect(rejected, isTrue);
+    expect(controller.finalMileTasks.single.rawStatus, 'rejected');
+    expect(
+      controller.finalMileTasks.single.rejectionReason,
+      'Vehicle unavailable',
+    );
+    expect(controller.actionStatus(task), PickupTaskActionStatus.rejected);
+  });
+
   test(
     'policy consent denial is explicit and does not clear a valid session',
     () async {
@@ -215,6 +238,20 @@ class _FakePickupRepository implements PickupRepository {
   @override
   Future<PickupTask> acceptFinalMileTask(String taskId) async {
     return _finalMileTask.copyWith(rawStatus: 'delivery_accepted');
+  }
+
+  @override
+  Future<FinalMileRejectionResult> rejectFinalMileTask({
+    required String taskId,
+    required String reason,
+    required String idempotencyKey,
+  }) async {
+    return FinalMileRejectionResult(
+      taskId: taskId,
+      status: 'rejected',
+      rejectionReason: reason,
+      respondedAt: DateTime.utc(2026, 9, 13),
+    );
   }
 
   @override

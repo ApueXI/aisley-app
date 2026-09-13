@@ -11,12 +11,14 @@ class PickupScreen extends StatefulWidget {
     required this.authController,
     required this.pickupController,
     this.policyController,
+    this.onOpenDelivery,
     super.key,
   });
 
   final AuthController authController;
   final PickupController pickupController;
   final PolicyController? policyController;
+  final VoidCallback? onOpenDelivery;
 
   @override
   State<PickupScreen> createState() => _PickupScreenState();
@@ -64,6 +66,7 @@ class _PickupScreenState extends State<PickupScreen> {
           pickupController: widget.pickupController,
           policyController: widget.policyController,
           task: task,
+          onOpenDelivery: widget.onOpenDelivery,
         ),
       ),
     );
@@ -566,6 +569,7 @@ class PickupTaskDetailScreen extends StatefulWidget {
     required this.pickupController,
     required this.task,
     this.policyController,
+    this.onOpenDelivery,
     super.key,
   });
 
@@ -573,6 +577,7 @@ class PickupTaskDetailScreen extends StatefulWidget {
   final PickupController pickupController;
   final PickupTask task;
   final PolicyController? policyController;
+  final VoidCallback? onOpenDelivery;
 
   @override
   State<PickupTaskDetailScreen> createState() => _PickupTaskDetailScreenState();
@@ -618,8 +623,15 @@ class _PickupTaskDetailScreenState extends State<PickupTaskDetailScreen> {
   }
 
   Widget _buildAction(BuildContext context, PickupTask task) {
+    if (task.isFinalMile && task.status == PickupTaskStatus.rejected) {
+      return _buildRejected(context, task);
+    }
     if (task.hasBeenPickedUp) {
-      return _CompletedPickup(task: task, controller: widget.pickupController);
+      return _CompletedPickup(
+        task: task,
+        controller: widget.pickupController,
+        onOpenDelivery: widget.onOpenDelivery,
+      );
     }
     if (task.isAssigned) {
       return _buildAcceptance(context, task);
@@ -632,6 +644,52 @@ class _PickupTaskDetailScreenState extends State<PickupTaskDetailScreen> {
         padding: const EdgeInsets.all(18),
         child: Text(
           'This task is not currently eligible for a pickup action. Refresh to see the server-authoritative state.',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRejected(BuildContext context, PickupTask task) {
+    final scheme = Theme.of(context).colorScheme;
+    final actionStatus = widget.pickupController.actionStatus(task);
+    final error = widget.pickupController.actionError(task);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.assignment_returned_outlined),
+            const SizedBox(height: 10),
+            Text(
+              'Offer rejected',
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              task.rejectionReason == null
+                  ? 'Logistics may offer this task again.'
+                  : 'Reason: ${task.rejectionReason}',
+            ),
+            if (task.offerRespondedAt != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Recorded ${_formatManilaTimestamp(task.offerRespondedAt!)}',
+              ),
+            ],
+            if (error != null) ...[
+              const SizedBox(height: 12),
+              Text(error, style: TextStyle(color: scheme.error)),
+              if (_canRetryAction(actionStatus) &&
+                  widget.pickupController.hasPendingRejection(task))
+                TextButton.icon(
+                  onPressed: () => _retryRejection(task),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry same rejection'),
+                ),
+            ],
+          ],
         ),
       ),
     );
@@ -668,6 +726,13 @@ class _PickupTaskDetailScreenState extends State<PickupTaskDetailScreen> {
                   icon: const Icon(Icons.policy_outlined),
                   label: const Text('Review policies'),
                 ),
+              if (_canRetryAction(actionStatus) &&
+                  controller.hasPendingRejection(task))
+                TextButton.icon(
+                  onPressed: busy ? null : () => _retryRejection(task),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry same rejection'),
+                ),
             ],
             const SizedBox(height: 16),
             FilledButton.icon(
@@ -685,6 +750,14 @@ class _PickupTaskDetailScreenState extends State<PickupTaskDetailScreen> {
                     : 'Accept hub delivery',
               ),
             ),
+            if (task.isFinalMile) ...[
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: busy ? null : () => _confirmRejectTask(task),
+                icon: const Icon(Icons.close),
+                label: const Text('Reject offer'),
+              ),
+            ],
           ],
         ),
       ),
@@ -897,6 +970,55 @@ class _PickupTaskDetailScreenState extends State<PickupTaskDetailScreen> {
     await _closeIfSessionEnded();
   }
 
+  Future<void> _confirmRejectTask(PickupTask task) async {
+    final reasonController = TextEditingController();
+    try {
+      final reason = await showDialog<String>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Reject this offer?'),
+            content: TextField(
+              controller: reasonController,
+              autofocus: true,
+              minLines: 2,
+              maxLines: 5,
+              maxLength: 1000,
+              decoration: const InputDecoration(
+                labelText: 'Reason',
+                hintText: 'Why can’t you take this task?',
+                helperText: 'Enter at least 3 characters.',
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final value = reasonController.text.trim();
+                  if (value.length < 3 || value.length > 1000) {
+                    return;
+                  }
+                  Navigator.of(context).pop(value);
+                },
+                child: const Text('Reject offer'),
+              ),
+            ],
+          );
+        },
+      );
+      if (reason == null || !mounted) {
+        return;
+      }
+      await widget.pickupController.rejectFinalMileTask(task, reason: reason);
+      await _closeIfSessionEnded();
+    } finally {
+      reasonController.dispose();
+    }
+  }
+
   Future<void> _resolveQr() async {
     final payload = _identifierController.text.trim();
     if (payload.isEmpty) {
@@ -970,6 +1092,11 @@ class _PickupTaskDetailScreenState extends State<PickupTaskDetailScreen> {
     } else {
       await widget.pickupController.retryFinalMilePickup(task);
     }
+    await _closeIfSessionEnded();
+  }
+
+  Future<void> _retryRejection(PickupTask task) async {
+    await widget.pickupController.retryFinalMileRejection(task);
     await _closeIfSessionEnded();
   }
 
@@ -1150,10 +1277,15 @@ class _DetailRow extends StatelessWidget {
 }
 
 class _CompletedPickup extends StatelessWidget {
-  const _CompletedPickup({required this.task, required this.controller});
+  const _CompletedPickup({
+    required this.task,
+    required this.controller,
+    this.onOpenDelivery,
+  });
 
   final PickupTask task;
   final PickupController controller;
+  final VoidCallback? onOpenDelivery;
 
   @override
   Widget build(BuildContext context) {
@@ -1207,6 +1339,14 @@ class _CompletedPickup extends StatelessWidget {
                   'Recorded ${_formatManilaTimestamp(task.pickedUpAt!)}',
                 ),
               ),
+            if (task.isFinalMile && onOpenDelivery != null) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: onOpenDelivery,
+                icon: const Icon(Icons.route_outlined),
+                label: const Text('Open delivery work'),
+              ),
+            ],
           ],
         ),
       ),
