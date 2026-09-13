@@ -16,9 +16,9 @@ void main() {
   testWidgets(
     'shows Submit completion after proof 202 while proof awaits validation',
     (tester) async {
-      final controller = DeliveryController(
-        deliveryRepository: _WidgetDeliveryRepository(),
-      )..tasks = <PickupTask>[_outForDeliveryTask];
+      final repository = _WidgetDeliveryRepository();
+      final controller = DeliveryController(deliveryRepository: repository)
+        ..tasks = <PickupTask>[_outForDeliveryTask];
       final proofSubmitted = await controller.submitProof(
         _outForDeliveryTask,
         identifierType: 'qr',
@@ -49,6 +49,20 @@ void main() {
       await tester.ensureVisible(find.text('Submit completion'));
       expect(find.text('Submit completion'), findsOneWidget);
       expect(find.text('Delivery completed by the server.'), findsNothing);
+
+      await tester.tap(find.text('Submit completion'));
+      await tester.pumpAndSettle();
+      expect(find.text('Submit completion intent?'), findsOneWidget);
+
+      await tester.tap(find.text('Submit intent'));
+      await tester.pumpAndSettle();
+
+      expect(repository.completionEvidenceId, 'proof-1');
+      expect(
+        find.textContaining('Completion intent accepted by the server.'),
+        findsOneWidget,
+      );
+      expect(find.text('Delivery completed by the server.'), findsNothing);
     },
   );
 }
@@ -75,6 +89,8 @@ AuthController _authenticatedAuthController() {
 }
 
 class _WidgetDeliveryRepository implements DeliveryRepository {
+  String? completionEvidenceId;
+
   @override
   Future<List<PickupTask>> fetchFinalMileTasks() async {
     return <PickupTask>[_outForDeliveryTask];
@@ -143,6 +159,7 @@ class _WidgetDeliveryRepository implements DeliveryRepository {
     required String evidenceId,
     required String idempotencyKey,
   }) async {
+    completionEvidenceId = evidenceId;
     return const CompletionProjection(
       taskId: 'delivery-task-1',
       intentId: 'intent-1',

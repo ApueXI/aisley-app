@@ -135,6 +135,24 @@ class DeliveryController extends ChangeNotifier {
   bool hasPendingCompletion(PickupTask task) =>
       _pendingCompletions.containsKey(task.id);
 
+  bool isCompletionPending(PickupTask task) {
+    final completion = completions[task.id];
+    final proofId = proofs[task.id]?.proofId;
+    final completionEvidenceId = completion?.evidenceId;
+    final projectionMatchesCurrentProof =
+        proofId == null ||
+        completionEvidenceId == null ||
+        completionEvidenceId == proofId;
+
+    if (actionStatus(task) ==
+            DeliveryActionStatus.completionAwaitingValidation &&
+        projectionMatchesCurrentProof) {
+      return true;
+    }
+    return completion?.isAwaitingValidation == true &&
+        projectionMatchesCurrentProof;
+  }
+
   Future<void> load() async {
     if (_loadInFlight || !canRetryRateLimit) {
       return;
@@ -318,9 +336,7 @@ class DeliveryController extends ChangeNotifier {
   }) async {
     if (!task.isFinalMile ||
         task.status != PickupTaskStatus.outForDelivery ||
-        actionStatus(task) ==
-            DeliveryActionStatus.completionAwaitingValidation ||
-        completions[task.id]?.isAwaitingValidation == true ||
+        isCompletionPending(task) ||
         !canStartAction(task)) {
       return false;
     }
@@ -393,9 +409,7 @@ class DeliveryController extends ChangeNotifier {
   ) async {
     if (!task.isFinalMile ||
         task.status != PickupTaskStatus.outForDelivery ||
-        actionStatus(task) ==
-            DeliveryActionStatus.completionAwaitingValidation ||
-        completions[task.id]?.isAwaitingValidation == true ||
+        isCompletionPending(task) ||
         !canStartAction(task)) {
       return false;
     }
@@ -439,17 +453,13 @@ class DeliveryController extends ChangeNotifier {
         task.status != PickupTaskStatus.outForDelivery ||
         latestRevision == null ||
         normalizedEvidenceId.isEmpty ||
-        actionStatus(task) ==
-            DeliveryActionStatus.completionAwaitingValidation ||
+        isCompletionPending(task) ||
         completions[task.id]?.isDelivered == true ||
         !canStartAction(task)) {
       return false;
     }
-    final submittedProofId = proofs[task.id]?.proofId;
     final knownProofId =
-        actionStatus(task) == DeliveryActionStatus.proofAwaitingValidation
-        ? submittedProofId ?? completions[task.id]?.evidenceId
-        : completions[task.id]?.evidenceId ?? submittedProofId;
+        proofs[task.id]?.proofId ?? completions[task.id]?.evidenceId;
     if (knownProofId == null || knownProofId != normalizedEvidenceId) {
       _setLocalValidationError(
         task,
@@ -484,8 +494,7 @@ class DeliveryController extends ChangeNotifier {
   ) async {
     if (!task.isFinalMile ||
         task.status != PickupTaskStatus.outForDelivery ||
-        actionStatus(task) ==
-            DeliveryActionStatus.completionAwaitingValidation ||
+        isCompletionPending(task) ||
         completions[task.id]?.isDelivered == true ||
         !canStartAction(task)) {
       return false;
@@ -656,7 +665,8 @@ class DeliveryController extends ChangeNotifier {
     if (completion.isDelivered) {
       return;
     }
-    if (completion.isAwaitingValidation) {
+    if (completion.isAwaitingValidation &&
+        _completionMatchesCurrentProof(taskId, completion)) {
       _actionStatuses[taskId] =
           DeliveryActionStatus.completionAwaitingValidation;
       _actionErrors.remove(taskId);
@@ -671,6 +681,15 @@ class DeliveryController extends ChangeNotifier {
       _actionErrors.remove(taskId);
       _actionRetryAfter.remove(taskId);
     }
+  }
+
+  bool _completionMatchesCurrentProof(
+    String taskId,
+    CompletionProjection completion,
+  ) {
+    final proofId = proofs[taskId]?.proofId;
+    final evidenceId = completion.evidenceId;
+    return proofId == null || evidenceId == null || proofId == evidenceId;
   }
 
   int? _latestRevision(PickupTask task) {

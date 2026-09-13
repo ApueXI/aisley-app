@@ -87,6 +87,42 @@ void main() {
   );
 
   test(
+    'a stale completion projection cannot block the latest proof handoff',
+    () async {
+      final repository = _FakeDeliveryRepository()
+        ..completionProjection = const CompletionProjection(
+          taskId: 'delivery-task-1',
+          intentId: 'old-intent',
+          taskStatus: 'out_for_delivery',
+          completionStatus: 'awaiting_validation',
+          evidenceStatus: 'awaiting_validation',
+          evidenceId: 'old-proof',
+        );
+      final controller = DeliveryController(deliveryRepository: repository)
+        ..tasks = <PickupTask>[_outForDeliveryTask]
+        ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+          taskId: 'delivery-task-1',
+          proofId: 'new-proof',
+          evidenceStatus: 'awaiting_validation',
+          custodyState: 'out_for_delivery',
+          completionEligible: false,
+        );
+
+      await controller.loadCompletion(_outForDeliveryTask);
+
+      expect(controller.isCompletionPending(_outForDeliveryTask), isFalse);
+      final submitted = await controller.submitCompletion(
+        _outForDeliveryTask,
+        evidenceId: 'new-proof',
+      );
+
+      expect(submitted, isTrue);
+      expect(repository.completionEvidenceId, 'new-proof');
+      expect(controller.isCompletionPending(_outForDeliveryTask), isTrue);
+    },
+  );
+
+  test(
     'manual proof rejects a database ID or waybill reference locally',
     () async {
       final repository = _FakeDeliveryRepository();
@@ -318,6 +354,13 @@ class _FakeDeliveryRepository implements DeliveryRepository {
   String? proofIdentifier;
   String? proofIdentifierType;
   String? completionEvidenceId;
+  CompletionProjection completionProjection = const CompletionProjection(
+    taskId: 'delivery-task-1',
+    taskStatus: 'out_for_delivery',
+    completionStatus: 'awaiting_validation',
+    evidenceStatus: 'awaiting_validation',
+    evidenceId: 'proof-1',
+  );
   PickupTask listedTask = _outForDeliveryTask;
   final List<int> proofExpectedRevisions = <int>[];
   final List<int> completionExpectedRevisions = <int>[];
@@ -380,13 +423,7 @@ class _FakeDeliveryRepository implements DeliveryRepository {
 
   @override
   Future<CompletionProjection> fetchCompletion(String taskId) async {
-    return const CompletionProjection(
-      taskId: 'delivery-task-1',
-      taskStatus: 'out_for_delivery',
-      completionStatus: 'awaiting_validation',
-      evidenceStatus: 'awaiting_validation',
-      evidenceId: 'proof-1',
-    );
+    return completionProjection;
   }
 
   @override
@@ -406,13 +443,13 @@ class _FakeDeliveryRepository implements DeliveryRepository {
         networkFailure: ApiNetworkFailure.timeout,
       );
     }
-    return const CompletionProjection(
+    return CompletionProjection(
       taskId: 'delivery-task-1',
       intentId: 'intent-1',
       taskStatus: 'out_for_delivery',
       completionStatus: 'awaiting_validation',
       evidenceStatus: 'awaiting_validation',
-      evidenceId: 'proof-1',
+      evidenceId: evidenceId,
     );
   }
 }

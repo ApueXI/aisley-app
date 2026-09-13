@@ -148,3 +148,10 @@ This is the progress log for the external Courier Flutter application. It is sep
 - HTTP 202 completion responses remain “Awaiting Logistics validation” and never mark the task or Order delivered locally. Completion GET remains the authority for evidence, completion, task, Order, revision, and delivered timestamp projections; conflicts refresh task details and completion state.
 - Added repository, controller, and widget coverage for raw/manual identifiers, proof-ID handoff, pending validation, wrong parcel references, stale revisions, retry-key reuse, offline recovery, latest revision selection, and non-delivered completion acknowledgment.
 - Verification: direct Dart analysis passes; focused Flutter tests remain blocked by the installed SDK's external build-hook/cache writes in this environment.
+
+## 2026-09-13
+
+- Hardened the final-mile proof-to-completion handoff against stale completion projections: the latest server-returned proof ID now remains the completion evidence source, and an older intent for another proof cannot hide or block the current `Submit completion` action.
+- Made the pending completion state explicit in the UI by confirming that the server accepted the completion intent while preserving the required “Awaiting Logistics validation” state; the task remains undelivered until a server completion read reports `delivered`.
+- Added controller coverage for stale proof/intent projections and widget coverage that taps the completion confirmation and verifies the completion request receives the proof ID.
+- Verification: direct Dart analysis passes; focused Flutter tests remain blocked by the installed SDK's external build-hook/cache writes in this environment.
