@@ -74,7 +74,7 @@ void main() {
       final proof = await repository.submitProof(
         taskId: 'delivery-task-1',
         identifierType: 'qr',
-        identifier: ' RECIPIENT-QR ',
+        identifier: 'RAW-QR-PAYLOAD 123',
         expectedRevision: 6,
         idempotencyKey: '11111111-1111-4111-8111-111111111111',
       );
@@ -90,7 +90,7 @@ void main() {
       );
       expect(jsonDecode(request.body), <String, dynamic>{
         'identifier_type': 'qr',
-        'identifier': 'RECIPIENT-QR',
+        'identifier': 'RAW-QR-PAYLOAD 123',
         'expected_revision': 6,
       });
       expect(proof.proofId, 'proof-1');
@@ -128,6 +128,28 @@ void main() {
       expect(completion.completionStatus, 'awaiting_validation');
     },
   );
+
+  test('submits the public Order reference as order_id', () async {
+    late http.Request request;
+    final repository = _repository((incoming) async {
+      request = incoming;
+      return http.Response(jsonEncode(_proofResponse), 202);
+    });
+
+    await repository.submitProof(
+      taskId: 'delivery-task-1',
+      identifierType: 'order_id',
+      identifier: ' ORD-100 ',
+      expectedRevision: 6,
+      idempotencyKey: '33333333-3333-4333-8333-333333333333',
+    );
+
+    expect(jsonDecode(request.body), <String, dynamic>{
+      'identifier_type': 'order_id',
+      'identifier': 'ORD-100',
+      'expected_revision': 6,
+    });
+  });
 }
 
 ApiDeliveryRepository _repository(

@@ -123,7 +123,6 @@ class DeliveryController extends ChangeNotifier {
       DeliveryActionStatus.unauthorized ||
       DeliveryActionStatus.forbidden ||
       DeliveryActionStatus.consentRequired ||
-      DeliveryActionStatus.rateLimited ||
       DeliveryActionStatus.moving ||
       DeliveryActionStatus.proofSubmitting ||
       DeliveryActionStatus.completionSubmitting => false,
@@ -251,11 +250,7 @@ class DeliveryController extends ChangeNotifier {
       completionStatuses[taskId] = DeliveryLoadStatus.loaded;
       completionErrors[taskId] = null;
       _syncTaskFromCompletion(task, completion);
-      if (_actionStatuses[taskId] == DeliveryActionStatus.conflict) {
-        _actionStatuses.remove(taskId);
-        _actionErrors.remove(taskId);
-        _actionRetryAfter.remove(taskId);
-      }
+      _reconcileActionWithCompletion(taskId, completion);
       notifyListeners();
     } on ApiException catch (error) {
       await _setCompletionError(taskId, error);
@@ -323,17 +318,50 @@ class DeliveryController extends ChangeNotifier {
   }) async {
     if (!task.isFinalMile ||
         task.status != PickupTaskStatus.outForDelivery ||
-        task.revision == null ||
+        actionStatus(task) ==
+            DeliveryActionStatus.completionAwaitingValidation ||
+        completions[task.id]?.isAwaitingValidation == true ||
         !canStartAction(task)) {
       return false;
     }
-    final normalizedIdentifier = identifier.trim();
+    final normalizedIdentifier = identifierType == 'qr'
+        ? identifier
+        : identifier.trim();
+    if (task.revision == null) {
+      _setLocalValidationError(
+        task,
+        'The task revision is unavailable. Refresh the task before submitting proof.',
+      );
+      return false;
+    }
     if (!_validIdentifier(identifierType, normalizedIdentifier)) {
       _setLocalValidationError(
         task,
-        'Choose QR or Order ID/reference and enter a value up to 128 characters.',
+        'Choose QR or enter a public Order reference up to 128 characters.',
       );
       return false;
+    }
+    if (identifierType == 'order_id') {
+      final publicOrderReference = task.order?.reference?.trim();
+      if (publicOrderReference == null || publicOrderReference.isEmpty) {
+        _setLocalValidationError(
+          task,
+          'The public Order reference is unavailable. Use the delivery QR instead.',
+        );
+        return false;
+      }
+      final orderDatabaseId = task.order?.id?.trim();
+      final waybillReference = task.waybill?.reference?.trim();
+      final waybillDatabaseId = task.waybill?.id?.trim();
+      if (normalizedIdentifier == orderDatabaseId ||
+          normalizedIdentifier == waybillReference ||
+          normalizedIdentifier == waybillDatabaseId) {
+        _setLocalValidationError(
+          task,
+          'Enter the public Order reference shown above. Database IDs and waybill references are not accepted here.',
+        );
+        return false;
+      }
     }
     final existing = _pendingProofs[task.id];
     final attempt =
@@ -344,6 +372,7 @@ class DeliveryController extends ChangeNotifier {
         : _PendingIdentifierAttempt(
             identifierType: identifierType,
             identifier: normalizedIdentifier,
+            expectedRevision: task.revision!,
             idempotencyKey: _newUuid(),
           );
     _pendingProofs[task.id] = attempt;
@@ -362,7 +391,12 @@ class DeliveryController extends ChangeNotifier {
     PickupTask task,
     _PendingIdentifierAttempt attempt,
   ) async {
-    if (task.revision == null || !canStartAction(task)) {
+    if (!task.isFinalMile ||
+        task.status != PickupTaskStatus.outForDelivery ||
+        actionStatus(task) ==
+            DeliveryActionStatus.completionAwaitingValidation ||
+        completions[task.id]?.isAwaitingValidation == true ||
+        !canStartAction(task)) {
       return false;
     }
     _actionStatuses[task.id] = DeliveryActionStatus.proofSubmitting;
@@ -374,7 +408,7 @@ class DeliveryController extends ChangeNotifier {
         taskId: task.id,
         identifierType: attempt.identifierType,
         identifier: attempt.identifier,
-        expectedRevision: task.revision!,
+        expectedRevision: attempt.expectedRevision,
         idempotencyKey: attempt.idempotencyKey,
       );
       proofs[task.id] = proof;
@@ -383,6 +417,9 @@ class DeliveryController extends ChangeNotifier {
       notifyListeners();
       return true;
     } on ApiException catch (error) {
+      if (_isDefinitiveMutationError(error)) {
+        _pendingProofs.remove(task.id);
+      }
       await _setActionError(task, error);
     } on TokenStorageException {
       _setStorageActionError(task);
@@ -396,20 +433,37 @@ class DeliveryController extends ChangeNotifier {
     PickupTask task, {
     required String evidenceId,
   }) async {
+    final normalizedEvidenceId = evidenceId.trim();
+    final latestRevision = _latestRevision(task);
     if (!task.isFinalMile ||
         task.status != PickupTaskStatus.outForDelivery ||
-        task.revision == null ||
-        evidenceId.trim().isEmpty ||
+        latestRevision == null ||
+        normalizedEvidenceId.isEmpty ||
+        actionStatus(task) ==
+            DeliveryActionStatus.completionAwaitingValidation ||
+        completions[task.id]?.isDelivered == true ||
         !canStartAction(task)) {
       return false;
     }
-    final normalizedEvidenceId = evidenceId.trim();
+    final submittedProofId = proofs[task.id]?.proofId;
+    final knownProofId =
+        actionStatus(task) == DeliveryActionStatus.proofAwaitingValidation
+        ? submittedProofId ?? completions[task.id]?.evidenceId
+        : completions[task.id]?.evidenceId ?? submittedProofId;
+    if (knownProofId == null || knownProofId != normalizedEvidenceId) {
+      _setLocalValidationError(
+        task,
+        'Submit proof for this delivery first. Only its server-returned proof ID can be used for completion.',
+      );
+      return false;
+    }
     final existing = _pendingCompletions[task.id];
     final attempt =
         existing != null && existing.evidenceId == normalizedEvidenceId
         ? existing
         : _PendingCompletionAttempt(
             evidenceId: normalizedEvidenceId,
+            expectedRevision: latestRevision,
             idempotencyKey: _newUuid(),
           );
     _pendingCompletions[task.id] = attempt;
@@ -428,7 +482,12 @@ class DeliveryController extends ChangeNotifier {
     PickupTask task,
     _PendingCompletionAttempt attempt,
   ) async {
-    if (task.revision == null || !canStartAction(task)) {
+    if (!task.isFinalMile ||
+        task.status != PickupTaskStatus.outForDelivery ||
+        actionStatus(task) ==
+            DeliveryActionStatus.completionAwaitingValidation ||
+        completions[task.id]?.isDelivered == true ||
+        !canStartAction(task)) {
       return false;
     }
     _actionStatuses[task.id] = DeliveryActionStatus.completionSubmitting;
@@ -438,19 +497,21 @@ class DeliveryController extends ChangeNotifier {
     try {
       final completion = await deliveryRepository.submitCompletion(
         taskId: task.id,
-        expectedRevision: task.revision!,
+        expectedRevision: attempt.expectedRevision,
         evidenceId: attempt.evidenceId,
         idempotencyKey: attempt.idempotencyKey,
       );
       completions[task.id] = completion;
       _pendingCompletions.remove(task.id);
-      _syncTaskFromCompletion(task, completion);
-      _actionStatuses[task.id] = completion.isDelivered
-          ? DeliveryActionStatus.completed
-          : DeliveryActionStatus.completionAwaitingValidation;
+      _syncTaskFromCompletion(task, completion, allowDelivered: false);
+      _actionStatuses[task.id] =
+          DeliveryActionStatus.completionAwaitingValidation;
       notifyListeners();
       return true;
     } on ApiException catch (error) {
+      if (_isDefinitiveMutationError(error)) {
+        _pendingCompletions.remove(task.id);
+      }
       await _setActionError(task, error);
     } on TokenStorageException {
       _setStorageActionError(task);
@@ -574,17 +635,62 @@ class DeliveryController extends ChangeNotifier {
 
   void _syncTaskFromCompletion(
     PickupTask task,
-    CompletionProjection completion,
-  ) {
+    CompletionProjection completion, {
+    bool allowDelivered = true,
+  }) {
+    final status = completion.isDelivered && !allowDelivered
+        ? task.rawStatus
+        : completion.taskStatus;
     _replaceTask(
-      task.copyWith(
-        rawStatus: completion.taskStatus,
-        revision: completion.revision,
-      ),
+      task.copyWith(rawStatus: status, revision: completion.revision),
     );
-    if (completion.isDelivered) {
+    if (completion.isDelivered && allowDelivered) {
       _actionStatuses[task.id] = DeliveryActionStatus.completed;
     }
+  }
+
+  void _reconcileActionWithCompletion(
+    String taskId,
+    CompletionProjection completion,
+  ) {
+    if (completion.isDelivered) {
+      return;
+    }
+    if (completion.isAwaitingValidation) {
+      _actionStatuses[taskId] =
+          DeliveryActionStatus.completionAwaitingValidation;
+      _actionErrors.remove(taskId);
+      _actionRetryAfter.remove(taskId);
+      return;
+    }
+    final actionStatus = _actionStatuses[taskId];
+    if (actionStatus == DeliveryActionStatus.conflict ||
+        actionStatus == DeliveryActionStatus.proofAwaitingValidation ||
+        actionStatus == DeliveryActionStatus.completionAwaitingValidation) {
+      _actionStatuses.remove(taskId);
+      _actionErrors.remove(taskId);
+      _actionRetryAfter.remove(taskId);
+    }
+  }
+
+  int? _latestRevision(PickupTask task) {
+    final taskRevision = task.revision;
+    final projectionRevision = completions[task.id]?.revision;
+    if (taskRevision == null) {
+      return projectionRevision;
+    }
+    if (projectionRevision == null) {
+      return taskRevision;
+    }
+    return projectionRevision > taskRevision
+        ? projectionRevision
+        : taskRevision;
+  }
+
+  static bool _isDefinitiveMutationError(ApiException error) {
+    return error.statusCode == 404 ||
+        error.statusCode == 409 ||
+        error.statusCode == 422;
   }
 
   Future<void> _notifyAuthFailure(ApiException error) async {
@@ -659,6 +765,15 @@ class DeliveryController extends ChangeNotifier {
     if (error.code == 'POLICY_CONSENT_REQUIRED') {
       return 'Accept the current Terms of Service and Privacy Policy before delivery actions are available.';
     }
+    if (error.code == 'PARCEL_NOT_FOUND') {
+      return 'The scanned or entered identifier does not belong to this delivery. Use the public Order reference or the correct delivery QR.';
+    }
+    if (error.code == 'TASK_STATE_CONFLICT') {
+      return 'The task state or revision changed. Refresh the task before trying again.';
+    }
+    if (error.code == 'COMPLETION_STATE_CONFLICT') {
+      return 'The completion state changed. Refresh the task before trying again.';
+    }
     if (error.statusCode == 404) {
       return 'This delivery is no longer available. Refresh to see current work.';
     }
@@ -702,7 +817,7 @@ class DeliveryController extends ChangeNotifier {
 
   static bool _validIdentifier(String type, String identifier) {
     return (type == 'qr' || type == 'order_id') &&
-        identifier.isNotEmpty &&
+        identifier.trim().isNotEmpty &&
         identifier.length <= 128;
   }
 
@@ -725,20 +840,24 @@ class _PendingIdentifierAttempt {
   const _PendingIdentifierAttempt({
     required this.identifierType,
     required this.identifier,
+    required this.expectedRevision,
     required this.idempotencyKey,
   });
 
   final String identifierType;
   final String identifier;
+  final int expectedRevision;
   final String idempotencyKey;
 }
 
 class _PendingCompletionAttempt {
   const _PendingCompletionAttempt({
     required this.evidenceId,
+    required this.expectedRevision,
     required this.idempotencyKey,
   });
 
   final String evidenceId;
+  final int expectedRevision;
   final String idempotencyKey;
 }

@@ -140,3 +140,11 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Kept route/location telemetry, map/navigation, camera QR decoding, photo/signature proof, chat, earnings, notification transport, offline mutation, and dashboard aggregation unavailable; no client-generated status, route, ETA, ownership, or delivery completion is used.
 - Added repository/controller contract coverage for movement, proof, completion, history, bearer paths, request bodies, idempotency, pending 202 responses, and 401 delegation; synchronized the architecture, feature index, mobile design guide, and the dashboard/history spec status/checklists (dashboard v2.4, history v1.4).
 - Verification: direct Dart analysis passes and `git diff --check` passes. `flutter test`/`flutter analyze` could not run because this environment's Flutter SDK attempts to write cache/build-hook files outside the project; direct `dart test` was stopped after the external build-hook remained stalled.
+
+## 2026-09-13
+
+- Fixed the final-mile completion handoff against backend commit `d1abeee73d0141e1fd7dda4bea0ee3fead370378`: an HTTP 202 proof response now stores its `proof_id` and immediately enables the separate completion-intent action while evidence remains `awaiting_validation`.
+- Final-mile proof is gated to `out_for_delivery`; manual input is sent as the public Order reference with `identifier_type: order_id`, QR input preserves the raw payload with `identifier_type: qr`, and completion uses the latest known revision plus a distinct UUID idempotency key.
+- HTTP 202 completion responses remain “Awaiting Logistics validation” and never mark the task or Order delivered locally. Completion GET remains the authority for evidence, completion, task, Order, revision, and delivered timestamp projections; conflicts refresh task details and completion state.
+- Added repository, controller, and widget coverage for raw/manual identifiers, proof-ID handoff, pending validation, wrong parcel references, stale revisions, retry-key reuse, offline recovery, latest revision selection, and non-delivered completion acknowledgment.
+- Verification: direct Dart analysis passes; focused Flutter tests remain blocked by the installed SDK's external build-hook/cache writes in this environment.

@@ -107,7 +107,7 @@ class ApiDeliveryRepository implements DeliveryRepository {
       headers: <String, String>{'Idempotency-Key': idempotencyKey},
       body: <String, Object?>{
         'identifier_type': identifierType,
-        'identifier': identifier.trim(),
+        'identifier': identifierType == 'qr' ? identifier : identifier.trim(),
         'expected_revision': expectedRevision,
       },
     );
