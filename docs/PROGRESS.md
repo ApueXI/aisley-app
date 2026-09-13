@@ -169,3 +169,10 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Reconciled the imported Complete Delivery specification from the webapp project into the canonical Flutter copy: adopted version 1.4 while preserving the same backend commit, endpoints, response envelope, and server authority.
 - Documented that an initial completion GET may return `completion_status: null` when no completion intent exists; Flutter now models that field as nullable and continues to require a server-confirmed `delivered` projection before showing completion.
 - Updated contract diagnostics to identify the documented JSON location `data.completion_status`. Added repository coverage for an initial projection with no completion intent; the imported `specs-from-webapp.md` comparison file remains unchanged and uncommitted.
+
+## 2026-09-13
+
+- Reconciled the v1.5 Proof of Delivery and Complete Delivery specifications from the webapp project: pending QR/reference proof now explicitly hands its `proof_id` to Courier completion, pending evidence does not block intent submission, and Logistics validates the matching proof and intent during finalization.
+- Kept the API contract on the documented `data` envelope, recorded nullable initial `completion_status` and `evidence_id`, clarified Courier task versus Logistics Shipment revisions, and corrected copied domain-document paths to this repository's `docs/domain/` layout.
+- Updated Flutter completion parsing and tests to accept explicit null initial status while rejecting an omitted or malformed `completion_status`; no endpoint, request field, status authority, or Laravel code changed.
+- Verification: direct Dart analysis and diff/spec-length checks pass; focused Flutter tests remain blocked by the installed SDK's external build-hook/cache writes in this environment.

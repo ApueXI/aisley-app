@@ -204,6 +204,9 @@ class CompletionProjection {
       'delivery.completion.task_status',
     );
     parsePickupTaskStatus(taskStatus);
+    if (!data.containsKey('completion_status')) {
+      throw const ApiContractException('delivery.completion.completion_status');
+    }
     return CompletionProjection(
       taskId: _requiredString(data['task_id'], 'delivery.completion.task_id'),
       taskStatus: taskStatus,
@@ -227,10 +230,10 @@ Map<String, dynamic> _completionData(Map<String, dynamic> json) {
     return Map<String, dynamic>.from(rawData);
   }
 
-  // The deployed Laravel response may serialize this endpoint-specific DTO
-  // without the usual resource envelope. Accept it only when the required
-  // completion fields are present; never treat an arbitrary successful JSON
-  // object as a completion projection.
+  // The documented Laravel response uses the data envelope. Keep this narrow
+  // direct-DTO compatibility for deployments that serialize this
+  // endpoint-specific projection without that envelope; never treat an
+  // arbitrary successful JSON object as a completion projection.
   if (json['task_id'] is String &&
       (json['task_status'] is String || json['status'] is String) &&
       json.containsKey('completion_status') &&
