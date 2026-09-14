@@ -8,6 +8,8 @@ import '../domain/delivery_models.dart';
 abstract interface class DeliveryRepository {
   Future<List<PickupTask>> fetchFinalMileTasks();
 
+  Future<PickupTask> fetchFinalMileTask(String taskId);
+
   Future<DeliveryContext> fetchDeliveryContext(String taskId);
 
   Future<DeliveryStatusUpdate> advanceStatus({
@@ -62,6 +64,23 @@ class ApiDeliveryRepository implements DeliveryRepository {
           );
         })
         .toList(growable: false);
+  }
+
+  @override
+  Future<PickupTask> fetchFinalMileTask(String taskId) async {
+    final response = await _client.get(
+      '/courier/final-mile-tasks/${_pathSegment(taskId)}',
+      authenticated: true,
+    );
+    final payload = _decodeObject(response.body, 'delivery.task');
+    final data = payload['data'];
+    if (data is! Map) {
+      throw const ApiContractException('delivery.task.data');
+    }
+    return PickupTask.fromJson(
+      Map<String, dynamic>.from(data),
+      defaultLeg: PickupTaskLeg.finalMile,
+    );
   }
 
   @override

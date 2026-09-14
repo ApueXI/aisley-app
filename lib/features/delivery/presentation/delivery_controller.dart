@@ -220,22 +220,36 @@ class DeliveryController extends ChangeNotifier {
         !canRetryRateLimit) {
       return;
     }
+    if (!task.isFinalMile) {
+      contextStatuses[taskId] = DeliveryLoadStatus.failed;
+      contextErrors[taskId] = 'This task is not a final-mile delivery task. Refresh your delivery work.';
+      notifyListeners();
+      return;
+    }
     contextStatuses[taskId] = DeliveryLoadStatus.loading;
     contextErrors[taskId] = null;
     notifyListeners();
 
+    PickupTask? authoritativeTask;
     try {
-      final context = await deliveryRepository.fetchDeliveryContext(taskId);
-      contexts[taskId] = context;
-      final currentTask = taskById(taskId);
-      if (currentTask != null) {
-        final updatedTask = currentTask.copyWith(
-          rawStatus: context.status,
-          revision: context.revision,
-        );
-        _replaceTask(updatedTask);
-        _reconcileMovementWithTask(updatedTask);
+      final exactTask = await deliveryRepository.fetchFinalMileTask(taskId);
+      if (!exactTask.isFinalMile || exactTask.id != taskId) {
+        throw const ApiContractException('delivery.task.identity');
       }
+      authoritativeTask = exactTask;
+      _replaceTask(exactTask);
+      _reconcileMovementWithTask(exactTask);
+      if (_actionStatuses[taskId] == DeliveryActionStatus.conflict) {
+        _actionStatuses.remove(taskId);
+        _actionErrors.remove(taskId);
+        _actionRetryAfter.remove(taskId);
+      }
+
+      final context = await deliveryRepository.fetchDeliveryContext(taskId);
+      if (context.taskId != taskId) {
+        throw const ApiContractException('delivery.context.task_id');
+      }
+      contexts[taskId] = context;
       contextStatuses[taskId] = DeliveryLoadStatus.loaded;
       contextErrors[taskId] = null;
       notifyListeners();
@@ -252,10 +266,10 @@ class DeliveryController extends ChangeNotifier {
       notifyListeners();
     }
 
-    final current = taskById(taskId) ?? task;
-    if (current.status == PickupTaskStatus.outForDelivery ||
-        current.status == PickupTaskStatus.delivered) {
-      await loadCompletion(current);
+    if (authoritativeTask != null &&
+        (authoritativeTask.status == PickupTaskStatus.outForDelivery ||
+            authoritativeTask.status == PickupTaskStatus.delivered)) {
+      await loadCompletion(authoritativeTask);
     }
   }
 
@@ -270,6 +284,9 @@ class DeliveryController extends ChangeNotifier {
     notifyListeners();
     try {
       final completion = await deliveryRepository.fetchCompletion(taskId);
+      if (completion.taskId != taskId) {
+        throw const ApiContractException('delivery.completion.task_id');
+      }
       completions[taskId] = completion;
       completionStatuses[taskId] = DeliveryLoadStatus.loaded;
       completionErrors[taskId] = null;
@@ -376,52 +393,56 @@ class DeliveryController extends ChangeNotifier {
     required String identifierType,
     required String identifier,
   }) async {
-    if (!task.isFinalMile ||
-        task.status != PickupTaskStatus.outForDelivery ||
-        isCompletionPending(task) ||
-        !canStartAction(task)) {
+    if (!task.isFinalMile || !canStartAction(task)) {
+      return false;
+    }
+    final authoritativeTask = await _fetchExactTaskForProof(task);
+    if (authoritativeTask == null ||
+        authoritativeTask.status != PickupTaskStatus.outForDelivery ||
+        isCompletionPending(authoritativeTask) ||
+        !canStartAction(authoritativeTask)) {
       return false;
     }
     final normalizedIdentifier = identifierType == 'qr'
         ? identifier
         : identifier.trim();
-    if (task.revision == null) {
+    if (authoritativeTask.revision == null) {
       _setLocalValidationError(
-        task,
+        authoritativeTask,
         'The task revision is unavailable. Refresh the task before submitting proof.',
       );
       return false;
     }
     if (!_validIdentifier(identifierType, normalizedIdentifier)) {
       _setLocalValidationError(
-        task,
+        authoritativeTask,
         'Choose QR or enter a public Order reference up to 128 characters.',
       );
       return false;
     }
     if (identifierType == 'order_id') {
-      final publicOrderReference = task.order?.reference?.trim();
+      final publicOrderReference = authoritativeTask.order?.reference?.trim();
       if (publicOrderReference == null || publicOrderReference.isEmpty) {
         _setLocalValidationError(
-          task,
+          authoritativeTask,
           'The public Order reference is unavailable. Use the delivery QR instead.',
         );
         return false;
       }
-      final orderDatabaseId = task.order?.id?.trim();
-      final waybillReference = task.waybill?.reference?.trim();
-      final waybillDatabaseId = task.waybill?.id?.trim();
+      final orderDatabaseId = authoritativeTask.order?.id?.trim();
+      final waybillReference = authoritativeTask.waybill?.reference?.trim();
+      final waybillDatabaseId = authoritativeTask.waybill?.id?.trim();
       if (normalizedIdentifier == orderDatabaseId ||
           normalizedIdentifier == waybillReference ||
           normalizedIdentifier == waybillDatabaseId) {
         _setLocalValidationError(
-          task,
+          authoritativeTask,
           'Enter the public Order reference shown above. Database IDs and waybill references are not accepted here.',
         );
         return false;
       }
     }
-    final existing = _pendingProofs[task.id];
+    final existing = _pendingProofs[authoritativeTask.id];
     final attempt =
         existing != null &&
             existing.identifierType == identifierType &&
@@ -430,11 +451,11 @@ class DeliveryController extends ChangeNotifier {
         : _PendingIdentifierAttempt(
             identifierType: identifierType,
             identifier: normalizedIdentifier,
-            expectedRevision: task.revision!,
+            expectedRevision: authoritativeTask.revision!,
             idempotencyKey: _newUuid(),
           );
-    _pendingProofs[task.id] = attempt;
-    return _performProof(task, attempt);
+    _pendingProofs[authoritativeTask.id] = attempt;
+    return _performProof(authoritativeTask, attempt);
   }
 
   Future<bool> retryProof(PickupTask task) async {
@@ -442,7 +463,35 @@ class DeliveryController extends ChangeNotifier {
     if (attempt == null) {
       return false;
     }
-    return _performProof(task, attempt);
+    final authoritativeTask = await _fetchExactTaskForProof(task);
+    if (authoritativeTask == null) {
+      return false;
+    }
+    return _performProof(authoritativeTask, attempt);
+  }
+
+  Future<PickupTask?> _fetchExactTaskForProof(PickupTask task) async {
+    try {
+      final exactTask = await deliveryRepository.fetchFinalMileTask(task.id);
+      if (!exactTask.isFinalMile || exactTask.id != task.id) {
+        throw const ApiContractException('delivery.task.identity');
+      }
+      _replaceTask(exactTask);
+      _reconcileMovementWithTask(exactTask);
+      if (_actionStatuses[task.id] == DeliveryActionStatus.conflict) {
+        _actionStatuses.remove(task.id);
+        _actionErrors.remove(task.id);
+        _actionRetryAfter.remove(task.id);
+      }
+      return exactTask;
+    } on ApiException catch (error) {
+      await _setActionError(task, error);
+    } on TokenStorageException {
+      _setStorageActionError(task);
+    } on ApiContractException catch (error) {
+      _setContractActionError(task, error);
+    }
+    return null;
   }
 
   Future<bool> _performProof(
@@ -467,6 +516,9 @@ class DeliveryController extends ChangeNotifier {
         expectedRevision: attempt.expectedRevision,
         idempotencyKey: attempt.idempotencyKey,
       );
+      if (proof.taskId != task.id) {
+        throw const ApiContractException('delivery.proof.task_id');
+      }
       proofs[task.id] = proof;
       _pendingProofs.remove(task.id);
       _actionStatuses[task.id] = DeliveryActionStatus.proofAwaitingValidation;
@@ -489,27 +541,29 @@ class DeliveryController extends ChangeNotifier {
     PickupTask task, {
     required String evidenceId,
   }) async {
+    final authoritativeTask = taskById(task.id) ?? task;
     final normalizedEvidenceId = evidenceId.trim();
-    final latestRevision = _latestRevision(task);
-    if (!task.isFinalMile ||
-        task.status != PickupTaskStatus.outForDelivery ||
+    final latestRevision = _latestRevision(authoritativeTask);
+    if (!authoritativeTask.isFinalMile ||
+        authoritativeTask.status != PickupTaskStatus.outForDelivery ||
         latestRevision == null ||
         normalizedEvidenceId.isEmpty ||
-        isCompletionPending(task) ||
-        completions[task.id]?.isDelivered == true ||
-        !canStartAction(task)) {
+        isCompletionPending(authoritativeTask) ||
+        completions[authoritativeTask.id]?.isDelivered == true ||
+        !canStartAction(authoritativeTask)) {
       return false;
     }
     final knownProofId =
-        proofs[task.id]?.proofId ?? completions[task.id]?.evidenceId;
+        proofs[authoritativeTask.id]?.proofId ??
+        completions[authoritativeTask.id]?.evidenceId;
     if (knownProofId == null || knownProofId != normalizedEvidenceId) {
       _setLocalValidationError(
-        task,
+        authoritativeTask,
         'Submit proof for this delivery first. Only its server-returned proof ID can be used for completion.',
       );
       return false;
     }
-    final existing = _pendingCompletions[task.id];
+    final existing = _pendingCompletions[authoritativeTask.id];
     final attempt =
         existing != null && existing.evidenceId == normalizedEvidenceId
         ? existing
@@ -518,8 +572,8 @@ class DeliveryController extends ChangeNotifier {
             expectedRevision: latestRevision,
             idempotencyKey: _newUuid(),
           );
-    _pendingCompletions[task.id] = attempt;
-    return _performCompletion(task, attempt);
+    _pendingCompletions[authoritativeTask.id] = attempt;
+    return _performCompletion(authoritativeTask, attempt);
   }
 
   Future<bool> retryCompletion(PickupTask task) async {
@@ -527,7 +581,7 @@ class DeliveryController extends ChangeNotifier {
     if (attempt == null) {
       return false;
     }
-    return _performCompletion(task, attempt);
+    return _performCompletion(taskById(task.id) ?? task, attempt);
   }
 
   Future<bool> _performCompletion(
@@ -552,6 +606,9 @@ class DeliveryController extends ChangeNotifier {
         evidenceId: attempt.evidenceId,
         idempotencyKey: attempt.idempotencyKey,
       );
+      if (completion.taskId != task.id) {
+        throw const ApiContractException('delivery.completion.task_id');
+      }
       completions[task.id] = completion;
       _pendingCompletions.remove(task.id);
       _syncTaskFromCompletion(task, completion, allowDelivered: false);
@@ -686,9 +743,20 @@ class DeliveryController extends ChangeNotifier {
   }
 
   void _replaceTask(PickupTask updated) {
-    tasks = List<PickupTask>.unmodifiable(
-      tasks.map((task) => task.id == updated.id ? updated : task),
-    );
+    var replaced = false;
+    final nextTasks = tasks
+        .map((task) {
+          if (task.id != updated.id) {
+            return task;
+          }
+          replaced = true;
+          return updated;
+        })
+        .toList(growable: true);
+    if (!replaced) {
+      nextTasks.add(updated);
+    }
+    tasks = List<PickupTask>.unmodifiable(nextTasks);
   }
 
   void _reconcileMovementWithTask(PickupTask task) {

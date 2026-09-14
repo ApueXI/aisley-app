@@ -9,8 +9,31 @@ import 'package:aisley_app/core/networking/api_client.dart';
 import 'package:aisley_app/core/networking/api_contract_exception.dart';
 import 'package:aisley_app/core/security/token_storage.dart';
 import 'package:aisley_app/features/delivery/data/delivery_repository.dart';
+import 'package:aisley_app/features/pickup/domain/pickup_models.dart';
 
 void main() {
+  test('reads the exact final-mile task projection', () async {
+    late http.Request request;
+    final repository = _repository((incoming) async {
+      request = incoming;
+      return http.Response(jsonEncode(_finalMileTaskResponse), 200);
+    });
+
+    final task = await repository.fetchFinalMileTask('delivery-task-1');
+
+    expect(request.method, 'GET');
+    expect(
+      request.url.path,
+      '/api/v1/courier/final-mile-tasks/delivery-task-1',
+    );
+    expect(request.headers['authorization'], 'Bearer delivery-token');
+    expect(task.id, 'delivery-task-1');
+    expect(task.leg, PickupTaskLeg.finalMile);
+    expect(task.status, PickupTaskStatus.outForDelivery);
+    expect(task.order?.reference, 'ORD-DETAIL-100');
+    expect(task.revision, 12);
+  });
+
   test(
     'reads final-mile delivery context with nullable advisory fields',
     () async {
@@ -286,6 +309,17 @@ const _deliveryContextResponse = <String, dynamic>{
     'route_status': 'unavailable',
     'distance_km': null,
     'estimated_duration_minutes': null,
+  },
+};
+
+const _finalMileTaskResponse = <String, dynamic>{
+  'data': <String, dynamic>{
+    'task_id': 'delivery-task-1',
+    'leg': 'final_mile',
+    'status': 'out_for_delivery',
+    'revision': 12,
+    'order': <String, dynamic>{'reference': 'ORD-DETAIL-100'},
+    'waybill': <String, dynamic>{'reference': 'WB-DETAIL-100'},
   },
 };
 

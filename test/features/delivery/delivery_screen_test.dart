@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:aisley_app/core/networking/api_client.dart';
 import 'package:aisley_app/features/auth/data/auth_repository.dart';
 import 'package:aisley_app/features/auth/domain/auth_models.dart';
 import 'package:aisley_app/features/auth/presentation/auth_controller.dart';
@@ -66,6 +67,82 @@ void main() {
       expect(find.text('Delivery completed by the server.'), findsNothing);
     },
   );
+
+  testWidgets('shows the server error instead of pending proof after failure', (
+    tester,
+  ) async {
+    final repository = _WidgetDeliveryRepository()
+      ..proofError = const ApiException(
+        statusCode: 404,
+        code: 'PARCEL_NOT_FOUND',
+        message: 'The scanned parcel identifier is not assigned to this task.',
+      );
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..tasks = <PickupTask>[_outForDeliveryTask];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DeliveryTaskScreen(
+          authController: _authenticatedAuthController(),
+          deliveryController: controller,
+          task: _outForDeliveryTask,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final submitted = await controller.submitProof(
+      _outForDeliveryTask,
+      identifierType: 'order_id',
+      identifier: 'ORD-WRONG',
+    );
+    await tester.pump();
+
+    expect(submitted, isFalse);
+    expect(
+      find.textContaining('does not belong to this delivery'),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Awaiting Logistics validation. This proof submission does not mean the delivery is complete.',
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('manual delivery proof uses the Order-reference mode', (
+    tester,
+  ) async {
+    final repository = _WidgetDeliveryRepository();
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..tasks = <PickupTask>[_outForDeliveryTask];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DeliveryTaskScreen(
+          authController: _authenticatedAuthController(),
+          deliveryController: controller,
+          task: _outForDeliveryTask,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Public Order reference'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'ORD-100');
+    await tester.drag(find.byType(ListView).first, const Offset(0, -600));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Submit proof'));
+    await tester.pumpAndSettle();
+
+    expect(repository.proofIdentifierType, 'order_id');
+    expect(repository.proofIdentifier, 'ORD-100');
+    expect(
+      find.textContaining('Awaiting Logistics validation'),
+      findsOneWidget,
+    );
+  });
 }
 
 AuthController _authenticatedAuthController() {
@@ -91,10 +168,25 @@ AuthController _authenticatedAuthController() {
 
 class _WidgetDeliveryRepository implements DeliveryRepository {
   String? completionEvidenceId;
+  Object? proofError;
+  String? proofIdentifier;
+  String? proofIdentifierType;
+
+  CompletionProjection completionProjection = const CompletionProjection(
+    taskId: 'delivery-task-1',
+    taskStatus: 'out_for_delivery',
+    completionStatus: null,
+    evidenceStatus: null,
+  );
 
   @override
   Future<List<PickupTask>> fetchFinalMileTasks() async {
     return <PickupTask>[_outForDeliveryTask];
+  }
+
+  @override
+  Future<PickupTask> fetchFinalMileTask(String taskId) async {
+    return _outForDeliveryTask;
   }
 
   @override
@@ -133,6 +225,11 @@ class _WidgetDeliveryRepository implements DeliveryRepository {
     required int expectedRevision,
     required String idempotencyKey,
   }) async {
+    proofIdentifier = identifier;
+    proofIdentifierType = identifierType;
+    if (proofError != null) {
+      throw proofError!;
+    }
     return const ProofSubmission(
       taskId: 'delivery-task-1',
       proofId: 'proof-1',
@@ -144,14 +241,7 @@ class _WidgetDeliveryRepository implements DeliveryRepository {
 
   @override
   Future<CompletionProjection> fetchCompletion(String taskId) async {
-    return const CompletionProjection(
-      taskId: 'delivery-task-1',
-      taskStatus: 'out_for_delivery',
-      completionStatus: 'awaiting_validation',
-      evidenceStatus: 'awaiting_validation',
-      evidenceId: 'proof-1',
-      revision: 7,
-    );
+    return completionProjection;
   }
 
   @override

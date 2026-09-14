@@ -182,3 +182,11 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Delivery status parsing accepts the server task projection fields, while proof/completion continue to hand off the server `proof_id` as `evidence_id`; pending acknowledgments never mark the task or Order delivered locally.
 - Added controller, repository, and UI coverage for movement retry, final-mile custody refresh, pending hub evidence, and exact revision/key reuse. No Laravel source or Courier feature contract was changed.
 - Verification: `flutter analyze`, full `flutter test --reporter compact`, and `git diff --check` pass.
+
+## 2026-09-14
+
+- Fixed the final-mile manual proof flow against the audited backend/API snapshot `9a2e1af987fadd91d17979e7defbffdbb0e5ca44`: delivery detail and proof actions now fetch and retain the exact final-mile task projection from `/api/v1/courier/final-mile-tasks/{task}`.
+- Manual proof defaults to the public `data.order.reference` with `identifier_type: order_id`; QR remains an explicit raw-payload mode. Proof uses the same final-mile task ID and `data.revision`, and completion receives the returned `proof_id` with the latest revision and a separate UUID idempotency key.
+- Failed proof requests remain failed and display the server error instead of entering an awaiting state. Completion parsing remains flat and nullable at `data.completion_status`; first-mile pickup is not routed through final-mile delivery proof.
+- Added repository, controller, and widget coverage for exact Order-reference/revision use, wrong task/reference, stale revision, proof-ID handoff, and failed-request UI states. No Laravel source or feature specification was changed.
+- Verification: `flutter analyze`, full `flutter test --reporter compact` (112 tests), and `git diff --check` pass.

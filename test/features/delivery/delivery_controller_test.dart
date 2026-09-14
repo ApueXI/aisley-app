@@ -49,6 +49,119 @@ void main() {
     expect(controller.hasPendingMovement(_pickedUpTask), isFalse);
   });
 
+  test('uses the exact final-mile task Order reference and revision for manual proof', () async {
+    final repository = _FakeDeliveryRepository()
+      ..listedTask = _outForDeliveryTask.copyWith(revision: 4)
+      ..finalMileDetail = _outForDeliveryTask.copyWith(revision: 12);
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..tasks = <PickupTask>[repository.listedTask];
+
+    await controller.loadDetails(repository.listedTask);
+    final exactTask = controller.taskById(_outForDeliveryTask.id)!;
+    final submitted = await controller.submitProof(
+      exactTask,
+      identifierType: 'order_id',
+      identifier: 'ORD-100',
+    );
+
+    expect(repository.finalMileDetailTaskIds, <String>[
+      'delivery-task-1',
+      'delivery-task-1',
+    ]);
+    expect(repository.contextTaskIds, <String>['delivery-task-1']);
+    expect(exactTask.order?.reference, 'ORD-100');
+    expect(exactTask.revision, 12);
+    expect(submitted, isTrue);
+    expect(repository.proofIdentifierType, 'order_id');
+    expect(repository.proofIdentifier, 'ORD-100');
+    expect(repository.proofExpectedRevisions, <int>[12]);
+  });
+
+  test(
+    'a stale proof revision uses the exact refreshed task revision',
+    () async {
+      final repository = _FakeDeliveryRepository()
+        ..listedTask = _outForDeliveryTask.copyWith(revision: 4)
+        ..finalMileDetail = _outForDeliveryTask.copyWith(revision: 12)
+        ..proofError = const ApiException(
+          statusCode: 409,
+          code: 'TASK_STATE_CONFLICT',
+          message: 'stale revision',
+        );
+      final controller = DeliveryController(deliveryRepository: repository)
+        ..tasks = <PickupTask>[repository.listedTask];
+
+      await controller.loadDetails(repository.listedTask);
+      final submitted = await controller.submitProof(
+        controller.taskById(_outForDeliveryTask.id)!,
+        identifierType: 'order_id',
+        identifier: 'ORD-100',
+      );
+
+      expect(submitted, isFalse);
+      expect(repository.proofExpectedRevisions, <int>[12]);
+      expect(
+        controller.actionError(_outForDeliveryTask),
+        contains('revision changed'),
+      );
+      expect(controller.hasPendingProof(_outForDeliveryTask), isFalse);
+    },
+  );
+
+  test('a first-mile task ID cannot enter final-mile delivery proof', () async {
+    final repository = _FakeDeliveryRepository();
+    final firstMileTask = const PickupTask(
+      id: 'first-mile-task-1',
+      leg: PickupTaskLeg.firstMile,
+      rawStatus: 'out_for_delivery',
+      revision: 12,
+      order: PickupOrderReference(reference: 'ORD-100'),
+    );
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..tasks = <PickupTask>[firstMileTask];
+
+    await controller.loadDetails(firstMileTask);
+    final submitted = await controller.submitProof(
+      firstMileTask,
+      identifierType: 'order_id',
+      identifier: 'ORD-100',
+    );
+
+    expect(submitted, isFalse);
+    expect(repository.finalMileDetailTaskIds, isEmpty);
+    expect(repository.proofIdentifier, isNull);
+    expect(
+      controller.contextErrors[firstMileTask.id],
+      contains('not a final-mile delivery task'),
+    );
+  });
+
+  test(
+    'rejects a final-mile response returned for a different task ID',
+    () async {
+      final repository = _FakeDeliveryRepository()
+        ..finalMileDetail = _differentFinalMileTask;
+      final controller = DeliveryController(deliveryRepository: repository)
+        ..tasks = <PickupTask>[_outForDeliveryTask];
+
+      await controller.loadDetails(_outForDeliveryTask);
+
+      expect(
+        controller.contextErrors[_outForDeliveryTask.id],
+        contains('response was not understood'),
+      );
+      expect(
+        controller.contextStatuses[_outForDeliveryTask.id],
+        DeliveryLoadStatus.failed,
+      );
+      expect(
+        controller.taskById(_outForDeliveryTask.id)?.order?.reference,
+        'ORD-100',
+      );
+      expect(repository.contextTaskIds, isEmpty);
+    },
+  );
+
   test('proof stays pending and completion is not inferred', () async {
     final controller = DeliveryController(
       deliveryRepository: _FakeDeliveryRepository(),
@@ -407,6 +520,7 @@ class _FakeDeliveryRepository implements DeliveryRepository {
   String? proofIdentifier;
   String? proofIdentifierType;
   String? completionEvidenceId;
+  PickupTask? finalMileDetail;
   CompletionProjection completionProjection = const CompletionProjection(
     taskId: 'delivery-task-1',
     taskStatus: 'out_for_delivery',
@@ -415,6 +529,8 @@ class _FakeDeliveryRepository implements DeliveryRepository {
     evidenceId: 'proof-1',
   );
   PickupTask listedTask = _outForDeliveryTask;
+  final List<String> finalMileDetailTaskIds = <String>[];
+  final List<String> contextTaskIds = <String>[];
   final List<int> proofExpectedRevisions = <int>[];
   final List<int> completionExpectedRevisions = <int>[];
   final List<String> proofIdempotencyKeys = <String>[];
@@ -431,7 +547,14 @@ class _FakeDeliveryRepository implements DeliveryRepository {
   }
 
   @override
+  Future<PickupTask> fetchFinalMileTask(String taskId) async {
+    finalMileDetailTaskIds.add(taskId);
+    return finalMileDetail ?? listedTask;
+  }
+
+  @override
   Future<DeliveryContext> fetchDeliveryContext(String taskId) async {
+    contextTaskIds.add(taskId);
     return const DeliveryContext(
       taskId: 'delivery-task-1',
       status: 'delivery_accepted',
@@ -532,4 +655,12 @@ const _outForDeliveryTask = PickupTask(
   revision: 7,
   order: PickupOrderReference(reference: 'ORD-100'),
   waybill: PickupWaybillReference(reference: 'WB-100'),
+);
+
+const _differentFinalMileTask = PickupTask(
+  id: 'another-delivery-task',
+  leg: PickupTaskLeg.finalMile,
+  rawStatus: 'out_for_delivery',
+  revision: 12,
+  order: PickupOrderReference(reference: 'ORD-OTHER'),
 );

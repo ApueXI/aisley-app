@@ -261,7 +261,10 @@ class DeliveryTaskScreen extends StatefulWidget {
 
 class _DeliveryTaskScreenState extends State<DeliveryTaskScreen> {
   final _proofIdentifierController = TextEditingController();
-  String _proofIdentifierType = 'qr';
+  // Manual Order-reference entry is the supported fallback when a camera
+  // scanner is unavailable. QR remains an explicit opt-in mode so typing a
+  // public Order reference cannot accidentally be submitted as a QR payload.
+  String _proofIdentifierType = 'order_id';
 
   @override
   void initState() {
