@@ -67,9 +67,10 @@ role: Seller, Customer, Courier
 - **Address (API)**
   - Dropdown: Province, Municipality, Barangay
   - Manual entry: Street, House number, etc.
-- **Choose vehicle**
-- **Enter plate number**
-- **Upload OR/CR**
+- **Vehicle type (required)** — exactly one vehicle per Courier; current types are motorcycle, car, and van.
+- **Plate number (required)** — identifies that same sole vehicle.
+- **Upload OR/CR (required)** — Official Receipt and Certificate of Registration for that vehicle, subject to the shared file-upload policy and private Logistics review. The current API accepts one `vehicle_registration` image; separate OR/CR files require an additive API contract, not invented multipart fields.
+- Maintenance, vehicle history, capacity values/units, multiple vehicles, and vehicle replacement are deferred. Existing registration decisions and shipment history remain preserved.
 - **Upload ID/driver’s license**
 
 > **Note:** After submitting your registration, please wait for the Logistic's approval, which will be sent to your email.
@@ -89,6 +90,10 @@ role: Seller, Customer, Courier
   - Dropdown: Province, Municipality, Barangay
   - Manual entry: Street, House number, etc.
 - Business name
+- Operational hub map pin (planned)
+  - After completing the hub address, use Geoapify assistance and Leaflet to confirm the actual hub location; save latitude and longitude together.
+  - No Mapbox. Map failure preserves text-only registration and shows an unpinned state; complete the pin later in Logistics Account Settings.
+  - The pin refers to the organization's sole hub, not the applicant's residence; coordinate correction does not authorize relocation.
 - Upload ID
 - Upload business/DTI permit
 

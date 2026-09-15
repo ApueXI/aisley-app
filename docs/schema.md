@@ -283,7 +283,7 @@ Each profile has a UUID primary key and a unique UUID `user_id`, enforcing at mo
 Additional relationships:
 
 - `SellerProfile.shop` resolves the shop through the profile's `user_id`.
-- `CourierProfile.vehicles` returns the Courier's registered vehicles.
+- `CourierProfile.vehicles` currently returns a collection. The MVP target is exactly one vehicle per Courier; additive database uniqueness and required-record checks remain to be implemented.
 - Age is calculated from `birth_date`; it is not stored as a column.
 
 A Customer, Seller, and Courier profile photo is stored on the configured Laravel filesystem (Azure Blob when `FILESYSTEM_DISK=azure`). Each profile table stores nullable `profile_photo_disk`, `profile_photo_mime`, `profile_photo_size`, `profile_photo_width`, and `profile_photo_height` metadata alongside the generated relative `profile_photo_path`. The APIs never expose these storage fields; authenticated delivery uses each role's current-account profile-photo endpoint with private, no-store response headers. Courier photo metadata is added by `2026_09_10_000008_add_courier_profile_photo_metadata.php` without modifying the executed Courier-profile creation migration.
@@ -345,10 +345,27 @@ Each approved Logistics user owns one organization. That organization owns exact
 | `logistics_organization_id` | UUID            | No       | Unique FK → `logistics_organizations.id`; `ON DELETE CASCADE` |
 | `address_id`                | UUID            | No       | Unique FK → the Logistics user's `addresses.id`; `ON DELETE RESTRICT` |
 | `name`                      | VARCHAR         | No       | Operational hub display name                                  |
+| `location_revision`         | VARCHAR(64)     | Yes      | Opaque expected revision for hub-pin corrections; legacy rows may be `NULL` |
 | `created_at`                | TIMESTAMP       | Yes      | Managed by Eloquent                                           |
 | `updated_at`                | TIMESTAMP       | Yes      | Managed by Eloquent                                           |
 
 The database unique constraints enforce at-most-one organization per Logistics user and at-most-one hub per organization. Active operational access additionally requires the authenticated Logistics account, active organization, and existing sole hub.
+
+#### Hub location coordinates and corrections
+
+Logistics hub pinning reuses `logistics_hubs.address_id` → `addresses.latitude`/`longitude` for the operator-confirmed hub location. Both columns already exist; do not duplicate them on profiles or create another hub. Registration accepts an optional complete finite pair, and Account Settings corrects the pair with an opaque `location_revision`, optimistic conflict check, and reason. Legacy/unpinned addresses remain nullable. `logistics_hub_location_changes` retains old/new coordinates, actor, reason, and UTC time without altering immutable waybill or manifest snapshots. No seed/default coordinate is proof of an operator-confirmed pin.
+
+#### `logistics_hub_location_changes`
+
+| Column | PostgreSQL type | Nullable | Notes |
+| --- | --- | --- | --- |
+| `id` | UUID | No | Primary key |
+| `logistics_hub_id` | UUID | No | FK → `logistics_hubs.id`; `ON DELETE CASCADE` |
+| `actor_id` | UUID | Yes | FK → `users.id`; the authenticated Logistics actor, null on account deletion |
+| `previous_latitude` / `previous_longitude` | NUMERIC(10,7) | Yes | Prior complete pair, or `NULL` for the first pin |
+| `latitude` / `longitude` | NUMERIC(10,7) | No | New complete finite pair |
+| `reason` | TEXT | No | Same-premises correction reason |
+| `created_at` | TIMESTAMP | No | UTC correction time |
 
 ### 5.3 `personal_access_tokens`
 
@@ -490,7 +507,7 @@ Indexes:
 
 The database does not yet enforce one default address per user/type. That invariant must be maintained transactionally by the address service.
 
-PSGC names and manually reviewed address fields are authoritative. `latitude`/`longitude` are optional coordinates captured from a confirmed Customer pin; Geoapify suggestions and provider identifiers are assistive metadata only and are not persisted as address identity. The address/map contract uses bundled PSGC data, optional Geoapify assistance, and Leaflet rendering; Mapbox is not used.
+PSGC names and manually reviewed address fields are authoritative. `latitude`/`longitude` are optional coordinates captured from a confirmed Customer, Seller, or Logistics hub pin; Geoapify suggestions and provider identifiers are assistive metadata only and are not persisted as address identity. The address/map contract uses bundled PSGC data, optional Geoapify assistance, and Leaflet rendering; Mapbox is not used.
 
 ## 7. Admin authorization
 
@@ -657,7 +674,7 @@ Indexes support account history, actor history, and optional source-reference lo
 | `status`                     | VARCHAR         | No       | `active`        | Cast to `VehicleStatus`                                |
 | `make`                       | VARCHAR         | Yes      | `NULL`          | Vehicle make                                           |
 | `model`                      | VARCHAR         | Yes      | `NULL`          | Vehicle model                                          |
-| `capacity`                   | NUMERIC(10,2)   | Yes      | `NULL`          | Capacity value; unit must be defined by API validation |
+| `capacity`                   | NUMERIC(10,2)   | Yes      | `NULL`          | Legacy nullable field; values/units and matching deferred |
 | `registration_document_path` | TEXT            | Yes      | `NULL`          | Vehicle-registration object path                       |
 | `created_at`                 | TIMESTAMP       | Yes      | `NULL`          | Managed by Eloquent                                    |
 | `updated_at`                 | TIMESTAMP       | Yes      | `NULL`          | Managed by Eloquent                                    |
@@ -667,6 +684,8 @@ Constraints and indexes:
 - Unique: `plate_number`.
 - Index: (`courier_profile_id`, `status`).
 - Index: `type`.
+
+Vehicle MVP clarification: each Courier must have exactly one vehicle with required type/plate and private OR/CR registration evidence. The deployed vehicle FK/index and ER diagram represent a has-many schema, not enforced one-to-one cardinality. Add unique `vehicles.courier_profile_id` only after auditing missing/duplicate rows and approving a non-destructive correction plan; required existence also needs transactional registration/approval checks. Do not modify executed migrations or reseed. Preserve globally unique plates and existing IDs/documents. Maintenance, vehicle history, capacity values/units/matching, and vehicle replacement are deferred; retain existing columns/enums and operational audit records without enabling those features. The current single `vehicle_registration` upload is not a separate-OR/CR API.
 
 ### 8.2 `courier_logistics_affiliations`
 
@@ -1076,7 +1095,7 @@ The reserved quantity is converted to fulfilled/committed inventory exactly once
 
 ### 9.16 Platform announcements and policies
 
-**Models:** `Announcement`, `PlatformPolicy`, `PlatformPolicyVersion`, `PolicyAcceptance`
+**Models:** `Announcement`, `PlatformPolicy`, `PlatformPolicyVersion`, `PolicyAcceptance`, `PlatformFeatureControl`
 
 `announcements` stores one platform-wide plain-text announcement with a draft/published/archived lifecycle, optional expiration, Admin creator/updater references, and an incrementing `revision` used to reject stale edits and transitions. Published-read queries require `published_at <= now` and no elapsed expiration.
 
@@ -1085,6 +1104,8 @@ The reserved quantity is converted to fulfilled/committed inventory exactly once
 `platform_policy_versions` preserves immutable published history. Versions are unique within a policy and contain title, bounded plain-text content, an optional user-safe change summary, draft/published/superseded status, explicit `requires_reconsent`, concurrency revision, author/publisher references, and publication timestamp. Nullable unique `source_policy_version_id` records the published version copied into a successor Draft and prevents competing successor copies for the same source. Publishing locks the policy and version, supersedes the previous current version, and changes the current pointer atomically.
 
 `policy_acceptances` is the UUID-backed version-specific consent record. Unique (`user_id`, `platform_policy_version_id`) makes later acceptance idempotent; no user is implicitly accepted when a version is published. The shared policy-consent service exposes user-specific status and exact-version acceptance over private API routes. The `policy.consent` middleware gates protected role APIs after the existing Sanctum/role/affiliation checks and leaves login, session bootstrap, logout, status, and acceptance reachable.
+
+`platform_feature_controls` stores explicitly declared, platform-wide boolean switches with a stable unique key, label/description, enabled value, optimistic `revision`, and the last Admin updater. The seeded `policy_consent_enforcement` control governs whether the shared `policy.consent` middleware blocks protected actions; disabling it does not alter policy versions or immutable acceptance history. Admin updates are revision-checked and audited through the existing audit outbox.
 
 ### 9.17 Seller pickup, shared waybill, and first-mile scheduling
 
@@ -1095,6 +1116,16 @@ The reserved quantity is converted to fulfilled/committed inventory exactly once
 `pickup_schedules` belongs to one organization/hub and one approved affiliated Courier, stores a UTC future window, revision, status, human reference, and organization-scoped idempotency key. `pickup_schedule_orders` retains schedule/request/Order membership. `first_mile_tasks` creates one task per scheduled Order and waybill, with acceptance and physical-pickup timestamps; PostgreSQL enforces one active task per Order with a partial unique index over `assigned`, `accepted`, and `picked_up_from_seller`. `courier_pickup_confirmations` stores one immutable confirmation per task with Order/waybill/Courier scope, Courier-scoped idempotency key and request hash, previous/new detailed state, schedule revision, correlation ID, and pickup time. `pickup_route_manifests` retains one pending/ready/unavailable matrix result per schedule revision, including coordinate fingerprint/source, metered credit estimate, totals, grouped ordered stops, sanitized GeoJSON, reason, and calculation time. `address_coordinate_defaults` is the maintained canonical-area fallback registry used only when an exact complete coordinate pair is absent. `pickup_schedule_history` retains create/revise/cancel snapshots and reasons. `pickup_schedule_reminders` stores one durable reminder per schedule revision with claim, retry, success, failure, superseded, and suppression state.
 
 Scheduling, Courier acknowledgement, scanning, and typing do not mutate `orders.status`, custody, payment, or Inventory. Explicit `picked_up_from_seller` confirmation records custody in the detailed task/confirmation records, appends `ready_for_pickup → picked_up` to Order status history, and converts the Order's reservation to an Inventory fulfillment movement in one transaction.
+
+#### Canonical PickupSchedule completion and reconciliation
+
+- `PickupScheduleStatus` already defines string-backed `scheduled`, `cancelled`, and `completed`. New schedules begin `scheduled`; no new status or duplicate schedule/task table is required by this clarification.
+- `remaining_parcel_count` is a projection of linked `first_mile_tasks` in `assigned` or `accepted`, not a count of undelivered Orders. One task represents one Order, while a schedule may group many Orders without merging their identities/history.
+- A still-`scheduled` schedule becomes `completed` when every linked task is `picked_up_from_seller`; the final pickup must complete it safely under the same transaction/locking boundary. Any assigned/accepted parcel keeps a partial schedule `scheduled`.
+- Completed schedules retain history and membership but cannot be revised/cancelled or counted as Courier overlap/availability conflicts. Pending reminders must be suppressed, and dispatch/retry must revalidate that the schedule remains eligible.
+- First-mile schedule completion is independent of hub receipt and final-mile delivery. It must not replay pickup confirmations, Inventory fulfillment, or Order/Shipment/final-mile transitions.
+- `PickupScheduleLifecycleService` now completes a still-`scheduled` parent from the final Courier pickup transaction, records one append-only completion history row, suppresses pending/claimed reminders, and leaves Order, Inventory, and final-mile effects untouched. Existing schedule conflict, revision, cancellation, and Courier availability queries continue to treat only `scheduled` rows as active.
+- Existing zero-remaining `scheduled` rows are reconciled in place by the bounded, rerunnable `pickups:reconcile-schedules` command. It locks and revalidates schedule membership, completes only schedules whose linked tasks are all `picked_up_from_seller`, suppresses reminders atomically, and reports empty, missing, cancelled, or inconsistent task sets without inventing custody or replaying stock effects. PostgreSQL execution remains a release gate.
 
 The additive fulfillment migration creates one immutable `parcels` row and one `shipments` row per Order/waybill, then one independent `delivery_tasks` row per leg. `shipments.status` and task status remain detailed physical state, while the existing high-level Order projection is updated only by `FulfillmentTransitionService`. Logistics records `received_at_hub`, `sorted_at_hub`, and `dispatched_from_hub`; dispatch creates the final-mile task. Courier offers are accepted independently, hub-pickup and delivery QR evidence is stored privately as `shipment_evidence`, and Logistics validates the evidence before `picked_up_from_hub` or `delivered` is committed. `shipment_events` preserves the performing Courier, recording Logistics account, event timestamps, revisions, and safe references. `waybill_access_events` remain access/audit records and are never treated as physical scans or custody proof. Existing first-mile confirmations are bridged lazily into the shared records without replaying Inventory fulfillment.
 
@@ -1189,7 +1220,7 @@ The current foreign keys guarantee referential integrity, but they cannot encode
 6. `shops.seller_id` must reference a Seller user, and every seller-owned query must derive the shop from the authenticated Seller rather than trust a client-provided `shop_id`.
 7. Email addresses should be normalized to lowercase before persistence because PostgreSQL's ordinary unique index is case-sensitive.
 8. Only one address should be marked default for a given user and applicable address type; updates should occur transactionally.
-9. Vehicle capacity must be nonnegative and use one API-defined unit.
+9. Vehicle capacity values, units, validation for new capacity workflows, and dispatch matching are deferred; nullable legacy capacity does not imply unlimited capacity or a new dispatch gate.
 10. Category ancestry must not contain cycles.
 11. Enum transitions and values must be validated before persistence because the database columns are strings without native enum or `CHECK` constraints.
 12. Hard deletion should not replace account suspension/deactivation workflows.
@@ -1215,7 +1246,7 @@ The current foreign keys guarantee referential integrity, but they cannot encode
 32. Final placement locks inventory balances in stable SKU order, revalidates the quote, and reserves stock atomically with all Orders and selected-Cart cleanup.
 33. Shop vouchers apply only to their issuer's Order. At most one App voucher is redeemed per batch and only against its explicit eligible target Shop; distinct-benefit stacking requires reciprocal stored permission.
 34. A Customer-scoped idempotency key returns the original batch only for the identical placement request. A reused key with different details is a conflict.
-35. Platform Settings exposes only allow-listed announcement and policy records; it cannot mutate environment variables, secrets, or infrastructure configuration.
+35. Platform Settings exposes only allow-listed announcement, policy, and declared feature-control records; it cannot mutate environment variables, secrets, arbitrary settings, or infrastructure configuration.
 36. Published policy versions are immutable, and each policy has at most one current version through `platform_policies.current_version_id`.
 37. Announcement and policy mutations require matching persisted revisions so stale Admin clients cannot silently overwrite newer state.
 38. A policy successor Draft must copy the current Published version without modifying its source; unique `source_policy_version_id` permits at most one successor lineage for that source.
@@ -1304,6 +1335,9 @@ Repository migrations are listed below in filename execution order; this invento
 60. `2026_09_10_000011_create_pickup_route_manifests.php` — maintained address-coordinate defaults and revision-scoped, immutable-history route manifest snapshots with metrics, grouped stops, GeoJSON, and failure state.
 61. `2026_09_10_000011_create_product_qas_table.php` — Product-scoped Customer questions, one official Seller answer, actor-scoped idempotency keys, and public-read indexes.
 62. `2026_09_12_000001_create_fulfillment_operations.php` — UUID Parcel/Shipment/DeliveryTask records, independent Courier offers, QR evidence/completion intents, append-only physical events, and legacy first-mile linkage.
+63. `2026_09_12_000002_create_logistics_hub_location_changes.php` — append-only same-premises hub-pin corrections with previous/new coordinates, reason, actor, and UTC timestamp.
+64. `2026_09_12_000003_add_location_revision_to_logistics_hubs.php` — opaque optimistic-concurrency revision for Logistics hub-pin writes.
+65. `2026_09_14_000001_create_platform_feature_controls_table.php` — declared platform-wide boolean controls with revision and last-Admin updater metadata.
 
 ## 14. Fulfillment schema and deferred extensions
 
