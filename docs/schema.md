@@ -2,7 +2,7 @@
 
 > **Status:** Implemented foundation, marketplace/order schema, Product Q&A, Seller-to-Logistics pickup scheduling, shared waybills, first-mile pickup confirmation, and final-mile fulfillment flow
 >
-> **Last synchronized:** 2026-09-12
+> **Last synchronized:** 2026-09-16 (vehicle-management implementation metadata)
 >
 > **Database:** PostgreSQL 18.3
 >
@@ -39,7 +39,7 @@ The MVP uses exactly one operational hub/sorting center per Logistics organizati
 - The Logistics registration address is the organization's sole operational hub/sorting-center address. The Logistics account operates that hub through the Logistics dashboard; no separate hub or sub-hub address is collected.
 - Courier registration selects the Logistics organization; the sole hub is derived server-side rather than supplied as a client-controlled ID.
 - Current foundation cardinality is one Logistics user per organization. Staff/sub-account support is a later authorization decision and is not part of this foundation.
-- Implemented pickup requests, waybills, schedules, first-mile tasks, shared Shipment/Parcel records, hub milestones, final-mile offers, QR evidence, and delivery completion resolve through the organization's sole hub. Deferred fleet, zone, capacity, subscription, route/location telemetry, advanced media proof, returns, and failure-recovery records must preserve that scope when introduced.
+- Implemented pickup requests, waybills, schedules, first-mile tasks, shared Shipment/Parcel records, hub milestones, final-mile offers, QR evidence, delivery completion, and Courier vehicle-management APIs resolve through the organization's sole hub. Deferred advanced fleet extensions (maintenance, vehicle history, and capacity matching), zone, capacity, subscription, route/location telemetry, advanced media proof, returns, and failure-recovery records must preserve that scope when introduced.
 
 ## 2. Database conventions
 
@@ -156,7 +156,7 @@ Every column in this section is stored as a string in PostgreSQL and cast to the
 | `AccountLifecycleAction` | `suspended`, `restored`, `deactivated` | `account_lifecycle_events.action` |
 | `UserSex` | `male`, `female`, `non_binary`, `prefer_not_to_say` | Role-profile `sex` columns |
 | `ApplicationStatus` | `pending`, `approved`, `rejected` | `registration_applications.status` |
-| `DocumentType` | `government_id`, `business_registration`, `tax_document`, `drivers_license`, `vehicle_registration`, `proof_of_address`, `other` | `documents.type` |
+| `DocumentType` | `government_id`, `business_registration`, `tax_document`, `drivers_license`, `vehicle_registration`, `official_receipt`, `certificate_of_registration`, `proof_of_address`, `other` | `documents.type` |
 | `DocumentStatus` | `pending`, `verified`, `rejected` | `documents.status` |
 | `AddressType` | `shipping`, `billing`, `both` | `addresses.type` |
 | `VehicleType` | `motorcycle`, `car`, `van` | `vehicles.type` |
@@ -283,7 +283,7 @@ Each profile has a UUID primary key and a unique UUID `user_id`, enforcing at mo
 Additional relationships:
 
 - `SellerProfile.shop` resolves the shop through the profile's `user_id`.
-- `CourierProfile.vehicles` currently returns a collection. The MVP target is exactly one vehicle per Courier; additive database uniqueness and required-record checks remain to be implemented.
+- `CourierProfile.vehicles` remains a collection for compatibility, while the deployed fleet migration and service cardinality checks require exactly one row for fleet operations.
 - Age is calculated from `birth_date`; it is not stored as a column.
 
 A Customer, Seller, and Courier profile photo is stored on the configured Laravel filesystem (Azure Blob when `FILESYSTEM_DISK=azure`). Each profile table stores nullable `profile_photo_disk`, `profile_photo_mime`, `profile_photo_size`, `profile_photo_width`, and `profile_photo_height` metadata alongside the generated relative `profile_photo_path`. The APIs never expose these storage fields; authenticated delivery uses each role's current-account profile-photo endpoint with private, no-store response headers. Courier photo metadata is added by `2026_09_10_000008_add_courier_profile_photo_metadata.php` without modifying the executed Courier-profile creation migration.
@@ -675,17 +675,25 @@ Indexes support account history, actor history, and optional source-reference lo
 | `make`                       | VARCHAR         | Yes      | `NULL`          | Vehicle make                                           |
 | `model`                      | VARCHAR         | Yes      | `NULL`          | Vehicle model                                          |
 | `capacity`                   | NUMERIC(10,2)   | Yes      | `NULL`          | Legacy nullable field; values/units and matching deferred |
-| `registration_document_path` | TEXT            | Yes      | `NULL`          | Vehicle-registration object path                       |
+| `registration_document_path` | TEXT            | Yes      | `NULL`          | Legacy combined vehicle-registration object path       |
+| `official_receipt_document_id` | UUID          | Yes      | `NULL`          | Nullable FK → `documents.id`; current OR pointer       |
+| `certificate_of_registration_document_id` | UUID | Yes      | `NULL`          | Nullable FK → `documents.id`; current CR pointer       |
+| `revision`                  | INTEGER         | No       | `1`             | Optimistic concurrency revision                         |
 | `created_at`                 | TIMESTAMP       | Yes      | `NULL`          | Managed by Eloquent                                    |
 | `updated_at`                 | TIMESTAMP       | Yes      | `NULL`          | Managed by Eloquent                                    |
 
 Constraints and indexes:
 
 - Unique: `plate_number`.
+- Unique: `courier_profile_id` (`vehicles_one_per_courier_unique`), added only after duplicate preflight.
 - Index: (`courier_profile_id`, `status`).
 - Index: `type`.
 
-Vehicle MVP clarification: each Courier must have exactly one vehicle with required type/plate and private OR/CR registration evidence. The deployed vehicle FK/index and ER diagram represent a has-many schema, not enforced one-to-one cardinality. Add unique `vehicles.courier_profile_id` only after auditing missing/duplicate rows and approving a non-destructive correction plan; required existence also needs transactional registration/approval checks. Do not modify executed migrations or reseed. Preserve globally unique plates and existing IDs/documents. Maintenance, vehicle history, capacity values/units/matching, and vehicle replacement are deferred; retain existing columns/enums and operational audit records without enabling those features. The current single `vehicle_registration` upload is not a separate-OR/CR API.
+Vehicle MVP clarification: each Courier must have exactly one vehicle with required type/plate and private OR/CR registration evidence. The additive fleet migration performs a duplicate preflight before enforcing one-to-one cardinality; it never deletes or selects a duplicate. Preserve globally unique plates and existing IDs/documents. Maintenance, vehicle history, and capacity values/units/matching remain deferred; retain existing columns/enums and operational audit records. The current single `vehicle_registration` upload remains legacy registration compatibility, not a separate-OR/CR API.
+
+Implemented extension: the Courier may edit type/plate/make/model and replace OR or CR independently without Logistics reapproval through the versioned vehicle API. Separate nullable Vehicle-to-Document pointers use `official_receipt` and `certificate_of_registration` string-backed document types with explicit user ownership. Combined legacy evidence is not copied into both slots or rewritten; legacy missing slots can be completed independently. Mutations persist the revision, idempotency outcome, and durable associated-Logistics notification delivery; unchanged fields and the other document remain intact. Referenced approval evidence is retained; only unreferenced replaced files are eligible for after-commit cleanup. This is not a vehicle-history feature, and vehicle edits never rewrite shipment snapshots or reset approval.
+
+`courier_vehicle_mutations` stores the actor/vehicle/action-scoped UUID idempotency key, request fingerprint, resulting revision, and safe replay projection. It prevents duplicate writes and notification intents while allowing the same key to be used independently for a vehicle edit and an OR/CR action.
 
 ### 8.2 `courier_logistics_affiliations`
 
@@ -1338,6 +1346,8 @@ Repository migrations are listed below in filename execution order; this invento
 63. `2026_09_12_000002_create_logistics_hub_location_changes.php` — append-only same-premises hub-pin corrections with previous/new coordinates, reason, actor, and UTC timestamp.
 64. `2026_09_12_000003_add_location_revision_to_logistics_hubs.php` — opaque optimistic-concurrency revision for Logistics hub-pin writes.
 65. `2026_09_14_000001_create_platform_feature_controls_table.php` — declared platform-wide boolean controls with revision and last-Admin updater metadata.
+66. `2026_09_15_000001_add_courier_vehicle_fleet_management.php` — one-vehicle-per-Courier uniqueness after duplicate preflight, optimistic vehicle revision, and nullable current OR/CR document pointers.
+67. `2026_09_15_000002_create_courier_vehicle_mutations.php` — Courier vehicle edit/document idempotency fingerprints and safe replay projections.
 
 ## 14. Fulfillment schema and deferred extensions
 
