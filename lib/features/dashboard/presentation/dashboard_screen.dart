@@ -14,6 +14,7 @@ import '../../history/presentation/history_screen.dart';
 import '../../policy/presentation/policy_controller.dart';
 import '../../pickup/presentation/pickup_controller.dart';
 import '../../pickup/presentation/pickup_screen.dart';
+import '../../vehicle/presentation/vehicle_controller.dart';
 import '../domain/dashboard_models.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -24,6 +25,7 @@ class DashboardScreen extends StatefulWidget {
     this.pickupController,
     this.deliveryController,
     this.historyController,
+    this.vehicleController,
     super.key,
   });
 
@@ -33,6 +35,7 @@ class DashboardScreen extends StatefulWidget {
   final PickupController? pickupController;
   final DeliveryController? deliveryController;
   final HistoryController? historyController;
+  final VehicleController? vehicleController;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -106,6 +109,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           authController: widget.authController,
           accountController: accountController,
           policyController: widget.policyController,
+          vehicleController: widget.vehicleController,
         ),
       ),
     );

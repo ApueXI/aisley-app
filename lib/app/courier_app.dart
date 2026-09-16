@@ -11,6 +11,7 @@ import '../features/history/presentation/history_controller.dart';
 import '../features/policy/presentation/policy_controller.dart';
 import '../features/policy/presentation/policy_screen.dart';
 import '../features/pickup/presentation/pickup_controller.dart';
+import '../features/vehicle/presentation/vehicle_controller.dart';
 
 class CourierApp extends StatelessWidget {
   const CourierApp({
@@ -20,6 +21,7 @@ class CourierApp extends StatelessWidget {
     this.pickupController,
     this.deliveryController,
     this.historyController,
+    this.vehicleController,
     super.key,
   });
 
@@ -29,6 +31,7 @@ class CourierApp extends StatelessWidget {
   final PickupController? pickupController;
   final DeliveryController? deliveryController;
   final HistoryController? historyController;
+  final VehicleController? vehicleController;
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +47,7 @@ class CourierApp extends StatelessWidget {
         pickupController: pickupController,
         deliveryController: deliveryController,
         historyController: historyController,
+        vehicleController: vehicleController,
       ),
     );
   }
@@ -57,6 +61,7 @@ class AuthGate extends StatefulWidget {
     this.pickupController,
     this.deliveryController,
     this.historyController,
+    this.vehicleController,
     super.key,
   });
 
@@ -66,6 +71,7 @@ class AuthGate extends StatefulWidget {
   final PickupController? pickupController;
   final DeliveryController? deliveryController;
   final HistoryController? historyController;
+  final VehicleController? vehicleController;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -104,6 +110,7 @@ class _AuthGateState extends State<AuthGate> {
             pickupController: widget.pickupController,
             deliveryController: widget.deliveryController,
             historyController: widget.historyController,
+            vehicleController: widget.vehicleController,
           ),
           AuthStatus.pendingApproval => BlockedAccessScreen.pending(
             key: const ValueKey('pending-approval'),
