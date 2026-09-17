@@ -18,6 +18,8 @@ import '../features/policy/data/policy_repository.dart';
 import '../features/policy/presentation/policy_controller.dart';
 import '../features/pickup/data/pickup_repository.dart';
 import '../features/pickup/presentation/pickup_controller.dart';
+import '../features/vehicle/data/vehicle_repository.dart';
+import '../features/vehicle/presentation/vehicle_controller.dart';
 import 'courier_app.dart';
 
 class CourierBootstrapApp extends StatefulWidget {
@@ -34,6 +36,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
   PickupController? _pickupController;
   DeliveryController? _deliveryController;
   HistoryController? _historyController;
+  VehicleController? _vehicleController;
   bool _hasStartupError = false;
 
   @override
@@ -61,6 +64,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
       late final PickupController pickupController;
       late final DeliveryController deliveryController;
       late final HistoryController historyController;
+      late final VehicleController vehicleController;
       final authController = AuthController(
         authRepository: ApiAuthRepository(
           client: apiClient,
@@ -73,6 +77,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
           pickupController.clear();
           deliveryController.clear();
           historyController.clear();
+          vehicleController.clear();
         },
       );
       accountController = AccountController(
@@ -97,6 +102,10 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         historyRepository: ApiHistoryRepository(client: apiClient),
         onAuthFailure: authController.handleHistoryAuthFailure,
       );
+      vehicleController = VehicleController(
+        vehicleRepository: ApiVehicleRepository(client: apiClient),
+        onAuthFailure: authController.handleVehicleAuthFailure,
+      );
 
       if (!mounted) {
         return;
@@ -109,6 +118,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         _pickupController = pickupController;
         _deliveryController = deliveryController;
         _historyController = historyController;
+        _vehicleController = vehicleController;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -137,6 +147,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         pickupController: _pickupController,
         deliveryController: _deliveryController,
         historyController: _historyController,
+        vehicleController: _vehicleController,
       );
     }
 

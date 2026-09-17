@@ -8,6 +8,8 @@ import '../../auth/presentation/auth_controller.dart';
 import '../../policy/presentation/policy_controller.dart';
 import '../../policy/presentation/policy_screen.dart';
 import '../domain/account_models.dart';
+import '../../vehicle/presentation/vehicle_controller.dart';
+import '../../vehicle/presentation/vehicle_screen.dart';
 import 'account_controller.dart';
 
 const _maxProfilePhotoBytes = 10 * 1024 * 1024;
@@ -21,12 +23,14 @@ class AccountScreen extends StatefulWidget {
     required this.authController,
     required this.accountController,
     this.policyController,
+    this.vehicleController,
     super.key,
   });
 
   final AuthController authController;
   final AccountController accountController;
   final PolicyController? policyController;
+  final VehicleController? vehicleController;
 
   @override
   State<AccountScreen> createState() => _AccountScreenState();
@@ -699,6 +703,21 @@ class _AccountScreenState extends State<AccountScreen> {
     );
   }
 
+  Future<void> _openVehicle() async {
+    final vehicleController = widget.vehicleController;
+    if (vehicleController == null || !mounted) {
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => VehicleScreen(
+          authController: widget.authController,
+          vehicleController: vehicleController,
+        ),
+      ),
+    );
+  }
+
   Widget _buildAccountForm(BuildContext context, CourierAccount account) {
     final controller = widget.accountController;
     final scheme = Theme.of(context).colorScheme;
@@ -725,6 +744,21 @@ class _AccountScreenState extends State<AccountScreen> {
               ),
               trailing: const Icon(Icons.chevron_right),
               onTap: _openPolicy,
+            ),
+          ),
+        ],
+        if (widget.vehicleController != null) ...[
+          const SizedBox(height: 16),
+          Card(
+            child: ListTile(
+              minVerticalPadding: 14,
+              leading: const Icon(Icons.two_wheeler_outlined),
+              title: const Text('Vehicle management'),
+              subtitle: const Text(
+                'Update vehicle details and replace your private OR or CR.',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _openVehicle,
             ),
           ),
         ],

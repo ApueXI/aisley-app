@@ -24,12 +24,14 @@ class ApiClient {
     String path, {
     bool authenticated = false,
     Map<String, String>? queryParameters,
+    Map<String, String>? headers,
   }) {
     return _request(
       method: 'GET',
       path: path,
       authenticated: authenticated,
       queryParameters: queryParameters,
+      requestHeaders: headers,
     );
   }
 

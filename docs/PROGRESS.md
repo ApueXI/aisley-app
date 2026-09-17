@@ -182,3 +182,11 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Stabilized the Flutter tests against backend contract `d1abeee73d0141e1fd7dda4bea0ee3fead370378`: nested registration validation assertions now match individual messages, the completion widget test scrolls its action into the test viewport, and registration validation uses bounded pumps while PSGC/organization loading indicators are active.
 - No production endpoint, status authority, secure-storage behavior, or Laravel code changed.
 - Verification: `flutter analyze` passes and `flutter test` passes with 102 tests; `git diff --check` passes.
+
+## 2026-09-16
+
+- Implemented Courier vehicle management against the vehicle-fleet API contract v2.2 and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378`: the Account screen now opens a dedicated Vehicle Management screen for the authenticated Courier's sole vehicle.
+- Added authenticated `GET /api/v1/courier/vehicle`, revision-checked `PATCH /api/v1/courier/vehicle`, independent OR/CR multipart replacement, and private current-document reads. Ownership, approval, hub, status, and document URLs remain server-derived; no Laravel source was changed.
+- Added separate dirty-state and retry handling for vehicle fields, Official Receipt, and Certificate of Registration, including UUID idempotency keys, stale-revision refresh without discarding local edits, uncertain-response reconciliation, field-addressable errors, secure-storage, consent, authorization, rate-limit, timeout, offline, and unavailable states.
+- Added client-side image convenience checks for JPEG/JPG/PNG/WebP files under 10 MiB while keeping Laravel authoritative, and ensured private document previews use authenticated bearer requests without rendering raw paths or URLs.
+- Added repository, controller, and widget coverage for exact routes/fields, bearer auth, revision/idempotency behavior, private documents, validation errors, stale conflicts, uncertain retry, independent OR/CR handling, and screen states. Verification: `flutter analyze`, `flutter test`, and `git diff --check` pass.

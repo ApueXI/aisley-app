@@ -97,7 +97,7 @@ MVP responsibilities:
 - Sign in after approval.
 - Own exactly one operational hub/sorting center per Logistics organization for the MVP. Sub-hubs, additional hubs, and multi-hub operations are out of scope as a deliberate simplification of the real-world model.
 - For the MVP, the Logistics registration address represents the address of the organization's sole operational hub/sorting center. The Logistics account operates this hub through the Logistics dashboard. No separate hub address or sub-hub address is collected.
-- If an exact operational-hub pin is collected, use the same PSGC/manual/Geoapify/Leaflet flow as the Customer Address Book; manual/PSGC fields remain authoritative and Mapbox is not used.
+- Implemented Logistics hub pinning: the operator may confirm the actual sole hub location during registration or in Account Settings using PSGC/manual fields, intentional Geoapify assistance, and a Leaflet click/drag pin. The API persists both latitude and longitude on the linked hub Address and records same-premises corrections. Manual registration remains available during map failure; unpinned is not an invented coordinate. Coordinate fingerprints affect future calculations only; historical snapshots remain unchanged. Physical relocation remains separately controlled. Mapbox is not used.
 - Subscription billing and enforcement are deferred from the MVP; an approved active Logistics account is not subscription-gated until a Subscription policy exists.
 - View Seller-confirmed Orders whose selected Logistics organization is this organization.
 - Create the first-mile pickup task after the Seller marks the Order `ready_for_pickup`, then offer or assign it to an eligible Courier.
@@ -124,6 +124,8 @@ MVP responsibilities:
 
 - Search/select an eligible Logistics company during registration. Its single operational hub is associated automatically; selecting a sub-hub is not supported.
 - Register under that Logistics account.
+- Provide exactly one vehicle per Courier with required vehicle type, plate number, and private OR/CR evidence for Logistics review. Maintenance, vehicle history, and vehicle capacity values/units or matching are deferred; existing operational history and schedule limits are unchanged.
+- Implemented backend target: after approval, Courier may edit type, plate, optional make/model, and independently replace separate OR and CR images without Logistics reapproval. The associated Logistics account receives one durable informational notification per committed revision; failures/retries cannot undo changes or duplicate notifications. Ownership/status are not editable and initial registration approval remains required. External Flutter rollout remains separate.
 - Sign in after Logistics approval.
 - Use the external mobile application to view delivery notifications and first-mile pickup/final-mile delivery requests created or offered by Logistics.
 - Review pickup and delivery details.
