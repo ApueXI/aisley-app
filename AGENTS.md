@@ -96,6 +96,20 @@ Do not commit secret files, generated credentials, local device data, or unrelat
 - Courier registration currently uses bundled PSGC/manual address fields and does not require coordinates or a map pin. Do not add Geoapify or map work unless the matching spec explicitly approves it.
 - Logistics, not the Courier app, approves the affiliation. The app displays the resulting state and does not provide reviewer controls.
 
+## Modularity and code organization
+
+- Keep each Dart file focused on one responsibility.
+- Keep screens responsible for composition and navigation; extract independent sections, forms, upload flows, status views, and reusable widgets into separate files.
+- Keep controllers focused on one cohesive workflow. Separate independent concerns such as profile editing, password changes, photo uploads, and vehicle management.
+- Proactively split a screen or controller when it exceeds roughly 400 physical lines, contains multiple independent workflows, or becomes difficult to test in isolation.
+- Keep API requests in repositories, parsing in domain/data models, state transitions in controllers, and rendering in widgets.
+- Do not split code mechanically into tiny files; use meaningful feature and responsibility boundaries.
+- When adding a feature, review whether the existing presentation files should be modularized before extending them.
+- Apply modularization to the feature or file being changed; do not refactor unrelated areas solely to satisfy the line-count guideline.
+- Use readable, `dart format`-formatted Dart code. Do not compress statements, widgets, or functions into single lines to avoid the line-count guideline.
+- Evaluate complexity, nesting, responsibilities, and testability in addition to physical line count.
+- Apply these modularity rules to hand-written Dart files; do not manually refactor generated files.
+
 ## Operational and dashboard boundary
 
 - Do not implement live task, parcel, scan, waybill, assignment, proof, notification, route, or delivery mutations until the shared operational schema and endpoint contract are implemented by Laravel.
