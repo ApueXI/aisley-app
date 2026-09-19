@@ -6,16 +6,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:aisley_app/app/courier_app.dart';
 import 'package:aisley_app/features/account/data/account_repository.dart';
 import 'package:aisley_app/features/account/domain/account_models.dart';
-import 'package:aisley_app/features/account/presentation/account_controller.dart';
+import 'package:aisley_app/features/account/presentation/controllers/account_controller.dart';
 import 'package:aisley_app/features/auth/data/auth_repository.dart';
 import 'package:aisley_app/features/auth/domain/auth_models.dart';
-import 'package:aisley_app/features/auth/presentation/auth_controller.dart';
+import 'package:aisley_app/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:aisley_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:aisley_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:aisley_app/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:aisley_app/features/policy/data/policy_repository.dart';
 import 'package:aisley_app/features/policy/domain/policy_models.dart';
-import 'package:aisley_app/features/policy/presentation/policy_controller.dart';
+import 'package:aisley_app/features/policy/presentation/controllers/policy_controller.dart';
 
 void main() {
   testWidgets('Courier can open the registration form from sign in', (

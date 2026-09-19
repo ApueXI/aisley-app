@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 
-import '../features/account/presentation/account_controller.dart';
-import '../features/auth/presentation/auth_controller.dart';
+import '../features/account/presentation/controllers/account_controller.dart';
+import '../features/auth/presentation/controllers/auth_controller.dart';
 import '../features/auth/presentation/blocked_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/registration_screen.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
-import '../features/delivery/presentation/delivery_controller.dart';
-import '../features/history/presentation/history_controller.dart';
-import '../features/policy/presentation/policy_controller.dart';
+import '../features/delivery/presentation/controllers/delivery_controller.dart';
+import '../features/history/presentation/controllers/history_controller.dart';
+import '../features/policy/presentation/controllers/policy_controller.dart';
 import '../features/policy/presentation/policy_screen.dart';
-import '../features/pickup/presentation/pickup_controller.dart';
-import '../features/vehicle/presentation/vehicle_controller.dart';
+import '../features/pickup/presentation/controllers/pickup_controller.dart';
+import '../features/vehicle/presentation/controllers/vehicle_controller.dart';
 
 class CourierApp extends StatelessWidget {
   const CourierApp({

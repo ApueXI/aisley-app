@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:aisley_app/core/networking/api_client.dart';
 import 'package:aisley_app/features/vehicle/data/vehicle_repository.dart';
 import 'package:aisley_app/features/vehicle/domain/vehicle_models.dart';
-import 'package:aisley_app/features/vehicle/presentation/vehicle_controller.dart';
+import 'package:aisley_app/features/vehicle/presentation/controllers/vehicle_controller.dart';
 
 void main() {
   test('saves only dirty fields and keeps the server revision', () async {

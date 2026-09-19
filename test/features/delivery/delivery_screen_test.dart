@@ -3,12 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:aisley_app/features/auth/data/auth_repository.dart';
 import 'package:aisley_app/features/auth/domain/auth_models.dart';
-import 'package:aisley_app/features/auth/presentation/auth_controller.dart';
+import 'package:aisley_app/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:aisley_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:aisley_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:aisley_app/features/delivery/data/delivery_repository.dart';
 import 'package:aisley_app/features/delivery/domain/delivery_models.dart';
-import 'package:aisley_app/features/delivery/presentation/delivery_controller.dart';
+import 'package:aisley_app/features/delivery/presentation/controllers/delivery_controller.dart';
 import 'package:aisley_app/features/delivery/presentation/delivery_screen.dart';
 import 'package:aisley_app/features/pickup/domain/pickup_models.dart';
 

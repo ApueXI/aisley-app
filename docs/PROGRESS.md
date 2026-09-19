@@ -190,3 +190,73 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Added separate dirty-state and retry handling for vehicle fields, Official Receipt, and Certificate of Registration, including UUID idempotency keys, stale-revision refresh without discarding local edits, uncertain-response reconciliation, field-addressable errors, secure-storage, consent, authorization, rate-limit, timeout, offline, and unavailable states.
 - Added client-side image convenience checks for JPEG/JPG/PNG/WebP files under 10 MiB while keeping Laravel authoritative, and ensured private document previews use authenticated bearer requests without rendering raw paths or URLs.
 - Added repository, controller, and widget coverage for exact routes/fields, bearer auth, revision/idempotency behavior, private documents, validation errors, stale conflicts, uncertain retry, independent OR/CR handling, and screen states. Verification: `flutter analyze`, `flutter test`, and `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/account/presentation/` by responsibility without changing the account flow, public widget/controller inputs, API routes, request payloads, or state transitions.
+- Split account profile, password, profile-photo workflow/state, screen composition, profile-photo view/workflow, security, and reusable account widgets into focused Dart part files; all hand-written files remain below the modularity guideline's approximate 400-line threshold.
+- Verification: `flutter analyze`, focused account tests, `flutter test`, and `git diff --check` pass. Backend/API contract remains the existing account-management snapshot; no Laravel code changed.
+
+## 2026-09-19
+
+- Grouped all Account screen component part files under `lib/features/account/presentation/components/` and updated only the Dart library paths needed to preserve the existing implementation.
+- No account flow, controller behavior, API contract, widget inputs, or state transition changed. Verification: `flutter analyze`, `flutter test`, and `git diff --check` pass.
+
+## 2026-09-19
+
+- Grouped the Account controller facade and workflow/state part files under `lib/features/account/presentation/controllers/` and updated their consumers to the new import path.
+- This was a path-only organization change: controller logic, account flow, API contract, and state transitions are unchanged. Verification: `flutter analyze`, `flutter test`, and `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/auth/presentation/` against the Courier auth contract and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing authentication or registration flow.
+- Grouped Auth controller workflows/state under `presentation/controllers/` and split registration data loading, submission/evidence handling, form composition, address, field, section, and result widgets under `presentation/components/`; login, blocked, and registration screens remain the public presentation entry points.
+- Updated only imports and Dart part paths for consumers. No API route, request field, secure-storage behavior, state transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/dashboard/presentation/` against the read-only Courier dashboard scaffold contract and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing dashboard flow or API behavior.
+- Kept `DashboardScreen` as the public composition/navigation entry point, grouped welcome/section cards and loading/error/unavailable status views under `presentation/components/`, and placed the existing Dashboard-specific `AuthController` extension under `presentation/controllers/` without changing its state or dependency wiring.
+- No endpoint, request, response parsing, refresh behavior, navigation action, authorization state, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/delivery/presentation/` against delivery-order v1.3, proof-of-delivery v1.5, complete-delivery v1.5, and pick-up-order v2.6 using backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378`.
+- Kept `DeliveryScreen` and `DeliveryTaskScreen` public entry points stable, grouped list/detail/context/movement/proof-completion/status widgets under `presentation/components/`, and grouped delivery reads, actions, errors, reconciliation, and pending-attempt state under `presentation/controllers/`.
+- No endpoint, request/response mapping, status transition, idempotency, retry, proof/completion behavior, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/history/presentation/` against delivery-history v1.4 and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing the read-only final-mile history flow or API behavior.
+- Kept `HistoryScreen` and `HistoryDetailScreen` public entry points stable, grouped list/detail/shared status widgets under `presentation/components/`, and moved the cohesive history read controller under `presentation/controllers/`.
+- Preserved Courier-scoped delivered-task reads, bounded cursor behavior, privacy-safe projections, loading/empty/unavailable/retry/consent states, and detail navigation. No endpoint, response parsing, state transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/pickup/presentation/` against pick-up-order v2.6 and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing first-mile or final-mile pickup flow or API behavior.
+- Kept `PickupScreen`, `PickupTaskDetailScreen`, and `PickupRouteScreen` public entry points stable, grouped list/task-detail/route/status widgets under `presentation/components/`, and grouped pickup reads, actions, errors, state, and pending attempts under `presentation/controllers/`.
+- Preserved separate Seller pickup confirmation and hub-pickup evidence submission, server-authoritative status and validation, idempotency/retry behavior, route-manifest states, privacy, and offline/error handling. No endpoint, request/response mapping, status transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/policy/presentation/` against policy-viewing-consent v1.4 and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing policy viewing, consent, history, or sign-out flow.
+- Kept `PolicyScreen`, `PolicyHistoryScreen`, and `PolicyVersionScreen` public entry points stable, grouped current-consent, history, historical-version, and shared status widgets under `presentation/components/`, and grouped policy reads, history reads, acceptance, and error mapping under `presentation/controllers/`.
+- Preserved public Terms/Privacy reads, authenticated status and explicit version acceptance, stale-version checks, private/no-store consent behavior, server-authoritative consent state, retry/error handling, and safe policy rendering. No endpoint, request/response mapping, state transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/vehicle/presentation/` against vehicle-fleet-management v2.2 and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing vehicle account flow or API behavior.
+- Kept `VehicleScreen` and `VehicleController` public entry points stable, grouped vehicle details, document cards/previews, actions, and shared validation/status widgets under `presentation/components/`, and grouped vehicle reads, field updates, document operations, errors, validation, and pending attempts under `presentation/controllers/`.
+- Preserved independent vehicle-field saves and OR/CR replacement, revision and idempotency handling, private document reads, uncertain-response reconciliation, server-authoritative ownership/approval, upload validation, retry, offline, consent, authorization, and stale-conflict states. No endpoint, request/response mapping, state transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/pickup/domain/pickup_models.dart` against pick-up-order v2.6 and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing pickup, delivery, or history behavior.
+- Kept the existing public model import path and symbols stable, grouping pickup task/reference/location DTOs, pickup action responses, route-manifest DTOs, and shared JSON contract helpers under `domain/models/`.
+- Preserved first-mile/final-mile status semantics, nullable field handling, server revision/evidence projections, route-stop ordering data, and JSON parsing. No endpoint, request/response mapping, state transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/pickup/data/pickup_repository.dart` against pick-up-order v2.6 and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing repository behavior or public imports.
+- Kept `PickupRepository` and `ApiPickupRepository` stable as the public facade, grouping first-mile task/waybill/pickup/route requests, final-mile task/rejection/hub-pickup requests, and shared path/response helpers under `data/repositories/`.
+- Preserved exact endpoint paths, bearer-auth requests, payloads, idempotency headers, response parsing, validation, and first-mile/final-mile separation. No controller, UI, API contract, state transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.

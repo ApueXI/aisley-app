@@ -4,12 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:aisley_app/core/networking/api_client.dart';
 import 'package:aisley_app/features/auth/data/auth_repository.dart';
 import 'package:aisley_app/features/auth/domain/auth_models.dart';
-import 'package:aisley_app/features/auth/presentation/auth_controller.dart';
+import 'package:aisley_app/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:aisley_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:aisley_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:aisley_app/features/pickup/data/pickup_repository.dart';
 import 'package:aisley_app/features/pickup/domain/pickup_models.dart';
-import 'package:aisley_app/features/pickup/presentation/pickup_controller.dart';
+import 'package:aisley_app/features/pickup/presentation/controllers/pickup_controller.dart';
 import 'package:aisley_app/features/pickup/presentation/pickup_screen.dart';
 
 void main() {

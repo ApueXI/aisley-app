@@ -5,12 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:aisley_app/features/auth/data/auth_repository.dart';
 import 'package:aisley_app/features/auth/domain/auth_models.dart';
-import 'package:aisley_app/features/auth/presentation/auth_controller.dart';
+import 'package:aisley_app/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:aisley_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:aisley_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:aisley_app/features/vehicle/data/vehicle_repository.dart';
 import 'package:aisley_app/features/vehicle/domain/vehicle_models.dart';
-import 'package:aisley_app/features/vehicle/presentation/vehicle_controller.dart';
+import 'package:aisley_app/features/vehicle/presentation/controllers/vehicle_controller.dart';
 import 'package:aisley_app/features/vehicle/presentation/vehicle_screen.dart';
 
 void main() {

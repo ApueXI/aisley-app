@@ -109,6 +109,10 @@ Do not commit secret files, generated credentials, local device data, or unrelat
 - Use readable, `dart format`-formatted Dart code. Do not compress statements, widgets, or functions into single lines to avoid the line-count guideline.
 - Evaluate complexity, nesting, responsibilities, and testability in addition to physical line count.
 - Apply these modularity rules to hand-written Dart files; do not manually refactor generated files.
+- Organize hand-written Dart code by feature and responsibility. Keep components near the feature that owns their behavior.
+- Move genuinely reusable, domain-agnostic widgets into `shared/` or the design system only when reuse is demonstrated.
+- Shared widgets must not depend on feature-specific controllers, repositories, or screens.
+- Avoid circular dependencies and imports into another feature's private implementation.
 
 ## Operational and dashboard boundary
 

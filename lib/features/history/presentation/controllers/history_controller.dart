@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../../../core/networking/api_client.dart';
-import '../../../core/networking/api_contract_exception.dart';
-import '../../../core/security/token_storage.dart';
-import '../data/history_repository.dart';
-import '../domain/history_models.dart';
+import '../../../../core/networking/api_client.dart';
+import '../../../../core/networking/api_contract_exception.dart';
+import '../../../../core/security/token_storage.dart';
+import '../../data/history_repository.dart';
+import '../../domain/history_models.dart';
 
 typedef HistoryAuthFailureHandler = Future<void> Function(ApiException error);
 
