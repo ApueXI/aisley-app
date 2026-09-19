@@ -254,3 +254,9 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Modularized `lib/features/pickup/domain/pickup_models.dart` against pick-up-order v2.6 and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing pickup, delivery, or history behavior.
 - Kept the existing public model import path and symbols stable, grouping pickup task/reference/location DTOs, pickup action responses, route-manifest DTOs, and shared JSON contract helpers under `domain/models/`.
 - Preserved first-mile/final-mile status semantics, nullable field handling, server revision/evidence projections, route-stop ordering data, and JSON parsing. No endpoint, request/response mapping, state transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/pickup/data/pickup_repository.dart` against pick-up-order v2.6 and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing repository behavior or public imports.
+- Kept `PickupRepository` and `ApiPickupRepository` stable as the public facade, grouping first-mile task/waybill/pickup/route requests, final-mile task/rejection/hub-pickup requests, and shared path/response helpers under `data/repositories/`.
+- Preserved exact endpoint paths, bearer-auth requests, payloads, idempotency headers, response parsing, validation, and first-mile/final-mile separation. No controller, UI, API contract, state transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.
