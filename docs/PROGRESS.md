@@ -212,3 +212,9 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Modularized `lib/features/auth/presentation/` against the Courier auth contract and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing authentication or registration flow.
 - Grouped Auth controller workflows/state under `presentation/controllers/` and split registration data loading, submission/evidence handling, form composition, address, field, section, and result widgets under `presentation/components/`; login, blocked, and registration screens remain the public presentation entry points.
 - Updated only imports and Dart part paths for consumers. No API route, request field, secure-storage behavior, state transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/dashboard/presentation/` against the read-only Courier dashboard scaffold contract and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing dashboard flow or API behavior.
+- Kept `DashboardScreen` as the public composition/navigation entry point, grouped welcome/section cards and loading/error/unavailable status views under `presentation/components/`, and placed the existing Dashboard-specific `AuthController` extension under `presentation/controllers/` without changing its state or dependency wiring.
+- No endpoint, request, response parsing, refresh behavior, navigation action, authorization state, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.

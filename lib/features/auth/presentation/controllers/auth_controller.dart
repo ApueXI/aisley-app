@@ -11,7 +11,7 @@ import '../../domain/auth_models.dart';
 
 part 'auth_controller_registration.dart';
 part 'auth_controller_policy.dart';
-part 'auth_controller_dashboard.dart';
+part '../../../dashboard/presentation/controllers/auth_controller_dashboard.dart';
 part 'auth_controller_session.dart';
 part 'auth_controller_state.dart';
 

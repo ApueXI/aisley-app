@@ -1,4 +1,4 @@
-part of 'auth_controller.dart';
+part of '../../../auth/presentation/controllers/auth_controller.dart';
 
 extension AuthControllerDashboard on AuthController {
   Future<void> loadDashboard() async {
