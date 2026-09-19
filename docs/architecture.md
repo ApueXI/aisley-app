@@ -4,8 +4,8 @@ system: AISLEY
 type: Client Architecture
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active — authentication, account, policy, pickup, delivery, and history client; route/location/media extensions deferred
-backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378
+status: Active — authentication, account, vehicle, policy, pickup, delivery, and history client; route/location/media extensions deferred
+backend_contract_commit: 4045cc57d6466d7e84f249a6ceaf45cb49a88151
 ---
 
 # Scope
@@ -16,7 +16,7 @@ The Laravel API remains the source of truth for identity, approval, role access,
 
 ## Current implementation boundary
 
-The backend currently exposes Courier authentication, Phase 1 account management, policy consent, and the approved first-mile/final-mile task workflow:
+The backend currently exposes Courier authentication, account and vehicle management, policy consent, and the approved first-mile/final-mile task workflow:
 
 - `GET /api/v1/courier/auth/logistics-options`
 - `POST /api/v1/courier/auth/register`
@@ -30,6 +30,10 @@ The backend currently exposes Courier authentication, Phase 1 account management
 - `POST /api/v1/courier/account/profile-photo` (authenticated multipart upload)
 - `GET /api/v1/courier/account/profile-photo` (authenticated private stream)
 - `DELETE /api/v1/courier/account/profile-photo` (authenticated idempotent removal)
+- `GET /api/v1/courier/vehicle` (authenticated own-vehicle read)
+- `PATCH /api/v1/courier/vehicle` (authenticated revision-checked field update)
+- `POST /api/v1/courier/vehicle/documents/{kind}` (authenticated independent OR/CR replacement)
+- `GET /api/v1/courier/vehicle/documents/{kind}` (authenticated private current-document read)
 - `GET /api/v1/platform/policies/{type}` and policy history reads (public)
 - `GET /api/v1/policy-consent/status` and `POST /api/v1/policy-consent/{type}/versions/{version}/accept` (authenticated)
 - `GET /api/v1/courier/first-mile-tasks` (authenticated, private paginated task list)
@@ -47,7 +51,7 @@ The backend currently exposes Courier authentication, Phase 1 account management
 - `GET /api/v1/courier/tasks/{task}/completion` and `POST /api/v1/courier/tasks/{task}/completion` (authenticated completion projection/intent)
 - `GET /api/v1/courier/delivery-history` and `GET /api/v1/courier/delivery-history/{task}` (authenticated read-only delivered history)
 
-The dashboard aggregation remains a read-only scaffold. Route/location, camera QR decoding, photo/signature proof media, chat, earnings, notification transport, and offline synchronization endpoints are not currently available. The app renders explicit unavailable states for those capabilities and must not fabricate jobs or call conceptual routes from draft specifications.
+The dashboard aggregation remains a read-only scaffold. Tracking IDs may resolve through the documented QR/reference flows, but camera QR decoding remains deferred. Route/location telemetry, photo/signature proof media, chat, earnings, notification transport, and offline synchronization endpoints are not currently available. The app renders explicit unavailable states for those capabilities and must not fabricate jobs or call conceptual routes from draft specifications. Logistics Linehaul and Sort plan operations do not create Courier endpoints.
 
 ## Client structure
 
@@ -70,6 +74,10 @@ lib/
 │       ├── data/         # Account DTOs, photo transport, authenticated repository
 │       ├── domain/       # Private account projection and in-memory photo data
 │       └── presentation/ # Account form, photo controls, and password/session controls
+│   ├── vehicle/
+│       ├── data/         # Own-vehicle and private OR/CR transport
+│       ├── domain/       # Revision, document state, and validation models
+│       └── presentation/ # Vehicle fields and independent document controls
 │   ├── pickup/
 │   │   ├── data/         # Pickup task, manifest, and handoff repositories
 │   │   ├── domain/       # Server status, task, manifest, and handoff models
@@ -146,4 +154,4 @@ Follow [`design-courier.md`](design-courier.md). Use mobile-first layouts, syste
 
 ## Canonical documents
 
-Read the relevant sections of `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, `docs/domain/Courier.md`, `docs/domain/Logistics.md`, the matching Courier feature specification, and the two registration/upload references. The decision worksheet is historical context only; it is not an implementation authority.
+Read the relevant sections of `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, `docs/domain/Courier.md`, `docs/domain/Logistics.md`, the matching Courier feature specification (or the shared Logistics vehicle specification for Courier vehicle work), and the two registration/upload references. The decision worksheet is historical context only; it is not an implementation authority.

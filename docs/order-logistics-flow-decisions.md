@@ -16,7 +16,7 @@ canonical_sources:
 
 ## Purpose
 
-The revised domain and workflow documents describe the same intended order journey. This worksheet preserves the decisions and rationale that led to those canonical documents; it does not authorize implementation of deferred shipment or delivery operations.
+The revised domain and workflow documents describe the same intended order journey, but several decisions are still open before first-party shipment and delivery operations are implemented. Use this worksheet to record the project decision for each item.
 
 For every decision:
 
@@ -71,24 +71,24 @@ Seller Prepare Orders ends at `ready_for_pickup`, but the documents do not yet n
 - [ ] The system automatically creates the task when the Seller marks the order `ready_for_pickup`; Logistics manages eligibility and offers.
 - [ ] The Seller creates or assigns the first-mile task. (This would require changing the current role boundaries.)
 
-  **Decision:** The selected Logistics organization creates the first-mile task and offers it to an eligible Courier after `ready_for_pickup`.  
-  **Trigger:** The Seller marks the Order `ready_for_pickup`, the Order has a selected Logistics organization, and no active first-mile task already exists.  
+  **Decision:** The Seller-selected Logistics organization creates the first-mile task and assigns/offers it to an eligible affiliated Courier after `ready_for_pickup`.
+  **Trigger:** The Seller selects an eligible Logistics organization and marks the Order `ready_for_pickup`, and no active first-mile task already exists.
   **Actor allowed to assign:** An authorized Logistics account belonging to the selected Logistics organization.
 
-**Affected documents:** `docs/domain/Logistics.md`, `docs/domain/Courier.md`, the backend Seller Prepare Orders contract, Logistics task contracts, and `docs/schema.md`.
+**Affected documents:** `docs/domains/Logistics.md`, `docs/domains/Courier.md`, `docs/features/seller/prepare-orders/spec.md`, Logistics deploy-rider/task specs, `docs/schema.md`.
 
 ### 3. Waybill and package-label ownership
 
 Seller Prepare Orders describes a Seller-generated/versioned shipping label, while the Logistics Waybill material describes Logistics-generated waybill identifiers. Decide whether these are one artifact or two linked artifacts.
 
-- [x] Seller creates the package label; Logistics creates the operational waybill when the parcel is received at the hub. Link both with an immutable order/parcel reference. **(Recommended)**
-- [ ] Seller creates the single waybill used by every leg; Logistics only scans and updates it.
+- [ ] Seller creates the package label; Logistics creates the operational waybill when the parcel is received at the hub. Link both with an immutable order/parcel reference.
+- [x] The Seller pickup transaction creates the single waybill used by every leg; Logistics views/scans it and updates separate operational events. **(Selected)**
 - [ ] Logistics creates the single waybill before first-mile pickup from Seller.
 
-  **Decision:** Seller creates the package label; Logistics creates the operational waybill when the parcel is received at the hub. Link both with an immutable Order/Parcel reference.  
-  **Who creates each identifier:** The Seller creates the package-label identifier containing the Order/Parcel reference, package details, Shop pickup address, and destination information taken from the immutable Customer checkout snapshot. Logistics creates the operational waybill identifier and records hub, sorting, routing, and Courier assignment information.  
-  **When it becomes immutable(Seller):** The Seller may revise the package label until the Order is confirmed as `ready_for_pickup`. Once `ready_for_pickup` is confirmed, the active label version is frozen. After first-mile pickup (`picked_up_from_seller`), the label and handoff history cannot be overwritten.  
-  **When it becomes immutable(Logistics):** Logistics creates the operational waybill when the parcel reaches `received_at_hub`; its identifier and Order/Parcel link are immutable from creation. Routing and Courier assignments may change before final-mile pickup (`picked_up_from_hub`), but each change must be recorded as a new event. After `picked_up_from_hub`, the final-mile assignment and custody history cannot be overwritten.
+  **Decision:** The Seller's committed pickup-request transaction creates one shared waybill per Order. Seller and selected Logistics can view/print it; an assigned Courier can resolve its opaque QR through an authorized task.
+  **Who creates the identifier:** Aisley creates the reference, immutable snapshot, and QR from server-authoritative Order, Shop, address, and selected-Logistics data when the Seller confirms `ready_for_pickup`. The browser cannot supply printable facts or QR authority.
+  **When it becomes immutable:** The reference, snapshot, selected Logistics organization, and Order/Parcel link are immutable at creation. Reprints reuse the same identity. Corrections require a future void-and-reissue policy.
+  **Operational boundary:** Waybill generation, access, printing, or scanning never advances custody. Logistics/Courier status transitions remain validated, transactional, and append-only.
 
 **Affected documents:** Seller Prepare Orders, Logistics Waybill, `docs/schema.md`, `docs/workspace.md`, `docs/domain/Courier.md`, Customer tracking.
 
@@ -167,7 +167,7 @@ The Logistics and Courier auth specs still contain draft text saying their found
   **Decision:** Update both auth specs during their next revision so the implemented authentication foundation and deferred operational work are clearly separated.  
   **Rationale:** The current Logistics and Courier authentication foundations exist, but shipment operations, subscription enforcement, and other operational features remain deferred. Accurate status metadata prevents future implementers from rebuilding completed auth work or assuming deferred operations already exist.
 
-**Affected documents:** the backend Logistics Auth contract, `docs/features/courier/auth/spec.md`, and `docs/PROGRESS.md`.
+**Affected documents:** `docs/features/logistics/auth/spec.md`, `docs/features/courier/auth/spec.md`, `docs/PROGRESS.md`.
 
 ### 9. Address-provider authority
 
@@ -179,7 +179,7 @@ Some older shared wording refers to Maps JavaScript Places. The current Customer
   **Decision:** Reuse the Customer Address Book location flow for address entry that needs a map pin: Region → Province → City/Municipality → Barangay values come from bundled PSGC data, Geoapify provides optional suggestions/forward geocoding and coordinates, and Leaflet renders the interactive pin with Geoapify tiles. No Mapbox dependency, geocoding, or map rendering is permitted.  
   **Authoritative persisted fields:** The manually reviewed address fields and optional `latitude`/`longitude` captured from the confirmed pin. Provider identifiers and suggestion metadata are not authoritative and are not persisted as address identity.
 
-**Affected documents:** `docs/workspace.md`, `docs/architecture.md`, Buyer domain, Customer Address Book, Seller Auth, and the registration reference.
+**Affected documents:** `docs/workspace.md`, `docs/architecture.md`, `docs/domains/Buyer.md`, `docs/features/customer/address-book/spec.md`, `docs/maps-location-api.md` (if restored), Seller Auth, and the registration reference.
 
 ### 10. Customer auth terminology and spec ownership
 
@@ -190,7 +190,7 @@ The older Customer auth material uses `BUYER` in places, while the API/schema/do
 
   **Decision:** Use `customer` as the canonical persisted/API role name for database values, enums, routes, middleware, permissions, and DTOs. Use “Buyer” only as the customer-facing storefront and business term. They refer to the same user conceptually, but they must not be interchangeable in code or API contracts.
 
-**Affected documents:** Customer auth specs, `docs/schema.md`, Buyer domain, `docs/workspace.md`.
+**Affected documents:** Customer auth specs, `docs/schema.md`, `docs/domains/Buyer.md`, `docs/workspace.md`.
 
 ### 11. Seller shop setup timing
 

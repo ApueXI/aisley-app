@@ -39,7 +39,7 @@ pending_payment
 → delivered
 ```
 
-Its current Logistics-facing meanings are deliberately broad: `ready_for_pickup` is Seller preparation complete and `picked_up` is the high-level projection of an explicit first-mile Courier confirmation from the Seller. `assigned` remains reserved for a later Logistics/final-mile assignment contract. The detailed `picked_up_from_seller` task event remains authoritative proof of custody.
+Its Logistics-facing meanings are deliberately broad: `ready_for_pickup` is Seller preparation complete, `picked_up` projects explicit first-mile confirmation, and `assigned` projects a committed dispatch schedule/final-mile Courier offer. Detailed task events remain authoritative proof of custody.
 
 Current COD placement skips `pending_payment`: the Order starts at `placed` with `payment_status = pending`. The Seller's selected eligible Logistics organization is retained in the future fulfillment context; Logistics may operate only Orders selected for its organization and may not silently replace the provider.
 
@@ -76,10 +76,11 @@ Customer places the Order
 → Courier picks up from Seller (`picked_up_from_seller`)
 → Courier transfers the parcel to the sole Logistics hub
 → Logistics receives and validates it (`received_at_hub`)
-→ Logistics views/scans the Seller-created shared waybill through the immutable Order/Parcel reference
-→ Logistics sorts it (`sorted_at_hub`)
-→ Logistics dispatches the sorted parcel (`dispatched_from_hub`)
-→ Logistics assigns a final-mile Courier (`delivery_assigned`)
+→ Logistics scans the Seller-created tracking ID/waybill through the immutable Order/Parcel reference
+→ the current tenant sort plan checks the Buyer postal code and selects a standard lane or exception lane
+→ Logistics synchronizes the result (`sorted_at_hub` for a match; received-custody hold for an exception)
+→ the sorted parcel enters **Ready to dispatch**
+→ Logistics schedules up to 15 parcels with one Courier; dispatch and per-parcel final-mile offers commit together (`dispatched_from_hub` → `delivery_assigned`)
 → final-mile Courier accepts (`delivery_accepted`)
 → Courier picks up from the hub (`picked_up_from_hub`)
 → Courier travels and delivers (`in_transit` → `out_for_delivery`)
@@ -113,6 +114,8 @@ Subscription status is not a dashboard or operational gate in the MVP. Billing, 
 - **Core value:** Recover a valid parcel state when scanning automation fails.
 - **Definition:** Allow authorized Logistics personnel to validate Courier-submitted scans/evidence or perform validated manual transitions such as `received_at_hub`, `sorted_at_hub`, or `dispatched_from_hub` when operational evidence exists. Internal `in_transfer` execution remains deferred in the MVP.
 - **System context:** A shared backend transition service validates current state, sole-hub ownership, actor authority, idempotency, and immutable history. Logistics is the authoritative recorder of the event while preserving the Courier who performed the physical action, when applicable. This is not free-form editing and must not fabricate a Courier pickup or proof of delivery.
+- **Sorting boundary:** Normal hub sorting uses the dedicated offline-first **Sorting** workspace. The separate **Sort plan** page lets the tenant create one active plan, standard/exception lanes, printable lane labels, and exact four-digit Buyer postal-code mappings. One open sole-hub session snapshots up to 100 oldest received parcels; automatic scan sync resolves the tracking ID and current plan server-side, commits `sorted_at_hub` for a matched standard lane, and records a reviewable exception hold when the plan or routing data is missing. Hub operations retains evidence and recovery responsibilities rather than the normal sorting control.
+- **Lane/dispatch boundary:** A lane identifies physical staging inside the sole hub. Shipment retains its standard lane/session independently of session closure; ready parcels dispatch by lane with immutable provenance and stale-assignment checks. Combining standard lanes requires explicit opt-in. Audited online moves are allowed before dispatch; exceptions remain held and do not block other ready session parcels. Hub pickup clears the live lane assignment while dispatch history remains intact.
 
 ### 4. Chat/Messaging
 
@@ -130,14 +133,15 @@ Subscription status is not a dashboard or operational gate in the MVP. Billing, 
 
 - **Core value:** Maintain the organization's Courier vehicle registry.
 - **Definition:** Review the required type, plate, and private OR/CR supplied for each affiliated Courier's exactly one vehicle. Maintenance, vehicle history, and capacity values/units/matching are deferred.
-- **System context:** The registry is scoped through Courier affiliation to this organization's sole hub. Registration/application review exists; dedicated fleet editing and database cardinality hardening remain follow-up work. Deferred capacity or maintenance must not create dispatch gates or alter parcel status.
+- **Edit boundary:** After initial approval, Courier edits to type/plate/optional make/model and separate OR/CR replacements need no Logistics approval. The organization receives a durable informational notification and may view current data through its scoped Vehicles list/detail or the alert destination; it does not approve or reject the edit.
+- **System context:** The registry is scoped through Courier affiliation to this organization's sole hub. Registration/application review remains compatible with the combined legacy document, while dedicated fleet editing and database cardinality hardening are implemented additively. Deferred capacity or maintenance must not create dispatch gates or alter parcel status.
 
 ### 7. Waybill
 
 - **Core value:** Print order/parcel details.
-- **Definition:** View, download, print, and scan the shared waybill created when the Seller requested pickup, using its stable opaque reference and authorized QR.
+- **Definition:** View, download, print, and scan the shared waybill created when the Seller requested pickup, using its immutable tracking ID, thin 1D Code 128 barcode, and authorized QR compatibility identifier.
 - **Immutability:** The waybill identifier and Order/Parcel link are immutable from creation. Routing and Courier assignments may change before `picked_up_from_hub` only through append-only events; after that pickup, final-mile assignment and custody history cannot be overwritten. Printing or reprinting is a document/audit operation and must not silently advance status or expose unnecessary Customer data.
-- **System context:** QR/reference scans resolve authoritative Shipment/Delivery Task records. Courier-submitted scans/evidence are validated and recorded by Logistics, preserving performing-Courier and recording-Logistics actors, timestamp, and safe evidence/reference metadata. Logistics does not rewrite the frozen waybill, and a scan or waybill access event alone never advances custody.
+- **System context:** Tracking-ID/QR/reference scans resolve authoritative Shipment/Delivery Task records. Courier-submitted scans/evidence are validated and recorded by Logistics, preserving performing-Courier and recording-Logistics actors, timestamp, and safe evidence/reference metadata. Logistics does not rewrite the frozen waybill, and a scan or waybill access event alone never advances custody.
 
 ### 8. Zone/Territory Mapping
 
@@ -166,7 +170,7 @@ Subscription status is not a dashboard or operational gate in the MVP. Billing, 
 
 ## Deferred operational data
 
-The current schema implements Logistics identity, organization, sole hub, Courier affiliation, Seller pickup requests, shared waybills, pickup schedules, first-mile assignment/acceptance, and the additive Shipment/Parcel/DeliveryTask operational records. Logistics can record hub receipt/sorting/dispatch, offer/re-offer independent final-mile tasks, validate QR hub-pickup and delivery evidence, and commit final delivery through the shared transition service. Availability, capacity, earnings, photo/signature media, route/location telemetry, returns, and exceptional recovery remain deferred. Operational records preserve the one-organization/one-hub invariant, immutable Seller-selected provider context, one shared waybill, append-only actor/evidence history, and string-backed status columns with PHP enum casts. Subscription billing, records, and enforcement are also deferred.
+The current schema implements Logistics identity, organization, sole hub, Courier affiliation, Seller pickup requests, shared waybills, pickup schedules, first-mile assignment/acceptance, additive Shipment/Parcel/DeliveryTask records, dedicated Sorting lanes/sessions/snapshot items/idempotent scans, and tenant-scoped sort plans with exact postal-code mappings. Logistics can record offline-first hub receipt and sorting, scheduled dispatch, independent final-mile offers, QR hub-pickup/delivery evidence, and final delivery through the shared transition service. Geocoding, postal ranges, handling containers, lane/vehicle capacity, multi-hub transfer, RFID/automation, returns, and exceptional recovery beyond sort holds remain deferred. Operational records preserve the one-organization/one-hub invariant, immutable Seller-selected provider context, one shared waybill/tracking ID, append-only custody history, and string-backed status columns with PHP enum casts. Subscription billing, records, and enforcement are also deferred.
 
 ## Shared contracts
 

@@ -4,8 +4,8 @@ This is the progress log for the external Courier Flutter application. It is sep
 
 ## Backend contract snapshot
 
-- **Backend commit:** `d1abeee73d0141e1fd7dda4bea0ee3fead370378` for the first/final-mile operational contracts, with pickup foundation at `d5c160d4a5a21272e487b6f46a82de35e81395cb`, policy consent at `c3b9cad`, and account/profile-photo behavior at `20afd9f`.
-- **Current API surface:** Courier Logistics discovery, registration, login, generic password-recovery response, `/me`, current-token logout, account profile/password management, private profile-photo upload/retrieval/removal, public Terms/Privacy reads and history, authenticated policy status/acceptance, first-mile and final-mile task reads/acceptance/rejection, waybill candidate resolution, idempotent first-mile Seller handoff, ordered first-mile route manifests, pending final-mile hub-handoff evidence, accepted-task delivery context, revision-checked final-mile movement, P0 QR/reference proof, completion intent/projection, read-only delivered history, and the read-only Courier dashboard scaffold.
+- **Backend documentation baseline:** `4045cc57d6466d7e84f249a6ceaf45cb49a88151` (2026-09-20). Earlier implementation entries retain the commits against which those Flutter changes were built; this documentation sync does not verify a new Flutter build or live API compatibility.
+- **Current documented API surface:** Courier Logistics discovery, registration, login, generic password-recovery response, `/me`, current-token logout, account profile/password management, private profile-photo upload/retrieval/removal, own-vehicle read/edit and independent private OR/CR replacement/read, public Terms/Privacy reads and history, authenticated policy status/acceptance, first-mile task reads/acceptance, final-mile task reads/acceptance/rejection, read-only QR waybill candidate resolution, QR/tracking-ID/Order-reference task verification, idempotent first-mile Seller handoff, ordered first-mile route manifests, pending final-mile hub-handoff evidence, accepted-task delivery context, revision-checked final-mile movement, P0 QR/tracking-ID/Order-reference proof, completion intent/projection, read-only delivered history, and the read-only Courier dashboard scaffold. The current Flutter pickup and proof screens expose QR payload and Order-reference input; tracking-ID input is not yet implemented in those screens.
 - **Deferred:** Dashboard operational aggregation, camera QR decoding, photo/signature proof media, route/location telemetry, chat, earnings, notification transport, and offline synchronization APIs.
 
 ## 2026-09-08
@@ -260,3 +260,12 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Modularized `lib/features/pickup/data/pickup_repository.dart` against pick-up-order v2.6 and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing repository behavior or public imports.
 - Kept `PickupRepository` and `ApiPickupRepository` stable as the public facade, grouping first-mile task/waybill/pickup/route requests, final-mile task/rejection/hub-pickup requests, and shared path/response helpers under `data/repositories/`.
 - Preserved exact endpoint paths, bearer-auth requests, payloads, idempotency headers, response parsing, validation, and first-mile/final-mile separation. No controller, UI, API contract, state transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.
+
+## 2026-09-20
+
+- Synchronized copied shared, domain, Orders, Logistics, and Courier contracts with backend documentation at `4045cc57d6466d7e84f249a6ceaf45cb49a88151`, including tracking-ID waybills, current final-mile dispatch and custody wording, vehicle-management routes, and Linehaul boundaries. Updated the Flutter-owned index and architecture without replacing its design, rules, or historical implementation log. This is documentation-only; Flutter source, live API compatibility, and runtime tests were not verified in this snapshot task.
+
+## 2026-09-20
+
+- Applied the synchronized documentation snapshot to this project's existing `docs/` directory. Kept the Flutter progress history and clarified that the backend's newer tracking-ID contract has not yet been adopted by the Flutter pickup/proof input controls; waybill candidate resolution remains QR-only, and camera decoding remains deferred.
+- Documentation-only verification: compared the synced document inventory, checked the changed Courier spec line counts, and ran `git diff --check`. Flutter source, live API compatibility, and runtime tests were not changed or verified by this documentation sync.

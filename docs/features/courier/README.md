@@ -4,23 +4,23 @@ system: AISLEY
 type: Feature Index
 role: Courier / Rider
 platform: Flutter / Dart
-status: Auth, account management, policy consent, first/final-mile pickup, delivery, and read-only history implemented; route/location/media extensions deferred
+status: Auth, account and vehicle management, policy consent, first/final-mile pickup, delivery, and read-only history implemented; route/location/media extensions deferred
 ---
 
 # Courier feature index
 
 ## Implementation rule
 
-`auth/spec.md`, the Phase 1 `account-management/specs.md`, the policy-consent specification, `accept-delivery-requests/specs.md`, `pick-up-order/specs.md`, `delivery-order/specs.md`, `proof-of-delivery/specs.md`, `complete-delivery/specs.md`, and `delivery-history/specs.md` describe the currently implemented API slices. The remaining Courier specifications are planning drafts copied for future design work. They are not endpoint contracts and must not be used to invent Flutter requests, response fields, statuses, providers, or offline behavior.
+`auth/spec.md`, `account-management/specs.md`, `../logistics/vehicle-fleet-management/specs.md` (the shared Courier/Logistics vehicle contract), the policy-consent specification, `accept-delivery-requests/specs.md`, `pick-up-order/specs.md`, `delivery-order/specs.md`, `proof-of-delivery/specs.md`, `complete-delivery/specs.md`, and `delivery-history/specs.md` describe currently implemented API slices. The remaining Courier specifications are planning drafts copied for future design work. They are not endpoint contracts and must not be used to invent Flutter requests, response fields, statuses, providers, or offline behavior.
 
-Before implementing any other non-auth feature, the backend must first provide:
+Before implementing a remaining draft feature, verify that the backend provides:
 
 1. an approved feature specification;
 2. a versioned `/api/v1/courier/...` endpoint contract with request and response examples;
-3. the shared Shipment/Delivery Task schema and transition rules; and
+3. any required shared Shipment/Delivery Task schema and transition rules; and
 4. integration/contract-test coverage.
 
-Until then, implement only a truthful scaffold or unavailable state for the missing capability. Do not fabricate delivery requests, task counts, routes, proof requirements, earnings, notifications, or history.
+Until then, implement only a truthful scaffold or unavailable state for that missing capability. Do not fabricate task counts, route/location telemetry, proof media, earnings, or notifications; the working task, P0 proof, and read-only history APIs above remain available.
 
 ## Current Courier API
 
@@ -36,6 +36,10 @@ Until then, implement only a truthful scaffold or unavailable state for the miss
 - `POST /api/v1/courier/account/profile-photo` (authenticated multipart upload)
 - `GET /api/v1/courier/account/profile-photo` (authenticated private stream)
 - `DELETE /api/v1/courier/account/profile-photo` (authenticated idempotent removal)
+- `GET /api/v1/courier/vehicle` (authenticated own-vehicle read)
+- `PATCH /api/v1/courier/vehicle` (authenticated revision-checked own-vehicle update)
+- `POST /api/v1/courier/vehicle/documents/{kind}` (authenticated independent OR/CR replacement)
+- `GET /api/v1/courier/vehicle/documents/{kind}` (authenticated private current-document read)
 - `GET /api/v1/platform/policies/{type}` (public current Terms/Privacy read)
 - `GET /api/v1/platform/policies/{type}/history` (public published history)
 - `GET /api/v1/platform/policies/{type}/history/{version}` (public exact history read)
@@ -56,7 +60,7 @@ Until then, implement only a truthful scaffold or unavailable state for the miss
 - `GET /api/v1/courier/tasks/{task}/completion` and `POST /api/v1/courier/tasks/{task}/completion` (authenticated completion projection/intent)
 - `GET /api/v1/courier/delivery-history` and `GET /api/v1/courier/delivery-history/{task}` (authenticated delivered history)
 
-All other routes shown in the draft files are conceptual placeholders. They are not implemented merely because they appear in a specification. The client deliberately uses text/area delivery context, revision-checked movement, P0 QR/reference proof, and read-only completion/history projections; camera scanning, route/location telemetry, and proof media remain unavailable.
+All other routes shown in the draft files are conceptual placeholders. They are not implemented merely because they appear in a specification. The backend documents QR, tracking-ID, and Order-reference proof, while the current Flutter client exposes QR payload and Order-reference input only. The client uses text/area delivery context, revision-checked movement, and read-only completion/history projections; tracking-ID input, camera scanning, route/location telemetry, and proof media remain unavailable in Flutter. Logistics-owned Linehaul and Sort plan routes are not Courier API routes.
 
 ## Canonical constraints for future features
 
