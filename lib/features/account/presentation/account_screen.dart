@@ -8,7 +8,7 @@ import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../policy/presentation/controllers/policy_controller.dart';
 import '../../policy/presentation/policy_screen.dart';
 import '../domain/account_models.dart';
-import '../../vehicle/presentation/vehicle_controller.dart';
+import '../../vehicle/presentation/controllers/vehicle_controller.dart';
 import '../../vehicle/presentation/vehicle_screen.dart';
 import 'controllers/account_controller.dart';
 

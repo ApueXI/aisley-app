@@ -19,7 +19,7 @@ import '../features/policy/presentation/controllers/policy_controller.dart';
 import '../features/pickup/data/pickup_repository.dart';
 import '../features/pickup/presentation/controllers/pickup_controller.dart';
 import '../features/vehicle/data/vehicle_repository.dart';
-import '../features/vehicle/presentation/vehicle_controller.dart';
+import '../features/vehicle/presentation/controllers/vehicle_controller.dart';
 import 'courier_app.dart';
 
 class CourierBootstrapApp extends StatefulWidget {

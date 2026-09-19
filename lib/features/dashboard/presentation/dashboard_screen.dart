@@ -14,7 +14,7 @@ import '../../history/presentation/history_screen.dart';
 import '../../policy/presentation/controllers/policy_controller.dart';
 import '../../pickup/presentation/controllers/pickup_controller.dart';
 import '../../pickup/presentation/pickup_screen.dart';
-import '../../vehicle/presentation/vehicle_controller.dart';
+import '../../vehicle/presentation/controllers/vehicle_controller.dart';
 import '../domain/dashboard_models.dart';
 
 part 'components/dashboard_body.dart';
