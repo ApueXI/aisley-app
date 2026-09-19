@@ -1,4 +1,4 @@
-part of 'account_screen.dart';
+part of '../account_screen.dart';
 
 extension _AccountScreenProfilePhoto on _AccountScreenState {
   Future<void> _pickProfilePhoto() async {

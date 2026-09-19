@@ -1,4 +1,4 @@
-part of 'account_screen.dart';
+part of '../account_screen.dart';
 
 class _AccountHeader extends StatelessWidget {
   const _AccountHeader({required this.account, this.profilePhotoBytes});

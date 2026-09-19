@@ -196,3 +196,8 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Modularized `lib/features/account/presentation/` by responsibility without changing the account flow, public widget/controller inputs, API routes, request payloads, or state transitions.
 - Split account profile, password, profile-photo workflow/state, screen composition, profile-photo view/workflow, security, and reusable account widgets into focused Dart part files; all hand-written files remain below the modularity guideline's approximate 400-line threshold.
 - Verification: `flutter analyze`, focused account tests, `flutter test`, and `git diff --check` pass. Backend/API contract remains the existing account-management snapshot; no Laravel code changed.
+
+## 2026-09-19
+
+- Grouped all Account screen component part files under `lib/features/account/presentation/components/` and updated only the Dart library paths needed to preserve the existing implementation.
+- No account flow, controller behavior, API contract, widget inputs, or state transition changed. Verification: `flutter analyze`, `flutter test`, and `git diff --check` pass.

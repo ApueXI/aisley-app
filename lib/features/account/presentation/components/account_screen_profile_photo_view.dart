@@ -1,4 +1,4 @@
-part of 'account_screen.dart';
+part of '../account_screen.dart';
 
 extension _AccountScreenProfilePhotoView on _AccountScreenState {
   Widget _buildProfilePhotoSection(

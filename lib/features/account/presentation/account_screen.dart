@@ -12,12 +12,12 @@ import '../../vehicle/presentation/vehicle_controller.dart';
 import '../../vehicle/presentation/vehicle_screen.dart';
 import 'account_controller.dart';
 
-part 'account_screen_account.dart';
-part 'account_screen_content.dart';
-part 'account_screen_profile_photo.dart';
-part 'account_screen_profile_photo_view.dart';
-part 'account_screen_security.dart';
-part 'account_screen_widgets.dart';
+part 'components/account_screen_account.dart';
+part 'components/account_screen_content.dart';
+part 'components/account_screen_profile_photo.dart';
+part 'components/account_screen_profile_photo_view.dart';
+part 'components/account_screen_security.dart';
+part 'components/account_screen_widgets.dart';
 
 const _maxProfilePhotoBytes = 10 * 1024 * 1024;
 const _profilePhotoTypeGroup = XTypeGroup(
