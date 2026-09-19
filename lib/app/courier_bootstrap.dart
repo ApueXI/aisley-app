@@ -13,7 +13,7 @@ import '../features/dashboard/data/dashboard_repository.dart';
 import '../features/delivery/data/delivery_repository.dart';
 import '../features/delivery/presentation/controllers/delivery_controller.dart';
 import '../features/history/data/history_repository.dart';
-import '../features/history/presentation/history_controller.dart';
+import '../features/history/presentation/controllers/history_controller.dart';
 import '../features/policy/data/policy_repository.dart';
 import '../features/policy/presentation/policy_controller.dart';
 import '../features/pickup/data/pickup_repository.dart';

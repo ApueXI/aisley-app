@@ -224,3 +224,9 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Modularized `lib/features/delivery/presentation/` against delivery-order v1.3, proof-of-delivery v1.5, complete-delivery v1.5, and pick-up-order v2.6 using backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378`.
 - Kept `DeliveryScreen` and `DeliveryTaskScreen` public entry points stable, grouped list/detail/context/movement/proof-completion/status widgets under `presentation/components/`, and grouped delivery reads, actions, errors, reconciliation, and pending-attempt state under `presentation/controllers/`.
 - No endpoint, request/response mapping, status transition, idempotency, retry, proof/completion behavior, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/history/presentation/` against delivery-history v1.4 and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing the read-only final-mile history flow or API behavior.
+- Kept `HistoryScreen` and `HistoryDetailScreen` public entry points stable, grouped list/detail/shared status widgets under `presentation/components/`, and moved the cohesive history read controller under `presentation/controllers/`.
+- Preserved Courier-scoped delivered-task reads, bounded cursor behavior, privacy-safe projections, loading/empty/unavailable/retry/consent states, and detail navigation. No endpoint, response parsing, state transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.
