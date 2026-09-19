@@ -9,7 +9,7 @@ import 'package:aisley_app/features/account/domain/account_models.dart';
 import 'package:aisley_app/features/account/presentation/controllers/account_controller.dart';
 import 'package:aisley_app/features/auth/data/auth_repository.dart';
 import 'package:aisley_app/features/auth/domain/auth_models.dart';
-import 'package:aisley_app/features/auth/presentation/auth_controller.dart';
+import 'package:aisley_app/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:aisley_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:aisley_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:aisley_app/features/dashboard/presentation/dashboard_screen.dart';

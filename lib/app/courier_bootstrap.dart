@@ -8,7 +8,7 @@ import '../core/security/token_storage.dart';
 import '../features/account/data/account_repository.dart';
 import '../features/account/presentation/controllers/account_controller.dart';
 import '../features/auth/data/auth_repository.dart';
-import '../features/auth/presentation/auth_controller.dart';
+import '../features/auth/presentation/controllers/auth_controller.dart';
 import '../features/dashboard/data/dashboard_repository.dart';
 import '../features/delivery/data/delivery_repository.dart';
 import '../features/delivery/presentation/delivery_controller.dart';

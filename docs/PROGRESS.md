@@ -206,3 +206,9 @@ This is the progress log for the external Courier Flutter application. It is sep
 
 - Grouped the Account controller facade and workflow/state part files under `lib/features/account/presentation/controllers/` and updated their consumers to the new import path.
 - This was a path-only organization change: controller logic, account flow, API contract, and state transitions are unchanged. Verification: `flutter analyze`, `flutter test`, and `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/auth/presentation/` against the Courier auth contract and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing authentication or registration flow.
+- Grouped Auth controller workflows/state under `presentation/controllers/` and split registration data loading, submission/evidence handling, form composition, address, field, section, and result widgets under `presentation/components/`; login, blocked, and registration screens remain the public presentation entry points.
+- Updated only imports and Dart part paths for consumers. No API route, request field, secure-storage behavior, state transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.

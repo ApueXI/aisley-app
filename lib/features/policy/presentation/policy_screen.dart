@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../auth/presentation/auth_controller.dart';
+import '../../auth/presentation/controllers/auth_controller.dart';
 import '../domain/policy_models.dart';
 import 'policy_controller.dart';
 

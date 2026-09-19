@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
-import '../../auth/presentation/auth_controller.dart';
+import '../../auth/presentation/controllers/auth_controller.dart';
 import '../domain/vehicle_models.dart';
 import 'vehicle_controller.dart';
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../auth/presentation/auth_controller.dart';
+import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../policy/presentation/policy_controller.dart';
 import '../../policy/presentation/policy_screen.dart';
 import '../../pickup/domain/pickup_models.dart';
