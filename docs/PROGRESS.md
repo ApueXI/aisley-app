@@ -218,3 +218,9 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Modularized `lib/features/dashboard/presentation/` against the read-only Courier dashboard scaffold contract and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing dashboard flow or API behavior.
 - Kept `DashboardScreen` as the public composition/navigation entry point, grouped welcome/section cards and loading/error/unavailable status views under `presentation/components/`, and placed the existing Dashboard-specific `AuthController` extension under `presentation/controllers/` without changing its state or dependency wiring.
 - No endpoint, request, response parsing, refresh behavior, navigation action, authorization state, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/delivery/presentation/` against delivery-order v1.3, proof-of-delivery v1.5, complete-delivery v1.5, and pick-up-order v2.6 using backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378`.
+- Kept `DeliveryScreen` and `DeliveryTaskScreen` public entry points stable, grouped list/detail/context/movement/proof-completion/status widgets under `presentation/components/`, and grouped delivery reads, actions, errors, reconciliation, and pending-attempt state under `presentation/controllers/`.
+- No endpoint, request/response mapping, status transition, idempotency, retry, proof/completion behavior, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), `git diff --check` pass.

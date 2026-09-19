@@ -11,7 +11,7 @@ import '../features/auth/data/auth_repository.dart';
 import '../features/auth/presentation/controllers/auth_controller.dart';
 import '../features/dashboard/data/dashboard_repository.dart';
 import '../features/delivery/data/delivery_repository.dart';
-import '../features/delivery/presentation/delivery_controller.dart';
+import '../features/delivery/presentation/controllers/delivery_controller.dart';
 import '../features/history/data/history_repository.dart';
 import '../features/history/presentation/history_controller.dart';
 import '../features/policy/data/policy_repository.dart';

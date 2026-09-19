@@ -7,7 +7,7 @@ import '../../account/presentation/controllers/account_controller.dart';
 import '../../account/presentation/account_screen.dart';
 import '../../auth/domain/auth_models.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
-import '../../delivery/presentation/delivery_controller.dart';
+import '../../delivery/presentation/controllers/delivery_controller.dart';
 import '../../delivery/presentation/delivery_screen.dart';
 import '../../history/presentation/history_controller.dart';
 import '../../history/presentation/history_screen.dart';
