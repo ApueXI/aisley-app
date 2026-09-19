@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../features/account/presentation/account_controller.dart';
+import '../features/account/presentation/controllers/account_controller.dart';
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/auth/presentation/blocked_screen.dart';
 import '../features/auth/presentation/login_screen.dart';

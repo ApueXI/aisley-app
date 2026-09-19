@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../core/networking/api_client.dart';
-import '../../../core/networking/api_contract_exception.dart';
-import '../../../core/security/token_storage.dart';
-import '../data/account_repository.dart';
-import '../domain/account_models.dart';
+import '../../../../core/networking/api_client.dart';
+import '../../../../core/networking/api_contract_exception.dart';
+import '../../../../core/security/token_storage.dart';
+import '../../data/account_repository.dart';
+import '../../domain/account_models.dart';
 
 part 'account_controller_profile.dart';
 part 'account_controller_password.dart';

@@ -201,3 +201,8 @@ This is the progress log for the external Courier Flutter application. It is sep
 
 - Grouped all Account screen component part files under `lib/features/account/presentation/components/` and updated only the Dart library paths needed to preserve the existing implementation.
 - No account flow, controller behavior, API contract, widget inputs, or state transition changed. Verification: `flutter analyze`, `flutter test`, and `git diff --check` pass.
+
+## 2026-09-19
+
+- Grouped the Account controller facade and workflow/state part files under `lib/features/account/presentation/controllers/` and updated their consumers to the new import path.
+- This was a path-only organization change: controller logic, account flow, API contract, and state transitions are unchanged. Verification: `flutter analyze`, `flutter test`, and `git diff --check` pass.

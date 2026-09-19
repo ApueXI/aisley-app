@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:aisley_app/core/networking/api_client.dart';
 import 'package:aisley_app/features/account/data/account_repository.dart';
 import 'package:aisley_app/features/account/domain/account_models.dart';
-import 'package:aisley_app/features/account/presentation/account_controller.dart';
+import 'package:aisley_app/features/account/presentation/controllers/account_controller.dart';
 
 void main() {
   test(

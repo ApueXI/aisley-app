@@ -10,7 +10,7 @@ import '../../policy/presentation/policy_screen.dart';
 import '../domain/account_models.dart';
 import '../../vehicle/presentation/vehicle_controller.dart';
 import '../../vehicle/presentation/vehicle_screen.dart';
-import 'account_controller.dart';
+import 'controllers/account_controller.dart';
 
 part 'components/account_screen_account.dart';
 part 'components/account_screen_content.dart';

@@ -6,7 +6,7 @@ import '../core/config/app_config.dart';
 import '../core/networking/api_client.dart';
 import '../core/security/token_storage.dart';
 import '../features/account/data/account_repository.dart';
-import '../features/account/presentation/account_controller.dart';
+import '../features/account/presentation/controllers/account_controller.dart';
 import '../features/auth/data/auth_repository.dart';
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/dashboard/data/dashboard_repository.dart';
