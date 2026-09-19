@@ -248,3 +248,9 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Modularized `lib/features/vehicle/presentation/` against vehicle-fleet-management v2.2 and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing vehicle account flow or API behavior.
 - Kept `VehicleScreen` and `VehicleController` public entry points stable, grouped vehicle details, document cards/previews, actions, and shared validation/status widgets under `presentation/components/`, and grouped vehicle reads, field updates, document operations, errors, validation, and pending attempts under `presentation/controllers/`.
 - Preserved independent vehicle-field saves and OR/CR replacement, revision and idempotency handling, private document reads, uncertain-response reconciliation, server-authoritative ownership/approval, upload validation, retry, offline, consent, authorization, and stale-conflict states. No endpoint, request/response mapping, state transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/pickup/domain/pickup_models.dart` against pick-up-order v2.6 and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing pickup, delivery, or history behavior.
+- Kept the existing public model import path and symbols stable, grouping pickup task/reference/location DTOs, pickup action responses, route-manifest DTOs, and shared JSON contract helpers under `domain/models/`.
+- Preserved first-mile/final-mile status semantics, nullable field handling, server revision/evidence projections, route-stop ordering data, and JSON parsing. No endpoint, request/response mapping, state transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.
