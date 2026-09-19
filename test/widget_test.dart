@@ -15,7 +15,7 @@ import 'package:aisley_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:aisley_app/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:aisley_app/features/policy/data/policy_repository.dart';
 import 'package:aisley_app/features/policy/domain/policy_models.dart';
-import 'package:aisley_app/features/policy/presentation/policy_controller.dart';
+import 'package:aisley_app/features/policy/presentation/controllers/policy_controller.dart';
 
 void main() {
   testWidgets('Courier can open the registration form from sign in', (

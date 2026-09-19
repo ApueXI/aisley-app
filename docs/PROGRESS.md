@@ -236,3 +236,9 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Modularized `lib/features/pickup/presentation/` against pick-up-order v2.6 and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing first-mile or final-mile pickup flow or API behavior.
 - Kept `PickupScreen`, `PickupTaskDetailScreen`, and `PickupRouteScreen` public entry points stable, grouped list/task-detail/route/status widgets under `presentation/components/`, and grouped pickup reads, actions, errors, state, and pending attempts under `presentation/controllers/`.
 - Preserved separate Seller pickup confirmation and hub-pickup evidence submission, server-authoritative status and validation, idempotency/retry behavior, route-manifest states, privacy, and offline/error handling. No endpoint, request/response mapping, status transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/policy/presentation/` against policy-viewing-consent v1.4 and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing policy viewing, consent, history, or sign-out flow.
+- Kept `PolicyScreen`, `PolicyHistoryScreen`, and `PolicyVersionScreen` public entry points stable, grouped current-consent, history, historical-version, and shared status widgets under `presentation/components/`, and grouped policy reads, history reads, acceptance, and error mapping under `presentation/controllers/`.
+- Preserved public Terms/Privacy reads, authenticated status and explicit version acceptance, stale-version checks, private/no-store consent behavior, server-authoritative consent state, retry/error handling, and safe policy rendering. No endpoint, request/response mapping, state transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.

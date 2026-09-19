@@ -5,7 +5,7 @@ import 'package:aisley_app/core/networking/api_contract_exception.dart';
 import 'package:aisley_app/core/security/token_storage.dart';
 import 'package:aisley_app/features/policy/data/policy_repository.dart';
 import 'package:aisley_app/features/policy/domain/policy_models.dart';
-import 'package:aisley_app/features/policy/presentation/policy_controller.dart';
+import 'package:aisley_app/features/policy/presentation/controllers/policy_controller.dart';
 
 void main() {
   test(
@@ -150,10 +150,7 @@ void main() {
     await controller.load();
 
     expect(controller.state, PolicyViewState.retryableError);
-    expect(
-      controller.errorMessage,
-      contains('policy.consent.flags'),
-    );
+    expect(controller.errorMessage, contains('policy.consent.flags'));
   });
 
   test('422 keeps the document open when confirmation is rejected', () async {

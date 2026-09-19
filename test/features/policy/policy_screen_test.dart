@@ -9,7 +9,7 @@ import 'package:aisley_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:aisley_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:aisley_app/features/policy/data/policy_repository.dart';
 import 'package:aisley_app/features/policy/domain/policy_models.dart';
-import 'package:aisley_app/features/policy/presentation/policy_controller.dart';
+import 'package:aisley_app/features/policy/presentation/controllers/policy_controller.dart';
 import 'package:aisley_app/features/policy/presentation/policy_screen.dart';
 
 void main() {

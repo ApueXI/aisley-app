@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../auth/presentation/controllers/auth_controller.dart';
-import '../../policy/presentation/policy_controller.dart';
+import '../../policy/presentation/controllers/policy_controller.dart';
 import '../../policy/presentation/policy_screen.dart';
 import '../domain/pickup_models.dart';
 import 'controllers/pickup_controller.dart';

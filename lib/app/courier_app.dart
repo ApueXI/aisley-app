@@ -8,7 +8,7 @@ import '../features/auth/presentation/registration_screen.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
 import '../features/delivery/presentation/controllers/delivery_controller.dart';
 import '../features/history/presentation/controllers/history_controller.dart';
-import '../features/policy/presentation/policy_controller.dart';
+import '../features/policy/presentation/controllers/policy_controller.dart';
 import '../features/policy/presentation/policy_screen.dart';
 import '../features/pickup/presentation/controllers/pickup_controller.dart';
 import '../features/vehicle/presentation/vehicle_controller.dart';

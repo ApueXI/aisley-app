@@ -11,7 +11,7 @@ import '../../delivery/presentation/controllers/delivery_controller.dart';
 import '../../delivery/presentation/delivery_screen.dart';
 import '../../history/presentation/controllers/history_controller.dart';
 import '../../history/presentation/history_screen.dart';
-import '../../policy/presentation/policy_controller.dart';
+import '../../policy/presentation/controllers/policy_controller.dart';
 import '../../pickup/presentation/controllers/pickup_controller.dart';
 import '../../pickup/presentation/pickup_screen.dart';
 import '../../vehicle/presentation/vehicle_controller.dart';
