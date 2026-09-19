@@ -10,7 +10,7 @@ import '../features/delivery/presentation/controllers/delivery_controller.dart';
 import '../features/history/presentation/controllers/history_controller.dart';
 import '../features/policy/presentation/policy_controller.dart';
 import '../features/policy/presentation/policy_screen.dart';
-import '../features/pickup/presentation/pickup_controller.dart';
+import '../features/pickup/presentation/controllers/pickup_controller.dart';
 import '../features/vehicle/presentation/vehicle_controller.dart';
 
 class CourierApp extends StatelessWidget {

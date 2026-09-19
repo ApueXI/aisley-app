@@ -17,7 +17,7 @@ import '../features/history/presentation/controllers/history_controller.dart';
 import '../features/policy/data/policy_repository.dart';
 import '../features/policy/presentation/policy_controller.dart';
 import '../features/pickup/data/pickup_repository.dart';
-import '../features/pickup/presentation/pickup_controller.dart';
+import '../features/pickup/presentation/controllers/pickup_controller.dart';
 import '../features/vehicle/data/vehicle_repository.dart';
 import '../features/vehicle/presentation/vehicle_controller.dart';
 import 'courier_app.dart';

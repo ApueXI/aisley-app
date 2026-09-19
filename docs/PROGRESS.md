@@ -230,3 +230,9 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Modularized `lib/features/history/presentation/` against delivery-history v1.4 and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing the read-only final-mile history flow or API behavior.
 - Kept `HistoryScreen` and `HistoryDetailScreen` public entry points stable, grouped list/detail/shared status widgets under `presentation/components/`, and moved the cohesive history read controller under `presentation/controllers/`.
 - Preserved Courier-scoped delivered-task reads, bounded cursor behavior, privacy-safe projections, loading/empty/unavailable/retry/consent states, and detail navigation. No endpoint, response parsing, state transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/pickup/presentation/` against pick-up-order v2.6 and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing first-mile or final-mile pickup flow or API behavior.
+- Kept `PickupScreen`, `PickupTaskDetailScreen`, and `PickupRouteScreen` public entry points stable, grouped list/task-detail/route/status widgets under `presentation/components/`, and grouped pickup reads, actions, errors, state, and pending attempts under `presentation/controllers/`.
+- Preserved separate Seller pickup confirmation and hub-pickup evidence submission, server-authoritative status and validation, idempotency/retry behavior, route-manifest states, privacy, and offline/error handling. No endpoint, request/response mapping, status transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.

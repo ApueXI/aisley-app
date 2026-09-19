@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:aisley_app/core/networking/api_client.dart';
 import 'package:aisley_app/features/pickup/data/pickup_repository.dart';
 import 'package:aisley_app/features/pickup/domain/pickup_models.dart';
-import 'package:aisley_app/features/pickup/presentation/pickup_controller.dart';
+import 'package:aisley_app/features/pickup/presentation/controllers/pickup_controller.dart';
 
 void main() {
   test('loads first-mile and final-mile work as separate sections', () async {
