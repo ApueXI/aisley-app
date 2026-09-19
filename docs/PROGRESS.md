@@ -190,3 +190,9 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Added separate dirty-state and retry handling for vehicle fields, Official Receipt, and Certificate of Registration, including UUID idempotency keys, stale-revision refresh without discarding local edits, uncertain-response reconciliation, field-addressable errors, secure-storage, consent, authorization, rate-limit, timeout, offline, and unavailable states.
 - Added client-side image convenience checks for JPEG/JPG/PNG/WebP files under 10 MiB while keeping Laravel authoritative, and ensured private document previews use authenticated bearer requests without rendering raw paths or URLs.
 - Added repository, controller, and widget coverage for exact routes/fields, bearer auth, revision/idempotency behavior, private documents, validation errors, stale conflicts, uncertain retry, independent OR/CR handling, and screen states. Verification: `flutter analyze`, `flutter test`, and `git diff --check` pass.
+
+## 2026-09-19
+
+- Modularized `lib/features/account/presentation/` by responsibility without changing the account flow, public widget/controller inputs, API routes, request payloads, or state transitions.
+- Split account profile, password, profile-photo workflow/state, screen composition, profile-photo view/workflow, security, and reusable account widgets into focused Dart part files; all hand-written files remain below the modularity guideline's approximate 400-line threshold.
+- Verification: `flutter analyze`, focused account tests, `flutter test`, and `git diff --check` pass. Backend/API contract remains the existing account-management snapshot; no Laravel code changed.
