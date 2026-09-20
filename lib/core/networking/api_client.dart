@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
 import '../security/token_storage.dart';
+import 'network_socket_exception.dart';
 
 class ApiClient {
   ApiClient({
@@ -171,7 +171,7 @@ class ApiClient {
         'The request timed out.',
         networkFailure: ApiNetworkFailure.timeout,
       );
-    } on SocketException {
+    } on NetworkSocketException {
       throw const ApiException.network('The service could not be reached.');
     } on http.ClientException {
       throw const ApiException.network('The service could not be reached.');
@@ -260,7 +260,7 @@ class ApiClient {
         'The request timed out.',
         networkFailure: ApiNetworkFailure.timeout,
       );
-    } on SocketException {
+    } on NetworkSocketException {
       throw const ApiException.network('The service could not be reached.');
     } on http.ClientException {
       throw const ApiException.network('The service could not be reached.');

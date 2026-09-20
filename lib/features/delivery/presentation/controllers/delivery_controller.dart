@@ -207,7 +207,7 @@ class DeliveryController extends ChangeNotifier {
   }
 
   static bool _validIdentifier(String type, String identifier) {
-    return (type == 'qr' || type == 'order_id') &&
+    return (type == 'qr' || type == 'tracking_id' || type == 'order_id') &&
         identifier.trim().isNotEmpty &&
         identifier.length <= 128;
   }

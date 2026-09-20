@@ -1,6 +1,26 @@
 part of '../pickup_screen.dart';
 
 extension _PickupTaskInteractions on _PickupTaskDetailScreenState {
+  Future<void> _openScanner() async {
+    final candidate = await Navigator.of(_pickupContext)
+        .push<BarcodeScanCandidate>(
+          MaterialPageRoute<BarcodeScanCandidate>(
+            builder: (_) => const BarcodeScannerScreen(),
+          ),
+        );
+    if (candidate == null || !_pickupMounted) {
+      return;
+    }
+    _identifierController.text = candidate.value;
+    _pickupSetState(() {
+      _identifierType = candidate.identifierType;
+      _resolvedForThisTask = null;
+      _resolutionMessage =
+          'Captured ${candidate.typeLabel}. Review the value, then confirm the pickup action.';
+    });
+    _pickupController.clearResolution();
+  }
+
   Future<void> _confirmAcceptTask(PickupTask task) async {
     final shouldAccept = await showDialog<bool>(
       context: _pickupContext,

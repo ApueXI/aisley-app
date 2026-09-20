@@ -60,9 +60,9 @@ Until then, implement only a truthful scaffold or unavailable state for that mis
 - `GET /api/v1/courier/tasks/{task}/completion` and `POST /api/v1/courier/tasks/{task}/completion` (authenticated completion projection/intent)
 - `GET /api/v1/courier/delivery-history` and `GET /api/v1/courier/delivery-history/{task}` (authenticated delivered history)
 
-All other routes shown in the draft files are conceptual placeholders. They are not implemented merely because they appear in a specification. The backend documents QR, tracking-ID, and Order-reference proof, while the current Flutter client exposes QR payload and Order-reference input only. The client uses text/area delivery context, revision-checked movement, and read-only completion/history projections; tracking-ID input, camera scanning, route/location telemetry, and proof media remain unavailable in Flutter. Logistics-owned Linehaul and Sort plan routes are not Courier API routes.
+All other routes shown in the draft files are conceptual placeholders. They are not implemented merely because they appear in a specification. The backend documents QR, tracking-ID, and Order-reference proof, and the Flutter client exposes all three input types plus Android/web-server camera candidates. The client uses text/area delivery context, revision-checked movement, and read-only completion/history projections; route/location telemetry and proof media remain unavailable in Flutter. Linux remains manual-input only. Logistics-owned Linehaul and Sort plan routes are not Courier API routes.
 
-Planned Flutter camera work targets the Android release APK and the same Flutter app served on a fixed localhost `web-server` port. It covers QR and Code 128 tracking-ID scanning for pickup and delivery proof, with manual fallback and explicit server-confirmed actions. Camera scanning is not implemented yet and does not add a Courier webapp or new backend endpoint.
+Flutter camera work targets the Android release APK and the same Flutter app served at `http://localhost:8765` on a fixed localhost `web-server` port. It covers QR and Code 128 tracking-ID scanning for pickup and delivery proof, with manual fallback and explicit server-confirmed actions. It does not add a Courier webapp or new backend endpoint; physical camera acceptance remains a release verification task.
 
 ## Canonical constraints for future features
 
@@ -74,4 +74,4 @@ Planned Flutter camera work targets the Android release APK and the same Flutter
 
 ## Draft files
 
-The following files remain backlog material: Chat/Messaging, Dashboard operational aggregation, Incident Reporting, Profit Dashboard, and route/location extensions. Acceptance, Deliver Order movement, P0 Proof of Delivery, Complete Delivery intent, and Delivery History are implemented through the dedicated Flutter flows and their owning contracts; photo/signature proof and camera scanning remain deferred.
+The following files remain backlog material: Chat/Messaging, Dashboard operational aggregation, Incident Reporting, Profit Dashboard, and route/location extensions. Acceptance, Deliver Order movement, P0 Proof of Delivery, Complete Delivery intent, and Delivery History are implemented through the dedicated Flutter flows and their owning contracts; photo/signature proof remains deferred.

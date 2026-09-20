@@ -73,7 +73,7 @@ extension DeliveryControllerActions on DeliveryController {
     )) {
       _setLocalValidationError(
         task,
-        'Choose QR or enter a public Order reference up to 128 characters.',
+        'Choose QR, tracking ID, or enter a public Order reference up to 128 characters.',
       );
       return false;
     }

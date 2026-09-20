@@ -2,7 +2,7 @@
 
 Aisley Courier is the external Flutter/Dart application for Aisley Couriers. It is a Courier client, not a Customer, Seller, Admin, or Logistics dashboard.
 
-The current app provides Courier authentication, account and vehicle management, policy consent, first- and final-mile pickup, delivery proof/completion, and read-only delivery history. The dashboard's operational aggregation remains a scaffold. Camera barcode scanning is planned for the Android release APK and local Flutter web-server testing; current verification uses pasted or scanner-keyboard QR payloads and manual Order references. See [docs/README.md](docs/README.md) and [docs/PROGRESS.md](docs/PROGRESS.md) for the current boundary.
+The current app provides Courier authentication, account and vehicle management, policy consent, first- and final-mile pickup, delivery proof/completion, and read-only delivery history. The dashboard's operational aggregation remains a scaffold. Camera barcode scanning is implemented for the Android release APK and local Flutter web-server testing; Linux remains manual-input only. See [docs/README.md](docs/README.md) and [docs/PROGRESS.md](docs/PROGRESS.md) for the current boundary.
 
 ## Requirements
 
@@ -108,12 +108,12 @@ flutter build linux --release
 The existing `web/` runner serves the **same Flutter Courier app** for local development and camera testing. It is not a separate Courier web dashboard. Use a fixed local origin so API CORS and camera permissions can be tested consistently:
 
 ```bash
-flutter run -d web-server --web-hostname localhost --web-port 8080
+flutter run -d web-server --web-hostname localhost --web-port 8765
 ```
 
-Open `http://localhost:8080` in your browser. Browser webcam access requires permission and a secure context such as localhost; a non-local browser test needs HTTPS. Allow the exact Flutter origin in the Laravel API's CORS configuration. See the [Flutter web-server guide](https://docs.flutter.dev/platform-integration/web/setup) and [browser camera requirements](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia).
+Open `http://localhost:8765` in your browser. Browser webcam access requires permission and a secure context such as localhost; a non-local browser test needs HTTPS. Allow the exact Flutter origin in the Laravel API's CORS configuration. See the [Flutter web-server guide](https://docs.flutter.dev/platform-integration/web/setup) and [browser camera requirements](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia).
 
-Camera scanning is **not implemented yet**. Serving the app on port 8080 does not enable the webcam by itself. The current direct `dart:io` import in the API client must be made web-compatible, and the existing secure-storage package's browser behavior must be reviewed before authenticated web testing. Do not use a plaintext token workaround. Once implemented, test QR and Code 128 scans plus permission denial and manual fallback in this browser run.
+Camera scanning uses the shared Flutter scanner for QR and Code 128 tracking-ID candidates. It fills pickup or proof input and never submits an action automatically. If permission or browser camera support is unavailable, use manual input; do not use a plaintext token workaround. The API must allow the exact localhost origin for authenticated web testing.
 
 ## Run on Android and build an APK
 
@@ -123,7 +123,7 @@ Android uses the existing `android/` runner. To build an installable release APK
 flutter build apk --release
 ```
 
-The output is `build/app/outputs/flutter-apk/app-release.apk`. The current APK does not yet have camera scanning. After the Flutter scanner is implemented, verify Android camera permission and QR/Code 128 scanning on an installed release APK, with manual entry available when permission is denied. A successful build alone does not prove the camera flow works.
+The output is `build/app/outputs/flutter-apk/app-release.apk`. The release APK includes the camera permission and shared QR/Code 128 scanner. Verify camera permission and successful scans on an installed release APK; manual entry remains available when permission is denied. A successful build alone does not prove the physical camera flow works.
 
 ## Run on Windows desktop
 
