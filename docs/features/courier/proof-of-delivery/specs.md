@@ -129,7 +129,7 @@ final-mile task
 - Any media delivery uses an authorized application stream or short-lived capability URL and `no-store`; raw blob paths never leave the server.
 - Evidence correction, deletion, retention, and dispute access append history rather than changing the original event.
 
-### Upload and partial-failure rules
+### Deferred media upload and partial-failure rules
 
 - Validate size, detected MIME, signature, image decode, and resource limits before permanent storage; reject malformed or spoofed files with `422`.
 - Store media in the configured private disk/object store and persist only generated object metadata. Never embed cloud credentials in Flutter.
@@ -148,13 +148,13 @@ final-mile task
 
 ### Flutter proof screen
 
-- Show task/Order reference, destination context, required methods, evidence status, upload progress, and the next server-authorized action.
+- Show task/Order reference, destination context, the available identifier method, evidence status, and the next server-authorized action. Upload progress belongs to a future approved media-proof flow.
 - Camera scanner uses the same Flutter implementation in the Android release APK and fixed-port `http://localhost:8765` Flutter web-server run. QR yields `identifier_type: qr`; the waybill Code 128 value yields `identifier_type: tracking_id`. Manual Order/tracking-ID input remains available when camera access fails.
 - Camera decoding fills an untrusted candidate only; show the matching task/Order context and require an explicit **Submit proof** action. Do not call the first-mile waybill resolver for delivery proof, auto-submit repeated frames, or mark an HTTP 202 response as delivered.
 - Ask for camera access only when the scan view opens; handle permission denial, missing/busy camera, unsupported browser, and insecure origin with a text fallback. Release the camera on screen exit, task switch, or session loss; never log decoded identifiers or frames.
 - This scanner captures barcode values, not photo/signature proof media. Media upload remains deferred until its separate endpoint and policy are implemented.
-- Use explicit actions **Capture photo**, **Collect signature**, **Verify QR**, and **Submit proof** only when enabled by the response.
-- Announce validation/rejection reasons textually, provide retake/correct-and-resubmit actions, and keep controls keyboard/screen-reader accessible.
+- For implemented P0, offer identifier entry/scanning and an explicit **Submit proof** action only; **Capture photo** and **Collect signature** require an approved media endpoint and policy before they appear.
+- Announce validation/rejection reasons textually, provide correct-and-resubmit actions, and keep controls keyboard/screen-reader accessible. Retake controls belong to future media proof.
 - Clear private previews and cached evidence on logout, account denial, affiliation revocation, or task removal.
 - The app must work with text status and no map; route/navigation belongs to Deliver Order.
 
@@ -180,15 +180,15 @@ final-mile task
 
 ### Flutter states and UX
 
-- Screen states: task loading, proof requirements, camera/signature permission, capture, preview, upload progress, awaiting Logistics validation, validated, rejected, missing proof, conflict, offline, and retry.
-- Show the task/Order reference and destination context needed for the handoff, but never imply proof success from a local preview or completed upload progress bar.
-- Explain accepted image types and the 10 MiB limit before selection; use accessible labels, text status, large touch targets, and non-color-only errors.
+- Current screen states: task loading, identifier input or camera permission, awaiting Logistics validation, validated, rejected, missing proof, conflict, offline, and retry. Signature permission, media capture/preview, and upload progress are deferred.
+- Show the task/Order reference and destination context needed for the handoff, but never imply proof success from a local identifier candidate or, in a future media flow, a preview or completed upload progress bar.
+- Use accessible labels, text status, large touch targets, and non-color-only errors now; explain accepted image types and the 10 MiB limit only if media selection is enabled by a future contract.
 - Preserve the idempotency key across timeout/retry; clear private evidence previews and cached task data on logout or authorization loss.
 - After QR submission, use Complete Delivery's GET/POST contract for intent; evidence may await validation. Only Logistics finalization establishes delivered, not a client-computed eligibility flag.
 
 ### Tests, observability, and rollout
 
-- Test role/task/Order/organization isolation, wrong QR, cross-order reuse, invalid proof, upload limits/signatures, storage partial failure, private delivery, duplicate submissions, stale revisions, and actor preservation.
+- Test current proof isolation, wrong identifiers, cross-order reuse, duplicate submissions, stale revisions, and actor preservation. Media upload limits/signatures, storage partial failure, and private delivery require separate tests when that extension is implemented.
 - Test that Logistics records the Courier performer and Logistics recorder, that access/scan does not satisfy proof, and that notification failure cannot undo evidence.
 - Flutter source/build tests cover QR/Code 128 candidate mapping, unsupported-platform manual fallback, proof ID handoff, pending validation, retry, offline/timeout/conflict states, and accessibility; physical camera capture still needs installed Android release APK and localhost web-server acceptance. Media capture/upload tests remain deferred with media endpoints.
 - Log task/proof/event IDs, performing Courier, recording Logistics account, evidence state, result, revision, and timestamp; never log media bytes, raw paths, or QR tokens.

@@ -132,8 +132,8 @@ Seller packs Orders and requests one Logistics provider
 - The current Geoapify Free plan lists 3,000 credits/day and limited commercial use with attribution. Enforce one cached matrix calculation per schedule revision, bounded map loading, usage metrics, and a circuit breaker; quota exhaustion yields `unavailable`, never an automatic paid call.
 - Under the current Matrix pricing formula, a 31×31 request costs `max(31,31) × min(31,31,10) = 310` baseline credits before any distance/avoidance surcharges. The application must meter that estimate and keep a daily safety margin for map tiles.
 - Render the map on schedule-detail open, not through an unbounded polling loop. Cache the manifest and avoid reloading identical tiles/data when the user revisits the same revision.
-- Evaluate `mobile_scanner` as one cross-platform QR/Code 128 candidate for Android APK and Flutter web; its bundled Android ML Kit model avoids first-use model download. Obtain approval before adding it and verify browser decoder loading/availability rather than assuming offline web scanning.
-- Free alternatives include `flutter_zxing` (MIT, ZXing C++/FFI) and `qr_code_dart_scan` (MIT, Dart decoder). Select one only after testing both target platforms; do not add all three.
+- The Flutter client uses `mobile_scanner` for QR/Code 128 candidate capture on Android APK and local Flutter web; build success does not establish physical camera acceptance or offline browser decoder availability.
+- `flutter_zxing` (MIT, ZXing C++/FFI) and `qr_code_dart_scan` (MIT, Dart decoder) remain alternatives, not additional dependencies; adding or switching scanner packages requires approval and target-platform testing.
 - Local decoding may identify and display a candidate, but authoritative status mutation requires connectivity in MVP. A network failure must not show `picked_up_from_seller`; an offline queue is deferred and must use secure storage plus idempotency.
 
 ### Errors, privacy, and retry behavior

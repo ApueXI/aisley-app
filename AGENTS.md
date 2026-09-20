@@ -116,7 +116,7 @@ Do not commit secret files, generated credentials, local device data, or unrelat
 
 ## Operational and dashboard boundary
 
-- Camera scanning is planned for the Android release APK and the same Flutter app served on localhost through `web-server`. Implement it only after an approved cross-platform scanner dependency and target-specific permission/security checks. Keep decoded values as untrusted candidates; scanning never accepts, picks up, or proves delivery without the explicit documented action and server response.
+- Shared QR/Code 128 camera candidate capture is implemented for the Android release APK and the same Flutter app served on localhost through `web-server`, using the existing `mobile_scanner` dependency. Physical camera and permission acceptance on an installed APK and in a localhost browser remain unverified. Keep decoded values as untrusted candidates; scanning never accepts, picks up, or proves delivery without the explicit documented action and server response.
 - Do not implement live task, parcel, scan, waybill, assignment, proof, notification, route, or delivery mutations until the shared operational schema and endpoint contract are implemented by Laravel.
 - A Dashboard may display safe read-only sections for notifications, available tasks, active tasks, and freshness only when the API marks them usable.
 - Dashboard card taps navigate to the owning feature. Opening a card must not accept, assign, scan, pick up, deliver, or complete a task.
