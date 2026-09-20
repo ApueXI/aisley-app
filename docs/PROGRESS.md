@@ -298,3 +298,8 @@ This is the progress log for the external Courier Flutter application. It is sep
 
 - Reconciled `docs/features/courier/notification/specs.md` with the implemented Flutter inbox against `feature/courier-notifications` / `courier-notifications-v1`, restoring the client-adoption status and keeping the dashboard aggregate scaffold-only.
 - Fixed notification inbox startup so an inbox-owned polling screen performs one initial list/count refresh instead of issuing duplicate requests. Added a widget regression test; notification routes, DTOs, authorization, and read-state behavior remain unchanged.
+
+## 2026-09-20
+
+- Documented the cross-platform file-upload handoff for the existing registration, profile-photo, and vehicle-document endpoints. The native Android multipart path remains the preservation baseline; the current `MultipartFile.fromPath` sender is not browser-safe, so local web-server uploads need selected-file byte transport, exact multipart fields, authorized CORS/private reads, and browser plus installed-APK acceptance before being marked supported.
+- Updated Flutter-owned rules, architecture, design, setup, and feature handoffs without changing Laravel endpoints or the shared image policy. The copied shared-documentation snapshot remains `4045cc57d6466d7e84f249a6ceaf45cb49a88151`; feature-specific upload contract commits remain in their specs, and later `courier-notifications-v1` adoption is recorded above. Documentation only; no Flutter/backend source or live upload behavior was changed or verified.

@@ -13,7 +13,7 @@ backend: External Laravel API
 
 ## Overview
 
-The Courier application is a Flutter/Dart client for the AISLEY Laravel API. Android APK is the mobile delivery target; the same Flutter app may run through `flutter run -d web-server` on a fixed localhost port for browser camera testing. It is a separate project from the Laravel monorepo and must not contain Laravel, React, Next.js, Tailwind, or a separate Courier browser dashboard.
+The Courier application is a Flutter/Dart client for the AISLEY Laravel API. Android APK is the mobile delivery target; the same Flutter app may run through `flutter run -d web-server` on a fixed localhost port for browser camera and file-upload testing. It is a separate project from the Laravel monorepo and must not contain Laravel, React, Next.js, Tailwind, or a separate Courier browser dashboard.
 
 Courier is one of AISLEY's roles alongside Customer, Seller, Admin, and Logistics. Courier screens, mobile networking, secure token storage, local mobile state, and accessibility belong here. The Laravel API remains the authority for identity, authorization, ownership, status transitions, data privacy, and operational eligibility.
 
@@ -36,7 +36,7 @@ Do not commit secret files, generated credentials, local device data, or unrelat
 1. Read `docs/PROGRESS.md` first. Identify the latest Flutter work and the backend contract version before starting a new task.
 2. Read `docs/features/courier/rules.md` and the matching Courier feature specification completely before implementing or revising that feature.
 3. Follow the existing Flutter/Dart architecture, null-safety settings, state management, routing, networking, and design system. Do not add packages or frameworks without explicit approval.
-4. Keep one Flutter Courier codebase. Support Android APK and local Flutter web-server camera testing where the matching feature spec permits it; do not create a separate web page, React component, browser cookie flow, or Laravel source file in this project.
+4. Keep one Flutter Courier codebase. Support Android APK and local Flutter web-server camera/file-upload testing where the matching feature spec permits it; do not create a separate web page, React component, browser cookie flow, or Laravel source file in this project.
 5. Treat the authenticated Courier, approved Logistics affiliation, and sole operational hub as server-derived facts. Never let the client choose a different Courier, organization, hub, reviewer, role, ability, or status.
 6. Send the documented Sanctum bearer token as `Authorization: Bearer <token>`. On Android, store it only in OS secure storage through the approved Flutter package. Before authenticated browser testing, verify the approved package's web behavior and document its security boundary; never fall back to plaintext token storage.
 7. Never log, persist in ordinary app storage, place in URLs, or include in analytics a password, bearer token, token hash, reset token, or secret key.
@@ -50,6 +50,7 @@ Do not commit secret files, generated credentials, local device data, or unrelat
 15. Keep Customer, Seller, Admin, Logistics, and Courier data separated. Show only the minimum Buyer/Seller/address information required by the active authorized task.
 16. Update this project's `docs/PROGRESS.md` by appending a dated entry after a completed feature or meaningful contract synchronization. Never rewrite or delete prior entries.
 17. Stay in scope. Do not refactor unrelated screens, rename shared packages, or change the Laravel repository from a Flutter task.
+18. For registration, profile-photo, or vehicle-document uploads, read `docs/flutter-file-uploads.md`. Keep Android's working upload path intact while adding browser-safe selected-file transport; do not use browser paths with `MultipartFile.fromPath` or claim web uploads work until browser and installed-APK checks pass.
 
 ## Read before changing code
 

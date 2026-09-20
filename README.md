@@ -115,6 +115,8 @@ Open `http://localhost:8765` in your browser. Browser webcam access requires per
 
 Camera scanning uses the shared Flutter scanner for QR and Code 128 tracking-ID candidates. It fills pickup or proof input and never submits an action automatically. If permission or browser camera support is unavailable, use manual input; do not use a plaintext token workaround. The API must allow the exact localhost origin for authenticated web testing.
 
+Browser file uploads are not yet verified: the current shared multipart sender uses a native file-path API. See the [cross-platform upload guide](docs/flutter-file-uploads.md) before testing registration evidence, profile-photo, or vehicle-document uploads in `web-server`. The intended change keeps Android's working upload route and adds a browser-safe selected-file transport; the API must allow this exact origin and the required upload/private-read preflights. A successful `flutter build web` or APK build alone does not verify either upload path.
+
 ## Run on Android and build an APK
 
 Android uses the existing `android/` runner. To build an installable release APK:

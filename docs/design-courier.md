@@ -78,6 +78,7 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 - Use Region → Province → City/Municipality → Barangay cascading selectors backed by the bundled PSGC data, plus a complete manual fallback for address fields.
 - Current registration does not require a map pin or coordinates. Do not add Geoapify, Mapbox, or another map dependency without an approved API contract.
 - Evidence pickers must clearly show accepted JPEG/JPG/PNG/WebP formats and the strict under-10-MiB limit. Show selected filename, size, replace/remove controls, and a readable validation error.
+- Apply the same evidence-picker and error states on Android and local Flutter web-server; a browser-selected file must remain available for multipart submission without requiring a disk path. Follow [`flutter-file-uploads.md`](flutter-file-uploads.md); do not claim browser upload success before server confirmation.
 - Keep the submit action disabled only for locally known invalid/incomplete fields; the API remains the final validator.
 
 ### Approval and login
@@ -95,6 +96,7 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 - Allow profile-photo selection only when the server capability flag is true. Show the JPEG/JPG/PNG/WebP and under-10-MB policy before opening the picker, keep the local preview separate from the saved private photo, and show upload progress, cancellation, retry, missing-photo fallback, and server rejection states.
 - Fetch the saved profile photo through the authenticated private URL with the bearer token; never use a browser-style public URL, raw storage path, or unauthenticated network image widget. Confirm success only after the server response and private refresh succeed.
 - Confirm photo removal and reconcile uncertain upload/removal responses with a fresh account/photo read. Do not queue photo writes offline or expose the original filename as storage identity.
+- Use the same photo and independent OR/CR document controls on Android and local web-server. Browser selection, upload cancellation, CORS failure, and authenticated private preview need explicit feedback; keep Android's existing picker/upload behavior and verify both targets before marking web uploads supported.
 - Require current password confirmation before a password change. Clear password fields after every attempt and explain that a successful change revokes all sessions and returns to sign-in.
 
 ### Pickup orders

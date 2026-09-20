@@ -18,6 +18,8 @@ The Laravel API supports Courier authentication, account/profile photo, vehicle 
 
 Flutter camera scanning is implemented in the shared client for the Android release APK and the same Flutter app served locally through `web-server` on port `8765`. The backend QR/tracking-ID endpoints already exist; Linux remains manual-input only. The root `README.md` owns run commands; the pickup and proof specs own scanner behavior. Local Flutter web testing does not create a separate Courier webapp or authorize a production browser release.
 
+File uploads are documented separately in [`flutter-file-uploads.md`](flutter-file-uploads.md). Android/native registration, profile-photo, and vehicle-document uploads exist; browser selection is available but the current path-based multipart transport is not browser-safe. The guide defines the web implementation and Android regression checks without changing the Laravel contract or claiming web upload acceptance is complete.
+
 The copied backend documents preserve upstream source paths such as `docs/domains/Courier.md`; this Flutter bundle stores the Courier and Logistics domain copies under `docs/domain/`. References to other role specs or Logistics-only specs not included in this bundle point to the backend repository, not missing Flutter implementation work. The latest Linehaul and Sort plan details remain Logistics-owned; do not infer Courier linehaul or transfer endpoints from them.
 
 ## Synchronization
