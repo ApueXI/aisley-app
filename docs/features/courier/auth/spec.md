@@ -91,7 +91,7 @@ GET active Logistics options
 - Login requires `email`, `password`, and `device_name`; `role` and `abilities` are prohibited.
 - Verify password, Courier role, active account, approved affiliation, active Logistics owner, and valid hub before creating a token.
 - Issue only the server-owned `courier` ability and return the plain-text token once. `/me` never returns the token.
-- Flutter stores the token only in OS secure storage and sends `Authorization: Bearer <token>`; it must not log or ordinary-cache tokens.
+- Flutter sends `Authorization: Bearer <token>` and stores the token through the approved secure-storage package: OS secure storage on Android, with the package's reviewed browser storage limited to localhost web-server testing. Never use plaintext storage, browser cookies, or token logging.
 - `/me` and logout require `auth:sanctum` and `courier.active`. Logout deletes only the current personal access token.
 - After active Courier and approved-affiliation checks, protected Courier APIs require current shared Terms of Service and Privacy Policy consent. `/me`, logout, policy status, and policy acceptance remain reachable so Flutter can present the consent flow.
 
@@ -194,6 +194,7 @@ The inspected backend baseline is commit `d1abeee73d0141e1fd7dda4bea0ee3fead3703
 - Flutter must model nullable `middle_name`, affiliation/rejection states, and missing optional address line; it must not assume a hub ID exists in the Courier DTO.
 - Use explicit states: checking session, signed out, registration editing/submitting, pending approval, rejected, active, suspended, deactivated, invalid affiliation, offline, timeout, and retrying.
 - Registration upload UI must show accepted formats and the under-10-MiB limit, progress/cancel/retry, and server field errors. Client checks are convenience only.
+- Flutter registration must retain both selected `XFile` contents until multipart submission on local web-server; browser paths cannot be passed to `MultipartFile.fromPath`. Keep Android's native upload behavior and the exact `government_id`/`vehicle_registration` parts; follow `docs/flutter-file-uploads.md` and verify both targets before claiming web upload support.
 - Do not reproduce Eloquent, SQL, enum implementation, or authorization logic in Dart. The API response is authoritative and all mutations need online revalidation.
 - Add API tests for role/status/affiliation/hub scope, prohibited fields, duplicate races, file spoofing/boundaries, transaction cleanup, token issuance/logout, throttling, DTO privacy, and Logistics organization isolation.
 - Add Flutter contract fixtures/tests for JSON parsing, multipart names, secure-storage failure, `401/403/409/422/429`, timeout/offline states, and redacted DTOs. Mocks supplement but do not replace backend verification.

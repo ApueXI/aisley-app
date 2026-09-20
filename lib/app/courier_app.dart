@@ -8,6 +8,7 @@ import '../features/auth/presentation/registration_screen.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
 import '../features/delivery/presentation/controllers/delivery_controller.dart';
 import '../features/history/presentation/controllers/history_controller.dart';
+import '../features/notification/presentation/controllers/notification_controller.dart';
 import '../features/policy/presentation/controllers/policy_controller.dart';
 import '../features/policy/presentation/policy_screen.dart';
 import '../features/pickup/presentation/controllers/pickup_controller.dart';
@@ -21,6 +22,7 @@ class CourierApp extends StatelessWidget {
     this.pickupController,
     this.deliveryController,
     this.historyController,
+    this.notificationController,
     this.vehicleController,
     super.key,
   });
@@ -31,6 +33,7 @@ class CourierApp extends StatelessWidget {
   final PickupController? pickupController;
   final DeliveryController? deliveryController;
   final HistoryController? historyController;
+  final NotificationController? notificationController;
   final VehicleController? vehicleController;
 
   @override
@@ -47,6 +50,7 @@ class CourierApp extends StatelessWidget {
         pickupController: pickupController,
         deliveryController: deliveryController,
         historyController: historyController,
+        notificationController: notificationController,
         vehicleController: vehicleController,
       ),
     );
@@ -61,6 +65,7 @@ class AuthGate extends StatefulWidget {
     this.pickupController,
     this.deliveryController,
     this.historyController,
+    this.notificationController,
     this.vehicleController,
     super.key,
   });
@@ -71,6 +76,7 @@ class AuthGate extends StatefulWidget {
   final PickupController? pickupController;
   final DeliveryController? deliveryController;
   final HistoryController? historyController;
+  final NotificationController? notificationController;
   final VehicleController? vehicleController;
 
   @override
@@ -110,6 +116,7 @@ class _AuthGateState extends State<AuthGate> {
             pickupController: widget.pickupController,
             deliveryController: widget.deliveryController,
             historyController: widget.historyController,
+            notificationController: widget.notificationController,
             vehicleController: widget.vehicleController,
           ),
           AuthStatus.pendingApproval => BlockedAccessScreen.pending(

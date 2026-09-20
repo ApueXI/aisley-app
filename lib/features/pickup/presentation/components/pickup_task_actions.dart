@@ -156,6 +156,11 @@ extension _PickupTaskActions on _PickupTaskDetailScreenState {
                   icon: Icon(Icons.qr_code_2),
                 ),
                 ButtonSegment<String>(
+                  value: 'tracking_id',
+                  label: Text('Tracking ID'),
+                  icon: Icon(Icons.view_week_outlined),
+                ),
+                ButtonSegment<String>(
                   value: 'order_id',
                   label: Text('Order ID/reference'),
                   icon: Icon(Icons.receipt_long_outlined),
@@ -177,6 +182,14 @@ extension _PickupTaskActions on _PickupTaskDetailScreenState {
                     },
             ),
             const SizedBox(height: 16),
+            if (BarcodeScannerScreen.isSupported) ...[
+              OutlinedButton.icon(
+                onPressed: verificationLocked ? null : _openScanner,
+                icon: const Icon(Icons.camera_alt_outlined),
+                label: const Text('Scan QR or tracking ID'),
+              ),
+              const SizedBox(height: 10),
+            ],
             TextField(
               controller: _identifierController,
               enabled: !verificationLocked,
@@ -184,12 +197,16 @@ extension _PickupTaskActions on _PickupTaskDetailScreenState {
               autocorrect: false,
               enableSuggestions: false,
               decoration: InputDecoration(
-                labelText: _identifierType == 'qr'
-                    ? 'Waybill QR payload'
-                    : 'Printed Order ID/reference',
-                helperText: _identifierType == 'qr'
-                    ? 'A scanner keyboard or paste may enter the decoded payload. It is treated as untrusted text.'
-                    : 'Enter the human-readable reference printed on the waybill.',
+                labelText: switch (_identifierType) {
+                  'qr' => 'Waybill QR payload',
+                  'tracking_id' => 'Tracking ID',
+                  _ => 'Printed Order ID/reference',
+                },
+                helperText: switch (_identifierType) {
+                  'qr' => 'A camera, scanner keyboard, or paste may enter the decoded payload. It is treated as untrusted text.',
+                  'tracking_id' => 'Enter the printed Code 128 tracking ID. Review it before confirming pickup.',
+                  _ => 'Enter the human-readable reference printed on the waybill.',
+                },
                 border: const OutlineInputBorder(),
               ),
               onChanged: (_) {
@@ -218,9 +235,9 @@ extension _PickupTaskActions on _PickupTaskDetailScreenState {
               Text(
                 _resolutionMessage!,
                 style: TextStyle(
-                  color: _resolvedForThisTask == true
-                      ? scheme.primary
-                      : scheme.error,
+                  color: _resolvedForThisTask == false
+                      ? scheme.error
+                      : scheme.primary,
                 ),
               ),
               if (controller.waybillResolutionStatus ==

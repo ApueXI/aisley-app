@@ -3,8 +3,8 @@ role: Logistics
 feature: Vehicle Fleet Management
 system: AISLEY
 type: Feature Specification
-version: 2.2
-status: Implemented backend Phase 1; registration/review compatibility retained; Flutter client rollout pending
+version: 2.5
+status: Vehicle backend and Logistics list/detail UI implemented; advanced fleet workflows deferred
 canonical: true
 scope: Logistics-scoped registry of each Courier's sole vehicle
 source_coverage: requirements.md, workspace.md, schema.md, Logistics.md, Courier.md
@@ -21,7 +21,7 @@ source_coverage: requirements.md, workspace.md, schema.md, Logistics.md, Courier
 - Couriers provide vehicle information and OR/CR; associated Logistics reviews the application.
 - Logistics sees many vehicles only because its organization has many Couriers.
 - One Logistics account operates the organization's sole hub; no staff or sub-hub credentials are introduced.
-- Registration and Courier application review remain the compatibility foundation; dedicated fleet-management API endpoints are implemented for the external mobile client and Logistics registry reads. No Courier web UI is added.
+- Registration and Courier application review remain the compatibility foundation; Courier vehicle mutations and the Logistics-scoped vehicle list, detail, and private document reads are implemented.
 
 ### Deferred scope
 
@@ -55,7 +55,7 @@ source_coverage: requirements.md, workspace.md, schema.md, Logistics.md, Courier
 - Fleet actions must not approve Couriers, assign Orders, change custody, or make a Courier online.
 - Keep active account, approved affiliation, and task authorization independent of this registry.
 - Require exactly one vehicle when hardening approval; do not silently select the first duplicate row.
-- The existing active-vehicle existence check does not establish exactly-one enforcement.
+- Approval and fleet checks must not select an arbitrary vehicle if cardinality is invalid.
 - Courier self-service edits take effect on a successful validated save without Logistics reapproval; notify the associated Logistics account after commit. Never reset User/affiliation approval or claim updated documents were manually approved.
 
 ### Private OR/CR
@@ -83,8 +83,7 @@ source_coverage: requirements.md, workspace.md, schema.md, Logistics.md, Courier
 - Preserve IDs, private documents, plates, foreign keys, and operational references.
 - Never modify an executed migration or use fresh migrations/reseeding to reconcile existing data.
 - Existing `capacity` columns and `maintenance` enum values remain compatible storage, not MVP requirements.
-- This documentation revision does not remove their values or change PHP enums.
-- Add nullable separate Document references and a revision field to Vehicle; enforce ownership and document purpose. Keep old combined evidence as legacy until the Courier supplies each separate document; do not manufacture two verified records from it.
+- The deployed migration adds separate Document references and a vehicle revision. Keep old combined evidence as legacy until the Courier supplies each separate document; do not manufacture two verified records from it.
 
 ### Dispatch boundary
 
@@ -103,6 +102,9 @@ source_coverage: requirements.md, workspace.md, schema.md, Logistics.md, Courier
 - [x] Separate OR/CR replacements require valid decoded image content under the shared upload policy; missing or inaccessible evidence is never presented as verified.
 - [x] Foreign-role and cross-organization requests return scoped `404` responses and private streams are authorization-gated.
 - [x] The API exposes supported multipart fields, UUID idempotency replay/conflict behavior, and no Courier web UI; Flutter consumption remains the client rollout task.
+- [x] Logistics can open an active affiliated Courier's vehicle detail from a vehicle-update notification, refresh current fields, and privately view OR or CR.
+- [x] Logistics can reach its approved Couriers' current vehicles from **Vehicles** in the sidebar, search and page through a bounded scoped list, and open the same read-only detail without a notification.
+- [x] Foreign or no-longer-affiliated Couriers show a safe unavailable state; the notification remains readable without exposing vehicle data.
 - [x] No maintenance, vehicle history, capacity input/unit, or capacity matching is required in the MVP.
 - [x] Existing approval decisions, shipment history, schedules, and task transitions remain intact.
 
@@ -115,8 +117,8 @@ source_coverage: requirements.md, workspace.md, schema.md, Logistics.md, Courier
 - Logistics Courier Approval owns the implemented list/detail, private document, and approve/reject endpoints.
 - Read `docs/features/logistics/courier-approval/spec.md` for exact authorization, DTOs, errors, and retries.
 - Read `docs/features/courier/auth/spec.md` for Flutter registration/session and multipart contracts.
-- This spec adds only the scoped vehicle read/edit and OR/CR replacement endpoints; fleet creation/deletion, maintenance, and assign/unassign endpoints remain unavailable.
-- The following routes are implemented and are separate from account/profile endpoints; those endpoints do not accept vehicle fields.
+- This spec adds only the scoped Logistics vehicle list/read, Courier vehicle read/edit, and OR/CR replacement endpoints; fleet creation/deletion, maintenance, and assign/unassign endpoints remain unavailable.
+- These routes are separate from account/profile endpoints; those endpoints do not accept vehicle fields.
 
 ### Implemented Courier API and notifications
 
@@ -130,22 +132,29 @@ source_coverage: requirements.md, workspace.md, schema.md, Logistics.md, Courier
 - Plate/type edits update the same sole Vehicle, never create another one. Couriers must keep both documents applicable to the current vehicle; the system does not certify authenticity or require both files on every edit. Existing task/waybill snapshots are not rewritten.
 - Persist one durable `logistics-courier.vehicle-updated` notification intent per committed changed revision for the associated Logistics account. No-op saves do not notify. Delivery retries cannot undo edits or duplicate alerts; no email guarantee.
 - Alert data contains Courier/vehicle references, changed field names and server time, not documents, full plates or old/new private values. Logistics reads current details through an authorized registry view, never Courier-owner routes; unavailable destinations remain null.
-- Implemented Logistics read routes: `GET /api/v1/logistics/couriers/{courier}/vehicle` (same safe projection) and `GET /api/v1/logistics/couriers/{courier}/vehicle/documents/{kind}` (private stream). Require active Logistics/consent and current affiliation/sole-hub scope; foreign records return `404`. No Logistics edit/reapproval action.
+- Implemented Logistics read routes: `GET /api/v1/logistics/vehicles?page=&per_page=&search=` (bounded list), `GET /api/v1/logistics/couriers/{courier}/vehicle` (same safe projection), and `GET /api/v1/logistics/couriers/{courier}/vehicle/documents/{kind}` (private stream). Require active Logistics/consent and current affiliation/sole-hub scope; foreign records return `404`. No Logistics edit/reapproval action.
 - Flutter provides independently dirty vehicle fields and separate OR/CR pickers/previews, upload progress and retry. Refetch after uncertain saves; refresh on conflicts without discarding unsent edits. Never queue mutations offline or display planned routes as live.
+- In the same Flutter app's local web-server run, each selected OR/CR image needs browser-readable multipart transport; preserve Android's current upload behavior, the `file` part, revision/idempotency, and private bearer reads. Follow the Flutter-owned `docs/flutter-file-uploads.md`; browser upload acceptance is pending verification.
 - [ ] Each editable field saves without reapproval; unrelated fields, the other document, and registration/operational history remain unchanged.
 - [ ] Independent upload, failed replacement, stale/concurrent writes, duplicate retry, tenant isolation, and after-commit notification failure are verified before release.
 
+### Logistics vehicle UI — implemented list and detail
+
+- Protected, read-only `/couriers/:courierId/vehicle` is implemented in the existing Logistics React app. The URL uses the Courier UUID in the authorized notification destination, not the Vehicle UUID; refresh/deep links use the same scoped read.
+- **Vehicles** in the Logistics sidebar opens protected `/vehicles`. `GET /api/v1/logistics/vehicles` returns only active Couriers with approved affiliations to this organization and sole hub and an existing vehicle. Optional trimmed `search` is at most 100 characters and matches Courier name/email or plate; `page` starts at 1 and `per_page` is 1–50 (default 20). Results sort by vehicle creation time and UUID descending, with stable pagination metadata and private no-store headers. Each summary contains only Courier ID/name/email, vehicle ID/type/plate/optional make/model/revision, and separate OR/CR presence flags; no document bytes, delivery URLs, or storage paths.
+- The responsive list distinguishes loading, empty, no-match, failure, offline, and pagination states. Each row opens the current read-only vehicle detail; the list does not depend on vehicle-update notifications.
+- From notification detail, **Open Courier vehicle** follows that destination. The page fetches `GET /api/v1/logistics/couriers/{courier}/vehicle` on entry and refresh, showing current type, plate, optional make/model, revision, and separate OR/CR availability. Historical notification text is not a vehicle snapshot.
+- Show Courier context only if obtained from an authorized source; the current vehicle DTO does not provide Courier name/contact. Do not infer identity from raw notification payload.
+- Each available document loads on demand through its returned authorized URL using the app's authenticated API client, with an accessible private preview and download. A null document shows **Not uploaded**; stream `404`/storage `503` shows **Unavailable** with retry. No raw object path is rendered or evidence persisted in browser storage.
+- The detail page links to Vehicles and Notifications and includes loading/forbidden/not-found/offline/retry states, keyboard labels, responsive light/dark layouts, and cleanup of private previews on refresh, route change, or logout.
+- No approval, edit, document replacement, maintenance, capacity, or dispatch controls belong on the Logistics page.
+- API tests cover scoped, bounded list/search/pagination and vehicle/document reads. Logistics type-check, lint, and production build cover the list, route, and detail; browser interaction, private-preview cleanup, and lost-affiliation flows remain manual/automation verification work.
+
 ### Verification and client behavior
 
-- Inspect Vehicle, CourierProfile, registration, approval completeness, and their tests before implementation.
-- Add SQLite/PostgreSQL migration tests for existing data, uniqueness, and non-destructive rollout.
-- Test concurrent vehicle creation, missing records, wrong ownership, and private evidence delivery.
-- Test shared upload validation and transaction-failure cleanup through the registration owner.
-- Logistics review shows Courier, type, plate, and OR/CR preview—not maintenance/capacity tabs.
-- Flutter registration shows vehicle fields and OR/CR requirements, upload progress, and field errors.
-- Preserve loading, forbidden, unavailable evidence, validation, timeout, and retry states without false success.
-- Do not ordinary-cache private evidence; clear private previews on session loss.
-- No new package, map provider, or government service is required.
+- Inspect current Vehicle/notification DTOs and tests before UI implementation; reuse the existing auth, API, layout, and private image patterns.
+- Keep the approval review screen separate from the current vehicle detail; changing OR/CR does not reopen an application.
+- Flutter registration remains a separate client rollout; no Courier web UI belongs in this repository.
 - Update external Flutter copies for these newly implemented API routes before shipping the mobile flow; no Courier web UI belongs in this repository.
 - Keep any future Flutter acceptance criteria unchecked until the external client rollout and end-to-end verification establish the behavior.
 - Append documentation and implementation results separately to `docs/PROGRESS.md`.

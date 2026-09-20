@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
 import '../security/token_storage.dart';
+import 'multipart_file_adapter.dart';
+import 'multipart_file_selection.dart';
+import 'network_socket_exception.dart';
 
 class ApiClient {
   ApiClient({
@@ -115,11 +118,16 @@ class ApiClient {
   Future<http.Response> postMultipart(
     String path, {
     required Map<String, String> fields,
-    required Map<String, String> filePaths,
+    Map<String, String>? filePaths,
+    Map<String, MultipartFileSelection>? files,
     bool authenticated = false,
     Map<String, String>? requestHeaders,
     void Function(void Function() cancel)? onCancel,
   }) async {
+    final selections = _resolveMultipartFiles(
+      filePaths: filePaths,
+      files: files,
+    );
     final uri = _config.endpoint(path);
     final headers = <String, String>{'Accept': 'application/json'};
     if (requestHeaders != null) {
@@ -146,9 +154,13 @@ class ApiClient {
     onCancel?.call(uploadClient!.close);
 
     try {
-      for (final entry in filePaths.entries) {
+      for (final entry in selections.entries) {
         request.files.add(
-          await http.MultipartFile.fromPath(entry.key, entry.value),
+          await MultipartFileAdapter.build(
+            field: entry.key,
+            selection: entry.value,
+            useNativePath: !kIsWeb,
+          ),
         );
       }
 
@@ -171,13 +183,45 @@ class ApiClient {
         'The request timed out.',
         networkFailure: ApiNetworkFailure.timeout,
       );
-    } on SocketException {
+    } on NetworkSocketException {
       throw const ApiException.network('The service could not be reached.');
     } on http.ClientException {
       throw const ApiException.network('The service could not be reached.');
     } finally {
       uploadClient?.close();
     }
+  }
+
+  Map<String, MultipartFileSelection> _resolveMultipartFiles({
+    required Map<String, String>? filePaths,
+    required Map<String, MultipartFileSelection>? files,
+  }) {
+    if (filePaths != null && files != null) {
+      throw ArgumentError('Pass either filePaths or files, not both.');
+    }
+    if (files != null && files.isNotEmpty) {
+      return files;
+    }
+    if (filePaths != null && filePaths.isNotEmpty) {
+      return <String, MultipartFileSelection>{
+        for (final entry in filePaths.entries)
+          entry.key: MultipartFileSelection(
+            path: entry.value,
+            fileName: _fileNameFromPath(entry.value),
+            bytes: const <int>[],
+          ),
+      };
+    }
+    throw ArgumentError('At least one multipart file is required.');
+  }
+
+  String _fileNameFromPath(String path) {
+    final normalized = path.replaceAll('\\', '/');
+    final separator = normalized.lastIndexOf('/');
+    final fileName = separator < 0
+        ? normalized
+        : normalized.substring(separator + 1);
+    return fileName.isEmpty ? 'selected-image' : fileName;
   }
 
   Future<http.Response> _request({
@@ -260,7 +304,7 @@ class ApiClient {
         'The request timed out.',
         networkFailure: ApiNetworkFailure.timeout,
       );
-    } on SocketException {
+    } on NetworkSocketException {
       throw const ApiException.network('The service could not be reached.');
     } on http.ClientException {
       throw const ApiException.network('The service could not be reached.');

@@ -108,11 +108,27 @@ class _DeliveryTaskScreenState extends State<DeliveryTaskScreen> {
             _proofIdentifierType = value;
           });
         },
+        onScan: _openProofScanner,
         onOpenPolicies: _openPolicies,
         showPolicyAction: widget.policyController != null,
       );
     }
     return const _DeliveryUnavailableActionCard();
+  }
+
+  Future<void> _openProofScanner() async {
+    final candidate = await Navigator.of(context).push<BarcodeScanCandidate>(
+      MaterialPageRoute<BarcodeScanCandidate>(
+        builder: (_) => const BarcodeScannerScreen(title: 'Scan delivery code'),
+      ),
+    );
+    if (candidate == null || !mounted) {
+      return;
+    }
+    _proofIdentifierController.text = candidate.value;
+    setState(() {
+      _proofIdentifierType = candidate.identifierType;
+    });
   }
 
   Future<void> _openPolicies() async {

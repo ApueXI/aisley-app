@@ -4,9 +4,9 @@ This is the progress log for the external Courier Flutter application. It is sep
 
 ## Backend contract snapshot
 
-- **Backend commit:** `d1abeee73d0141e1fd7dda4bea0ee3fead370378` for the first/final-mile operational contracts, with pickup foundation at `d5c160d4a5a21272e487b6f46a82de35e81395cb`, policy consent at `c3b9cad`, and account/profile-photo behavior at `20afd9f`.
-- **Current API surface:** Courier Logistics discovery, registration, login, generic password-recovery response, `/me`, current-token logout, account profile/password management, private profile-photo upload/retrieval/removal, public Terms/Privacy reads and history, authenticated policy status/acceptance, first-mile and final-mile task reads/acceptance/rejection, waybill candidate resolution, idempotent first-mile Seller handoff, ordered first-mile route manifests, pending final-mile hub-handoff evidence, accepted-task delivery context, revision-checked final-mile movement, P0 QR/reference proof, completion intent/projection, read-only delivered history, and the read-only Courier dashboard scaffold.
-- **Deferred:** Dashboard operational aggregation, camera QR decoding, photo/signature proof media, route/location telemetry, chat, earnings, notification transport, and offline synchronization APIs.
+- **Backend documentation baseline:** `feature/courier-notifications` / `courier-notifications-v1` (2026-09-20). Earlier implementation entries retain the commits against which those Flutter changes were built; the notification contract was subsequently implemented by Laravel and adopted by Flutter in this change.
+- **Current documented API surface:** Courier Logistics discovery, registration, login, generic password-recovery response, `/me`, current-token logout, account profile/password management, private profile-photo upload/retrieval/removal, own-vehicle read/edit and independent private OR/CR replacement/read, public Terms/Privacy reads and history, authenticated policy status/acceptance, Courier notification list/detail/unread-count/mark-read, first-mile task reads/acceptance, final-mile task reads/acceptance/rejection, read-only QR waybill candidate resolution, QR/tracking-ID/Order-reference task verification, idempotent first-mile Seller handoff, ordered first-mile route manifests, pending final-mile hub-handoff evidence, accepted-task delivery context, revision-checked final-mile movement, P0 QR/tracking-ID/Order-reference proof, completion intent/projection, read-only delivered history, and the read-only Courier dashboard scaffold. The Flutter pickup and proof screens expose camera/keyboard QR, Code 128 tracking-ID, and Order-reference input; Linux remains manual-input only.
+- **Deferred:** Dashboard operational aggregation, physical camera acceptance on installed targets, background push/WebSockets, photo/signature proof media, route/location telemetry, chat, earnings, and offline synchronization APIs.
 
 ## 2026-09-08
 
@@ -260,3 +260,51 @@ This is the progress log for the external Courier Flutter application. It is sep
 - Modularized `lib/features/pickup/data/pickup_repository.dart` against pick-up-order v2.6 and backend snapshot `d1abeee73d0141e1fd7dda4bea0ee3fead370378` without changing repository behavior or public imports.
 - Kept `PickupRepository` and `ApiPickupRepository` stable as the public facade, grouping first-mile task/waybill/pickup/route requests, final-mile task/rejection/hub-pickup requests, and shared path/response helpers under `data/repositories/`.
 - Preserved exact endpoint paths, bearer-auth requests, payloads, idempotency headers, response parsing, validation, and first-mile/final-mile separation. No controller, UI, API contract, state transition, or Laravel code changed. Verification: `flutter analyze`, `flutter test` (112 passed), and `git diff --check` pass.
+
+## 2026-09-20
+
+- Synchronized copied shared, domain, Orders, Logistics, and Courier contracts with backend documentation at `4045cc57d6466d7e84f249a6ceaf45cb49a88151`, including tracking-ID waybills, current final-mile dispatch and custody wording, vehicle-management routes, and Linehaul boundaries. Updated the Flutter-owned index and architecture without replacing its design, rules, or historical implementation log. This is documentation-only; Flutter source, live API compatibility, and runtime tests were not verified in this snapshot task.
+
+## 2026-09-20
+
+- Applied the synchronized documentation snapshot to this project's existing `docs/` directory. Kept the Flutter progress history and clarified that the backend's newer tracking-ID contract has not yet been adopted by the Flutter pickup/proof input controls; waybill candidate resolution remains QR-only, and camera decoding remains deferred.
+- Documentation-only verification: compared the synced document inventory, checked the changed Courier spec line counts, and ran `git diff --check`. Flutter source, live API compatibility, and runtime tests were not changed or verified by this documentation sync.
+
+## 2026-09-20
+
+- Documented camera scanning as planned Flutter client work for an installed Android release APK and the same Flutter app served at `http://localhost:8080` through `web-server`, using the existing backend documentation baseline `4045cc57d6466d7e84f249a6ceaf45cb49a88151` and unchanged Courier pickup/proof endpoint contracts.
+- Updated project rules, architecture, design, pickup and proof specs, feature index, and setup guides to require QR/Code 128 tracking-ID capture, explicit server-authoritative actions, camera permission/error handling, stream cleanup, manual fallback, and verification on both targets. The browser build still needs `dart:io` isolation, CORS and secure-storage review; no camera package, Flutter source, manifest, backend route, or runtime behavior was changed.
+- Documentation checks: Courier spec line counts and `git diff --check`. Camera scanning remains deferred until implementation and release APK/browser testing pass.
+
+## 2026-09-20
+
+- Implemented the shared `mobile_scanner` workflow against the documented backend baseline `4045cc57d6466d7e84f249a6ceaf45cb49a88151` and the existing pickup/proof contracts. Android release builds and the same Flutter app served with `flutter run -d web-server --web-hostname localhost --web-port 8765` support QR and Code 128 tracking-ID candidates; Linux hides camera actions and remains manual-input only.
+- Kept scan results untrusted and non-mutating: pickup and final-mile proof screens receive a candidate, select `qr` or `tracking_id`, and require the existing explicit server action. First-mile QR resolution remains separate, proof/completion endpoints remain unchanged, and decoded values are not logged. Added Android camera permission, lifecycle/duplicate-frame/error/manual fallback handling, and conditional web-safe socket exception handling without a plaintext token fallback.
+- Added candidate mapping and unsupported-platform tests. Verification: `flutter analyze`, `flutter test`, `flutter build web`, `flutter build apk --release`, scanner-specific tests, and `git diff --check` pass. Physical camera permission/QR/Code 128 acceptance on an installed APK and browser webcam/CORS acceptance remain release verification tasks; no Laravel code changed.
+
+## 2026-09-20
+
+- Implemented the Courier notification inbox against backend contract `feature/courier-notifications` / `courier-notifications-v1`: bounded list filtering and cursor reads, unread count, detail refresh, explicit idempotent mark-read, server-scoped DTO parsing, unread dashboard badge, and read-only related-work navigation.
+- Added foreground polling while the authenticated dashboard is visible, app-resume refresh, stale in-memory presentation, loading/empty/offline/timeout/forbidden/consent/unauthorized/rate-limit/contract-error states, session-bound auth handling, and logout cleanup. No notification payload, destination path, token, or customer data is logged or persisted.
+- Added repository, controller, and widget coverage for exact routes/query/body/auth headers, nullable read state, cursor parsing, unread count, stale refresh, foreign notification handling, authorization failure, explicit mark-read, detail navigation, and safe empty/error presentation. The dashboard aggregate remains `OPERATIONAL_SCHEMA_DEFERRED`; the separate inbox is authoritative.
+- Verification: `flutter analyze`, `flutter test` (129 passed), `flutter build web`, and `flutter build apk --release` pass; `git diff --check` is clean. No Laravel code changed.
+
+## 2026-09-20
+
+- Reconciled Flutter-owned Courier guidance against the latest client progress: shared `mobile_scanner` QR/Code 128 candidate capture is implemented for Android APK and localhost web-server, while installed-device/browser camera acceptance remains pending. Removed pre-adoption scanner instructions from the pickup spec.
+- Clarified Android OS secure storage versus the approved package's reviewed localhost-browser storage in the Auth and Account handoffs. Separated implemented identifier-only delivery proof UI from deferred photo/signature media capture and upload states. The copied backend documentation baseline remains `4045cc57d6466d7e84f249a6ceaf45cb49a88151` for pickup/proof, with later `courier-notifications-v1` adoption recorded above; backend endpoints, fields, status transitions, and contract versions are unchanged. No Flutter or Laravel code changed or live API retest was performed.
+
+## 2026-09-20
+
+- Reconciled `docs/features/courier/notification/specs.md` with the implemented Flutter inbox against `feature/courier-notifications` / `courier-notifications-v1`, restoring the client-adoption status and keeping the dashboard aggregate scaffold-only.
+- Fixed notification inbox startup so an inbox-owned polling screen performs one initial list/count refresh instead of issuing duplicate requests. Added a widget regression test; notification routes, DTOs, authorization, and read-state behavior remain unchanged.
+
+## 2026-09-20
+
+- Documented the cross-platform file-upload handoff for the existing registration, profile-photo, and vehicle-document endpoints. The native Android multipart path remains the preservation baseline; the current `MultipartFile.fromPath` sender is not browser-safe, so local web-server uploads need selected-file byte transport, exact multipart fields, authorized CORS/private reads, and browser plus installed-APK acceptance before being marked supported.
+- Updated Flutter-owned rules, architecture, design, setup, and feature handoffs without changing Laravel endpoints or the shared image policy. The copied shared-documentation snapshot remains `4045cc57d6466d7e84f249a6ceaf45cb49a88151`; feature-specific upload contract commits remain in their specs, and later `courier-notifications-v1` adoption is recorded above. Documentation only; no Flutter/backend source or live upload behavior was changed or verified.
+
+## 2026-09-20
+
+- Implemented the shared platform-safe multipart upload transport for the existing auth registration, account profile-photo, and vehicle OR/CR document flows. Web-server selections use validated in-memory bytes and display filenames; Android/native targets preserve the readable-path multipart branch. Exact fields, bearer behavior, idempotency/revision fields, cancellation, and server-authoritative error handling remain unchanged; no Laravel code changed.
+- Added bounded byte/signature rechecks for browser selections, preserved Android release behavior, and added adapter coverage for browser bytes, native paths, fallback bytes, filename/MIME handling, and empty selections. Verification: `flutter analyze`, full `flutter test` (134 passed), `flutter build web`, `flutter build apk --release`, and `git diff --check` pass. Browser CORS/private-read and installed-device upload acceptance still need runtime verification before web uploads are declared fully supported.

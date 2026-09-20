@@ -4,19 +4,19 @@ system: AISLEY
 type: Client Architecture
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active — authentication, account, policy, pickup, delivery, and history client; route/location/media extensions deferred
-backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378
+status: Active — authentication, account, vehicle, policy, notification, pickup, delivery, and history client; route/location/media extensions deferred
+backend_contract_commit: feature/courier-notifications
 ---
 
 # Scope
 
-This document describes the external Flutter application used by Couriers. It is not the architecture of the Laravel monorepo and it does not authorize changes to the backend, the Customer/Seller/Admin/Logistics web applications, or the database.
+This document describes the external Flutter application used by Couriers. Android APK is its mobile delivery target; a local Flutter `web-server` browser run of the same codebase is the camera and file-upload testing target. It is not the architecture of the Laravel monorepo and it does not authorize changes to the backend, the Customer/Seller/Admin/Logistics web applications, or the database.
 
 The Laravel API remains the source of truth for identity, approval, role access, organization and hub ownership, order status, task assignment, and delivery state. The Flutter app renders server responses and submits only fields allowed by the versioned API contract.
 
 ## Current implementation boundary
 
-The backend currently exposes Courier authentication, Phase 1 account management, policy consent, and the approved first-mile/final-mile task workflow:
+The backend currently exposes Courier authentication, account and vehicle management, policy consent, and the approved first-mile/final-mile task workflow:
 
 - `GET /api/v1/courier/auth/logistics-options`
 - `POST /api/v1/courier/auth/register`
@@ -30,6 +30,10 @@ The backend currently exposes Courier authentication, Phase 1 account management
 - `POST /api/v1/courier/account/profile-photo` (authenticated multipart upload)
 - `GET /api/v1/courier/account/profile-photo` (authenticated private stream)
 - `DELETE /api/v1/courier/account/profile-photo` (authenticated idempotent removal)
+- `GET /api/v1/courier/vehicle` (authenticated own-vehicle read)
+- `PATCH /api/v1/courier/vehicle` (authenticated revision-checked field update)
+- `POST /api/v1/courier/vehicle/documents/{kind}` (authenticated independent OR/CR replacement)
+- `GET /api/v1/courier/vehicle/documents/{kind}` (authenticated private current-document read)
 - `GET /api/v1/platform/policies/{type}` and policy history reads (public)
 - `GET /api/v1/policy-consent/status` and `POST /api/v1/policy-consent/{type}/versions/{version}/accept` (authenticated)
 - `GET /api/v1/courier/first-mile-tasks` (authenticated, private paginated task list)
@@ -46,8 +50,26 @@ The backend currently exposes Courier authentication, Phase 1 account management
 - `POST /api/v1/courier/tasks/{task}/proof-of-delivery` (authenticated P0 QR/reference proof submission)
 - `GET /api/v1/courier/tasks/{task}/completion` and `POST /api/v1/courier/tasks/{task}/completion` (authenticated completion projection/intent)
 - `GET /api/v1/courier/delivery-history` and `GET /api/v1/courier/delivery-history/{task}` (authenticated read-only delivered history)
+- `GET /api/v1/courier/notifications` (authenticated bounded inbox list)
+- `GET /api/v1/courier/notifications/unread-count` (authenticated unread count)
+- `GET /api/v1/courier/notifications/{notification}` (authenticated notification detail)
+- `POST /api/v1/courier/notifications/{notification}/read` (authenticated idempotent mark-read)
 
-The dashboard aggregation remains a read-only scaffold. Route/location, camera QR decoding, photo/signature proof media, chat, earnings, notification transport, and offline synchronization endpoints are not currently available. The app renders explicit unavailable states for those capabilities and must not fabricate jobs or call conceptual routes from draft specifications.
+The dashboard aggregation remains a read-only scaffold. Tracking IDs may resolve through the documented QR/reference flows, and the shared scanner supplies QR/Code 128 candidates on Android and the local web-server target. Background push/WebSockets, route/location telemetry, photo/signature proof media, chat, earnings, and offline synchronization endpoints are not currently available. The app renders explicit unavailable states for those capabilities and must not fabricate jobs or call conceptual routes from draft specifications. Logistics Linehaul and Sort plan operations do not create Courier endpoints.
+
+## Camera targets
+
+- The shared Flutter camera-scanning workflow is available in the Android release APK and the same Flutter app at `http://localhost:8765` via `flutter run -d web-server --web-hostname localhost --web-port 8765`. This is a local browser test target, not a separate Courier web UI or a production web deployment.
+- `mobile_scanner` decodes QR payloads and Code 128 waybill tracking IDs on the supported targets, then passes an untrusted candidate to the existing first-mile, hub-pickup, or delivery-proof controller. The owning feature selects `qr` or `tracking_id`; the server remains authoritative. Manual Order-reference entry and explicit mutation confirmation remain available.
+- Scanner lifecycle and permission feedback stay in Flutter presentation code; repositories continue to use the documented bearer-token endpoints. Linux and other unsupported platforms hide the camera action and retain manual input.
+- The direct `dart:io` socket handling in `lib/core/networking/api_client.dart` is isolated behind a conditional adapter for web compilation. Browser authentication continues to use the existing `flutter_secure_storage` WebCrypto/LocalStorage implementation without a plaintext fallback; that browser token is same-origin and intended only for the reviewed localhost test boundary. API CORS must allow the exact fixed origin, and non-local browser camera tests need HTTPS.
+- Web and Android release builds are verified. Physical QR/Code 128 capture, permission denial, and browser camera acceptance still require an installed release APK and a browser with an available camera.
+
+## File-upload targets
+
+- The existing Android/native registration evidence, account photo, and vehicle OR/CR uploads use `file_selector` and the shared multipart API client. Browser file selection is available, but the current `MultipartFile.fromPath` transport requires `dart:io`; a compiling web build is not evidence that uploads work in `web-server`.
+- Follow [`flutter-file-uploads.md`](flutter-file-uploads.md) for the web-safe selected-file/byte transport and Android regression boundary. Keep exact Laravel multipart parts and server-side validation; do not create web-only endpoints, a second Flutter codebase, or a React upload page. Photo/signature delivery proof media remains deferred.
+- The fixed `http://localhost:8765` origin needs backend CORS for upload `POST`, private-image `GET`, and applicable `OPTIONS` preflight with bearer/idempotency headers. The same secure session and authenticated private-read rules apply on web; browser upload acceptance and installed-APK regression remain verification tasks.
 
 ## Client structure
 
@@ -70,6 +92,10 @@ lib/
 │       ├── data/         # Account DTOs, photo transport, authenticated repository
 │       ├── domain/       # Private account projection and in-memory photo data
 │       └── presentation/ # Account form, photo controls, and password/session controls
+│   ├── vehicle/
+│       ├── data/         # Own-vehicle and private OR/CR transport
+│       ├── domain/       # Revision, document state, and validation models
+│       └── presentation/ # Vehicle fields and independent document controls
 │   ├── pickup/
 │   │   ├── data/         # Pickup task, manifest, and handoff repositories
 │   │   ├── domain/       # Server status, task, manifest, and handoff models
@@ -116,7 +142,7 @@ invalid_affiliation
 recoverable_network_failure
 ```
 
-Pending Couriers cannot use `/me`; the current API does not provide a cross-device pending-status endpoint. The pending screen must therefore be local and informational until a future status or notification contract exists.
+Pending Couriers cannot use `/me`; the current API does not provide a cross-device pending-status endpoint. The pending screen must therefore be local and informational until a dedicated pending-status endpoint exists.
 
 ## Security and privacy
 
@@ -146,4 +172,4 @@ Follow [`design-courier.md`](design-courier.md). Use mobile-first layouts, syste
 
 ## Canonical documents
 
-Read the relevant sections of `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, `docs/domain/Courier.md`, `docs/domain/Logistics.md`, the matching Courier feature specification, and the two registration/upload references. The decision worksheet is historical context only; it is not an implementation authority.
+Read the relevant sections of `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, `docs/domain/Courier.md`, `docs/domain/Logistics.md`, the matching Courier feature specification (or the shared Logistics vehicle specification for Courier vehicle work), and the two registration/upload references. The decision worksheet is historical context only; it is not an implementation authority.

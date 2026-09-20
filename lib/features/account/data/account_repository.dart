@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../../core/networking/api_client.dart';
 import '../../../core/networking/api_contract_exception.dart';
+import '../../../core/networking/multipart_file_selection.dart';
 import '../domain/account_models.dart';
 
 abstract interface class AccountRepository {
@@ -99,7 +100,13 @@ class ApiAccountRepository implements AccountRepository {
     final response = await _client.postMultipart(
       '/courier/account/profile-photo',
       fields: const <String, String>{},
-      filePaths: <String, String>{'photo': selection.path},
+      files: <String, MultipartFileSelection>{
+        'photo': MultipartFileSelection(
+          path: selection.path,
+          fileName: selection.fileName,
+          bytes: selection.bytes,
+        ),
+      },
       authenticated: true,
       requestHeaders: idempotencyKey == null
           ? null

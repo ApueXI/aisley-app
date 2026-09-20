@@ -31,25 +31,20 @@ extension _AccountScreenProfilePhoto on _AccountScreenState {
         );
         return;
       }
-      if (file.path.trim().isEmpty) {
-        _setProfilePhotoSelectionError(
-          'The selected photo could not be opened. Choose it again.',
-        );
-        return;
-      }
-
       final fileSize = await file.length();
-      if (fileSize >= _maxProfilePhotoBytes) {
+      if (fileSize <= 0 || fileSize >= _maxProfilePhotoBytes) {
         _setProfilePhotoSelectionError(
-          'The photo must be under 10 MB (10,485,760 bytes).',
+          'The photo must be non-empty and under 10 MB (10,485,760 bytes).',
         );
         return;
       }
 
       final bytes = await file.readAsBytes();
-      if (bytes.isEmpty || bytes.length >= _maxProfilePhotoBytes) {
+      if (bytes.isEmpty ||
+          bytes.length >= _maxProfilePhotoBytes ||
+          bytes.length != fileSize) {
         _setProfilePhotoSelectionError(
-          'The photo must be under 10 MB (10,485,760 bytes).',
+          'The photo changed while it was being read. Choose it again.',
         );
         return;
       }

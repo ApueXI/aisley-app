@@ -214,6 +214,6 @@ out_for_delivery
 ### References
 
 - Shared authority: docs/requirements.md, docs/workspace.md, docs/schema.md, docs/features/shared/shipment-fulfillment/spec.md.
-- Roles: docs/domain/Courier.md and docs/domain/Logistics.md.
+- Roles: docs/domains/Courier.md and docs/domains/Logistics.md.
 - Features: docs/features/courier/proof-of-delivery/specs.md, docs/features/logistics/update-status/specs.md, docs/features/courier/delivery-history/specs.md.
 - Uploads: docs/references/file-upload-requirements.md.

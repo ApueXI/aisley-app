@@ -2,14 +2,7 @@
 
 Aisley Courier is the external Flutter/Dart application for Aisley Couriers. It is a Courier client, not a Customer, Seller, Admin, or Logistics dashboard.
 
-The current app provides:
-
-- approval-aware Courier sign-in and session restoration;
-- secure Sanctum token storage and logout;
-- explicit pending, rejected, suspended, invalid-affiliation, storage, and network-failure states; and
-- an honest authenticated dashboard scaffold that does not fabricate delivery jobs or operational counts.
-
-Shipment, pickup, scanning, routing, proof-of-delivery, chat, earnings, and offline synchronization remain backend-contract work. See [docs/README.md](docs/README.md) and [docs/PROGRESS.md](docs/PROGRESS.md) for the current boundary.
+The current app provides Courier authentication, account and vehicle management, policy consent, first- and final-mile pickup, delivery proof/completion, and read-only delivery history. The dashboard's operational aggregation remains a scaffold. Camera barcode scanning is implemented for the Android release APK and local Flutter web-server testing; Linux remains manual-input only. See [docs/README.md](docs/README.md) and [docs/PROGRESS.md](docs/PROGRESS.md) for the current boundary.
 
 ## Requirements
 
@@ -112,34 +105,27 @@ flutter build linux --release
 
 ## Run in a browser
 
-Browser support is a development/testing target, not a separate Courier web dashboard. The current checkout does not include a `web/` runner directory. If you need to generate it locally, run this once from the project root:
+The existing `web/` runner serves the **same Flutter Courier app** for local development and camera testing. It is not a separate Courier web dashboard. Use a fixed local origin so API CORS and camera permissions can be tested consistently:
 
 ```bash
-flutter create --platforms=web .
+flutter run -d web-server --web-hostname localhost --web-port 8765
 ```
 
-Install Google Chrome or Microsoft Edge, enable web support, and verify the device:
+Open `http://localhost:8765` in your browser. Browser webcam access requires permission and a secure context such as localhost; a non-local browser test needs HTTPS. Allow the exact Flutter origin in the Laravel API's CORS configuration. See the [Flutter web-server guide](https://docs.flutter.dev/platform-integration/web/setup) and [browser camera requirements](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia).
+
+Camera scanning uses the shared Flutter scanner for QR and Code 128 tracking-ID candidates. It fills pickup or proof input and never submits an action automatically. If permission or browser camera support is unavailable, use manual input; do not use a plaintext token workaround. The API must allow the exact localhost origin for authenticated web testing.
+
+Browser file uploads are not yet verified: the current shared multipart sender uses a native file-path API. See the [cross-platform upload guide](docs/flutter-file-uploads.md) before testing registration evidence, profile-photo, or vehicle-document uploads in `web-server`. The intended change keeps Android's working upload route and adds a browser-safe selected-file transport; the API must allow this exact origin and the required upload/private-read preflights. A successful `flutter build web` or APK build alone does not verify either upload path.
+
+## Run on Android and build an APK
+
+Android uses the existing `android/` runner. To build an installable release APK:
 
 ```bash
-flutter config --enable-web
-flutter devices
+flutter build apk --release
 ```
 
-Run in Chrome:
-
-```bash
-flutter run -d chrome
-```
-
-Build the web bundle:
-
-```bash
-flutter build web
-```
-
-Browser requests are subject to CORS. The API must allow the local Flutter web origin. The secure-storage package uses an experimental WebCrypto implementation on the web, so browser use should remain limited to approved development/testing scenarios until web security requirements are finalized.
-
-The current API client also contains a native `dart:io` import. This README does not change runtime code, so if the browser build reports that `dart:io` is unavailable, web support needs a separate platform-compatibility change.
+The output is `build/app/outputs/flutter-apk/app-release.apk`. The release APK includes the camera permission and shared QR/Code 128 scanner. Verify camera permission and successful scans on an installed release APK; manual entry remains available when permission is denied. A successful build alone does not prove the physical camera flow works.
 
 ## Run on Windows desktop
 

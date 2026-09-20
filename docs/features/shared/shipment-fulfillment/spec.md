@@ -3,7 +3,7 @@ feature: shipment-fulfillment
 title: Shipment and Fulfillment Lifecycle Decision and Revision Guide
 system: AISLEY
 type: Feature Specification
-version: 1.7
+version: 1.9
 status: Cross-document decision and reconciliation guide; shared physical schema and P0 final-mile transitions implemented
 roles: Customer, Seller, Logistics, Courier
 scope: Shared order-to-delivery vocabulary, decision record, and future backend contract
@@ -21,7 +21,7 @@ source_coverage: docs/requirements.md, docs/workspace.md, docs/schema.md, docs/P
 
 - **Purpose:** Keep a compact reference for the future movement of a prepared Order from Seller pickup through the Logistics hub to Buyer delivery.
 - **Why it exists:** Current Order, waybill, pickup, Logistics, and Courier documents mention the same physical flow in different places. This guide collects terminology, records cross-role decisions, and identifies exactly which documents must be revised together.
-- **Current baseline:** Seller pickup requests, selected Logistics organizations, shared waybills, pickup schedules, first-mile assignment/acceptance/confirmation, route manifests, shared Parcel/Shipment records, hub processing, independent final-mile offers, QR evidence, and Logistics-gated delivery completion exist. Photo/signature proof, route/location telemetry, returns, and exceptional recovery remain deferred.
+- **Current baseline:** Seller pickup requests, selected Logistics organizations, shared waybills, pickup schedules, first-mile assignment/acceptance/confirmation, route manifests, shared Parcel/Shipment records, hub processing, independent final-mile offers, QR evidence, and Logistics-gated delivery completion exist. Waybills expose an explicit tracking ID with a thin Code 128 barcode, and Logistics sort plans route exact Buyer postal codes at scan time. Photo/signature proof, route/location telemetry, returns, and exceptional recovery remain deferred.
 - **Role boundary:** Seller prepares and hands off; Logistics operates its single hub and assigns first-mile/final-mile work; Courier acts only on an assigned mobile API task; Customer reads safe tracking projections.
 - **Non-goals:** changing current routes or migrations, adding a second waybill, choosing a map provider, optimizing routes, creating multi-hub operations, billing subscriptions, or building Courier web UI.
 
@@ -64,7 +64,7 @@ Customer places Order
 In this register, `[x]` records an accepted decision or completed named correction. The sign-off checklist separately verifies propagation. Implementation and rollout require their own evidence. Do not expose an operational capability until its owning contract, migration, authorization checks, and verification evidence are present.
 
 - [x] **Logistics-selection authority:** The Seller selects one eligible Logistics organization when committing the pickup request. Checkout remains provider-neutral; the Customer selects a shipping address, not a Logistics provider. Remove or rewrite the old Customer-selection wording in `docs/requirements.md` and `docs/workspace.md`.
-- [x] **High-level status mapping:** `picked_up` is the high-level projection of first-mile `picked_up_from_seller`; `assigned` remains reserved for a future Logistics/final-mile assignment. Hub receipt, sorting, transfer, and dispatch are detailed physical milestones, not meanings of either high-level value.
+- [x] **High-level status mapping:** `picked_up` is the high-level projection of first-mile `picked_up_from_seller`; `assigned` is the Customer-facing projection of a committed dispatch schedule/final-mile Courier offer. Hub receipt and sorting remain detailed physical milestones, not meanings of either high-level value.
 - [x] **Implemented/deferred summaries:** Update `docs/domains/Seller.md`, `docs/domains/Buyer.md`, and `docs/features/seller/prepare-orders/spec.md` so Seller pickup selection, shared-waybill persistence, pickup scheduling, first-mile assignment/acceptance, and explicit pickup confirmation are identified as the implemented foundation. The shared physical Shipment/Parcel bridge, hub operations, final-mile tasks, QR evidence, and P0 delivery completion are now implemented; photo/signature media, location telemetry, and exceptional recovery remain deferred.
 - [x] **Schema-ledger synchronization:** Reconcile `docs/schema.md` with the migration directory without renaming or editing executed migrations. Add the implemented low-stock-alert, wishlist, and Logistics profile-photo migrations that are missing from the ledger; correct its duplicate sequence numbers for the Courier pickup, Product Q&A, and route-manifest entries; and record the implemented policy-consent protected-action gate.
 - [x] **Endpoint ownership paths:** The ownership table below uses the exact existing `spec.md`/`specs.md` paths. A route is usable only when that owning specification marks it implemented and the additive schema is deployed; advanced conceptual capabilities remain unavailable until their own rollout gates pass.
@@ -85,6 +85,8 @@ In this register, `[x]` records an accepted decision or completed named correcti
 - Operational records include `Shipment`, `Parcel`, `DeliveryTask`, assignment offers, physical evidence, custody events, and P0 proof-of-delivery records; advanced media/location/return records remain future extensions.
 - The Seller-created shared waybill is created in the pickup-request transaction at `ready_for_pickup`; it is not replaced by a second Logistics waybill at hub receipt.
 - The shared waybill and its Order/Parcel reference are immutable; later route, assignment, print, and scan activity is append-only history.
+- The shared waybill's human reference is the immutable `tracking_id`; its primary physical barcode is a thin 1D Code 128 encoding of that value, while QR remains a compatibility/fallback identifier.
+- Seller pickup may snapshot the Buyer postal code and the selected Logistics hub's current sort-plan match as a routing hint. Automatic Sorting resolves the tenant-owned tracking ID and rechecks the current active plan server-side; missing plan, postal code, mapping, or lane falls back to the exception lane without changing received custody.
 - For the MVP, one `DeliveryTask` represents one Order/Parcel; a pickup schedule may group Orders operationally but never merges their tasks, waybills, snapshots, or histories.
 - The Logistics registration address represents its one operational hub. Sub-hubs and additional hub records are outside the MVP reference boundary.
 
@@ -110,7 +112,8 @@ awaiting_seller_pickup
 ```
 
 - These detailed values belong to the deployed Shipment/Delivery Task contract; they remain separate from `orders.status` and are stored as string-backed enum-like columns.
-- Existing high-level `OrderStatus` compatibility values remain separate. `picked_up` is the high-level projection of an explicit first-mile Seller handoff (`picked_up_from_seller`). `assigned` remains a broad compatibility label and does not represent hub receipt. Hub receipt, sorting, and dispatch are detailed deployed milestones; internal transfer execution remains deferred.
+- Existing high-level `OrderStatus` compatibility values remain separate. `picked_up` projects the explicit first-mile Seller handoff; `assigned` projects the committed scheduled final-mile assignment and does not represent hub receipt. Hub receipt, sorting, and dispatch remain detailed milestones; internal transfer execution remains deferred.
+- Automatic Sorting records the plan revision, postal-code match, selected lane, or exception reason on the scan result. Client predictions and manual lane choices are inputs only; tenant/hub ownership and the current plan are authoritative.
 - Task-level `rejected` and informational `stale` outcomes follow the exception decision below and do not write a new `orders.status` value. Customer cancellation and Seller rejection of eligible `placed` Orders are implemented. Post-pickup cancellation, `delivery_failed`, `return_requested`, and `returned` transitions remain deferred.
 
 ### Cross-document decisions: inventory and payment boundary
@@ -128,6 +131,7 @@ awaiting_seller_pickup
 ### Cross-document decisions: API and client boundary
 
 - The current Seller pickup, Logistics scheduling, and first-mile Courier API contracts remain owned by their existing feature specifications.
+- Waybill and sorting contracts share `tracking_id` as the scan identity; downstream Logistics projections should expose it alongside the backwards-compatible waybill `reference` alias.
 - Future physical transitions must use one server-owned transition service that validates the current state, tenant/hub ownership, actor authority, evidence, idempotency, and immutable history.
 - Courier remains mobile-only and external to this repository. A Flutter client may consume an explicitly implemented API contract but must not infer transitions from this reference file.
 - An authorized Courier may view the operational Order, parcel, waybill, pickup, destination, item, and delivery-instruction data needed for its offered or accepted task, plus provider-neutral `distance_km` and `estimated_duration_minutes`. Secrets, private evidence, raw storage paths, and unrelated personal data remain excluded.
@@ -146,9 +150,10 @@ awaiting_seller_pickup
 - [x] Shared schema scope, one Order/Parcel per MVP task, one hub, and detailed-state separation are recorded in this worksheet.
 - [x] First-mile/final-mile ownership and independent assignment rules are recorded in this worksheet.
 - [x] Current inventory reservation boundary and the existing waybill/schedule/first-mile implementation boundary are recorded.
+- [x] Tracking-ID Code 128 identity, pickup-time sort-plan hints, and server-authoritative scan-time postal-code routing with exception fallback are recorded for the owning waybill, pickup, and sorting specifications.
 - [x] The endpoint-ownership rule is recorded; each eventual endpoint still requires an owning feature specification with method, path, auth, request, response, errors, and retry semantics.
 - [x] Provider-selection wording is consistent: Seller selection at pickup request is stated everywhere, and the stale Customer checkout-selection wording is removed.
-- [x] High-level `picked_up`/`assigned` mapping is consistent everywhere: first-mile projection versus future final-mile assignment.
+- [x] High-level `picked_up`/`assigned` mapping is consistent everywhere: first-mile confirmation versus committed scheduled final-mile assignment.
 - [x] Seller/Buyer domain summaries and Seller Prepare Orders distinguish the implemented pickup/waybill/scheduling/first-mile foundation and deployed P0 final-mile operations from deferred media/location/exceptional operations.
 - [x] `docs/schema.md` migration ledger includes every repository migration, uses unique documentation sequence numbers, and records the implemented policy-consent protected-action gate.
 - [ ] Complete propagation of detailed schema columns/constraints, per-transition evidence/side effects, endpoint payloads, and the first-mile compatibility rollout into all owning specs. The selection, status, implementation summaries, migration-ledger corrections, and shared migration plan are documented; this broader implementation gate remains open.
@@ -242,8 +247,8 @@ Complete each unchecked question before creating physical operational migrations
   - `seller_pickup_assigned → rejected`: The Courier rejects the offer with a reason; the Order and custody state remain unchanged. Logistics may re-offer the same task.
   - `seller_pickup_accepted → picked_up_from_seller`: The Courier scans/submits the waybill evidence; Logistics validates it and the transition service commits the first-mile handoff and approved inventory effect once.
   - `picked_up_from_seller → received_at_hub`: Logistics validates receipt at its sole hub.
-  - `received_at_hub → sorted_at_hub → dispatched_from_hub`: Logistics records these sole-hub transitions. Internal transfer execution is deferred; no synthetic `in_transfer` event is required.
-  - `dispatched_from_hub → delivery_assigned`: Logistics creates/offers the independent final-mile task.
+  - `received_at_hub → sorted_at_hub`: dedicated Receiving and Hub operations record these sole-hub transitions.
+  - `sorted_at_hub → dispatched_from_hub → delivery_assigned`: one dispatch schedule atomically assigns one Courier to 1–15 parcels while retaining a task/offer per parcel.
   - `delivery_assigned → delivery_accepted`: The assigned affiliated Courier accepts the offer.
   - `delivery_accepted → picked_up_from_hub`: The Courier scans/submits handoff evidence; Logistics validates and records the hub pickup.
   - `picked_up_from_hub → in_transit → out_for_delivery`: The final-mile Courier performs the movement.
@@ -267,6 +272,7 @@ Complete each unchecked question before creating physical operational migrations
 | Courier first-mile QR/manual verification and pickup confirm  | `docs/features/courier/pick-up-order/specs.md`            | Implemented; bridges legacy confirmation into shared physical records               |
 | Physical Courier QR evidence submission for final custody     | `docs/features/courier/proof-of-delivery/specs.md`        | Implemented P0; photo/signature media remains deferred                             |
 | Logistics scan validation and authoritative custody recording | `docs/features/logistics/update-status/specs.md`          | Implemented for hub/final-mile P0 transitions                                      |
+| Logistics bounded operational queue and Hub operations      | `docs/features/logistics/dashboard/specs.md`              | Implemented; active scoped rows/counts; stale threshold/realtime deferred         |
 | Hub receipt, sorting, transfer, and dispatch                  | `docs/features/logistics/update-status/specs.md`          | Implemented receipt/sort/dispatch; internal transfer execution deferred             |
 | Final-mile task creation, assignment, and re-offer            | `docs/features/logistics/deploy-rider/specs.md`           | Implemented final-mile candidate/offer API; advanced ranking deferred               |
 | Courier final-mile acceptance/rejection                       | `docs/features/courier/accept-delivery-requests/specs.md` | Implemented; first-mile listing/acceptance remains available                         |
@@ -305,6 +311,7 @@ Complete each unchecked question before creating physical operational migrations
 
 ### Recorded cross-document decisions and deferred outcomes
 
+- Lane-aware staging/dispatch is implemented under `docs/features/orders/lane-aware-dispatch/spec.md`: durable Shipment lane/session assignments, receipt-time ordering, audited pre-dispatch moves, explicit mixed-lane batches, immutable membership provenance, and live-lane clearing at validated hub pickup. Session closure reconciles sorting rather than gating each ready parcel.
 - [x] Task cardinality: one Order/Parcel per DeliveryTask; schedules may group Orders but do not create a multi-parcel task.
 - [x] Scan/evidence authority: the Courier scans the Order's waybill QR/reference in the app and submits the event/evidence; Logistics validates and records the authoritative event, preserving both the performing Courier and recording Logistics account. The QR/reference scan, Courier identity, and timestamp are the minimum evidence.
 - [x] Exception policy: returns, refunds, and partial fulfillment are deferred. A rejected Courier offer marks the task `rejected` without changing the Order; Logistics may offer the same task to another eligible Courier. An unfinished task becomes informationally `stale` and is not automatically cancelled or reassigned; no automatic post-pickup inventory release is assumed.

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -32,10 +33,7 @@ void main() {
       error.fieldErrors['address.postal_code']!.single,
       contains('valid postal code'),
     );
-    expect(
-      error.fieldErrors['email']!.single,
-      contains('already registered'),
-    );
+    expect(error.fieldErrors['email']!.single, contains('already registered'));
   });
 
   test('loads only public active Logistics organization options', () async {
@@ -126,12 +124,12 @@ void main() {
         governmentId: RegistrationUpload(
           path: governmentId.path,
           fileName: governmentId.uri.pathSegments.last,
-          sizeInBytes: 4,
+          bytes: Uint8List.fromList(<int>[0x89, 0x50, 0x4e, 0x47]),
         ),
         vehicleRegistration: RegistrationUpload(
           path: vehicleRegistration.path,
           fileName: vehicleRegistration.uri.pathSegments.last,
-          sizeInBytes: 4,
+          bytes: Uint8List.fromList(<int>[0x89, 0x50, 0x4e, 0x47]),
         ),
       ),
     );

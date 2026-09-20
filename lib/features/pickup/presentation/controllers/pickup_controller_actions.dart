@@ -158,7 +158,7 @@ extension PickupControllerActions on PickupController {
     )) {
       _setLocalValidationError(
         task,
-        'Choose QR or Order ID/reference and enter a value up to 128 characters.',
+        'Choose QR, tracking ID, or Order ID/reference and enter a value up to 128 characters.',
       );
       return false;
     }
@@ -239,7 +239,7 @@ extension PickupControllerActions on PickupController {
     )) {
       _setLocalValidationError(
         task,
-        'Choose QR or Order ID/reference and enter a value up to 128 characters.',
+        'Choose QR, tracking ID, or Order ID/reference and enter a value up to 128 characters.',
       );
       return false;
     }

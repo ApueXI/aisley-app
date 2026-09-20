@@ -177,7 +177,7 @@ class PickupController extends ChangeNotifier {
   void _notifyPickupListeners() => notifyListeners();
 
   static bool _validIdentifier(String type, String identifier) {
-    return (type == 'qr' || type == 'order_id') &&
+    return (type == 'qr' || type == 'tracking_id' || type == 'order_id') &&
         identifier.isNotEmpty &&
         identifier.length <= 128;
   }

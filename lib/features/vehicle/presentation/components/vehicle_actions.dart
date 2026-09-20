@@ -109,27 +109,21 @@ extension _VehicleScreenActions on _VehicleScreenState {
         _setSelectionError(kind, 'Choose a JPEG, JPG, PNG, or WebP image.');
         return;
       }
-      if (file.path.trim().isEmpty) {
-        _setSelectionError(
-          kind,
-          'The selected document could not be opened. Choose it again.',
-        );
-        return;
-      }
-
       final fileSize = await file.length();
-      if (fileSize >= _maxVehicleDocumentBytes) {
+      if (fileSize <= 0 || fileSize >= _maxVehicleDocumentBytes) {
         _setSelectionError(
           kind,
-          'The document must be under 10 MB (10,485,760 bytes).',
+          'The document must be non-empty and under 10 MB (10,485,760 bytes).',
         );
         return;
       }
       final bytes = await file.readAsBytes();
-      if (bytes.isEmpty || bytes.length >= _maxVehicleDocumentBytes) {
+      if (bytes.isEmpty ||
+          bytes.length >= _maxVehicleDocumentBytes ||
+          bytes.length != fileSize) {
         _setSelectionError(
           kind,
-          'The document must be under 10 MB (10,485,760 bytes).',
+          'The document changed while it was being read. Choose it again.',
         );
         return;
       }

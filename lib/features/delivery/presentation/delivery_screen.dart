@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/scanning/barcode_scan_candidate.dart';
+import '../../../core/scanning/barcode_scanner_screen.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../policy/presentation/controllers/policy_controller.dart';
 import '../../policy/presentation/policy_screen.dart';

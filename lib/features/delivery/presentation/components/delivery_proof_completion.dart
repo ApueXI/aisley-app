@@ -7,6 +7,7 @@ class _ProofAndCompletionCard extends StatelessWidget {
     required this.identifierController,
     required this.identifierType,
     required this.onIdentifierTypeChanged,
+    required this.onScan,
     required this.onOpenPolicies,
     required this.showPolicyAction,
   });
@@ -16,6 +17,7 @@ class _ProofAndCompletionCard extends StatelessWidget {
   final TextEditingController identifierController;
   final String identifierType;
   final ValueChanged<String> onIdentifierTypeChanged;
+  final VoidCallback onScan;
   final VoidCallback onOpenPolicies;
   final bool showPolicyAction;
 
@@ -59,6 +61,11 @@ class _ProofAndCompletionCard extends StatelessWidget {
                   icon: Icon(Icons.qr_code_2),
                 ),
                 ButtonSegment<String>(
+                  value: 'tracking_id',
+                  label: Text('Tracking ID'),
+                  icon: Icon(Icons.view_week_outlined),
+                ),
+                ButtonSegment<String>(
                   value: 'order_id',
                   label: Text('Order reference'),
                   icon: Icon(Icons.receipt_long_outlined),
@@ -74,6 +81,16 @@ class _ProofAndCompletionCard extends StatelessWidget {
                     },
             ),
             const SizedBox(height: 14),
+            if (BarcodeScannerScreen.isSupported) ...[
+              OutlinedButton.icon(
+                onPressed: busy || proofPending || actionBlocked
+                    ? null
+                    : onScan,
+                icon: const Icon(Icons.camera_alt_outlined),
+                label: const Text('Scan QR or tracking ID'),
+              ),
+              const SizedBox(height: 10),
+            ],
             TextField(
               controller: identifierController,
               enabled: !busy && !proofPending && !actionBlocked,
@@ -81,12 +98,16 @@ class _ProofAndCompletionCard extends StatelessWidget {
               autocorrect: false,
               enableSuggestions: false,
               decoration: InputDecoration(
-                labelText: identifierType == 'qr'
-                    ? 'Raw delivery QR payload'
-                    : 'Public Order reference',
-                helperText: identifierType == 'qr'
-                    ? 'Submit the QR payload exactly as scanned; the server verifies it for this task.'
-                    : 'Enter the public Order reference shown above. Database IDs and waybill references are not accepted.',
+                labelText: switch (identifierType) {
+                  'qr' => 'Raw delivery QR payload',
+                  'tracking_id' => 'Tracking ID',
+                  _ => 'Public Order reference',
+                },
+                helperText: switch (identifierType) {
+                  'qr' => 'Submit the QR payload exactly as scanned; the server verifies it for this task.',
+                  'tracking_id' => 'Enter the printed Code 128 tracking ID; the server verifies it for this task.',
+                  _ => 'Enter the public Order reference shown above. Database IDs and waybill references are not accepted.',
+                },
                 border: const OutlineInputBorder(),
               ),
             ),
