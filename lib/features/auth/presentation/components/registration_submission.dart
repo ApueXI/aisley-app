@@ -29,22 +29,8 @@ extension _RegistrationSubmission on _RegistrationScreenState {
         return;
       }
 
-      final validationError = await _validateEvidence(file);
-      if (!mounted) {
-        return;
-      }
-      if (validationError != null) {
-        _updateState(() {
-          _submissionError = validationError;
-        });
-        return;
-      }
-
-      final upload = RegistrationUpload(
-        path: file.path,
-        fileName: _fileName(file),
-        sizeInBytes: await file.length(),
-      );
+      final upload = await _readEvidence(file);
+      if (!mounted) return;
       _updateState(() {
         if (governmentId) {
           _governmentId = upload;
@@ -53,6 +39,9 @@ extension _RegistrationSubmission on _RegistrationScreenState {
         }
         _submissionError = null;
       });
+    } on _RegistrationFileSelectionException catch (error) {
+      if (!mounted) return;
+      _updateState(() => _submissionError = error.message);
     } on Exception {
       if (!mounted) {
         return;
@@ -64,30 +53,42 @@ extension _RegistrationSubmission on _RegistrationScreenState {
     }
   }
 
-  Future<String?> _validateEvidence(XFile file) async {
-    if (file.path.trim().isEmpty) {
-      return 'The selected document could not be read. Choose it again.';
-    }
-
+  Future<RegistrationUpload> _readEvidence(XFile file) async {
     final name = _fileName(file);
     final extension = name.contains('.')
         ? name.substring(name.lastIndexOf('.') + 1).toLowerCase()
         : '';
     if (!const <String>{'jpg', 'jpeg', 'png', 'webp'}.contains(extension)) {
-      return 'Use a JPEG, JPG, PNG, or WebP image.';
+      throw const _RegistrationFileSelectionException(
+        'Use a JPEG, JPG, PNG, or WebP image.',
+      );
     }
 
-    final size = await file.length();
-    if (size >= _maxEvidenceBytes) {
-      return 'Each image must be smaller than 10 MiB.';
+    final reportedSize = await file.length();
+    if (reportedSize <= 0 || reportedSize >= _maxEvidenceBytes) {
+      throw const _RegistrationFileSelectionException(
+        'Each image must be non-empty and smaller than 10 MiB.',
+      );
     }
 
     final bytes = await file.readAsBytes();
+    if (bytes.isEmpty || bytes.length >= _maxEvidenceBytes) {
+      throw const _RegistrationFileSelectionException(
+        'Each image must be non-empty and smaller than 10 MiB.',
+      );
+    }
+    if (bytes.length != reportedSize) {
+      throw const _RegistrationFileSelectionException(
+        'The selected document changed while it was being read. Choose it again.',
+      );
+    }
     if (!_hasSupportedImageSignature(bytes)) {
-      return 'The selected file does not appear to be a valid image.';
+      throw const _RegistrationFileSelectionException(
+        'The selected file does not appear to be a valid image.',
+      );
     }
 
-    return null;
+    return RegistrationUpload(path: file.path, fileName: name, bytes: bytes);
   }
 
   Future<void> _submit() async {
@@ -239,4 +240,10 @@ extension _RegistrationSubmission on _RegistrationScreenState {
       _submissionError = 'Registration upload cancelled. Review the form before submitting again.';
     });
   }
+}
+
+class _RegistrationFileSelectionException implements Exception {
+  const _RegistrationFileSelectionException(this.message);
+
+  final String message;
 }

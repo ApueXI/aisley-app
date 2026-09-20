@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../../core/networking/api_client.dart';
 import '../../../core/networking/api_contract_exception.dart';
+import '../../../core/networking/multipart_file_selection.dart';
 import '../../../core/security/token_storage.dart';
 import '../domain/auth_models.dart';
 
@@ -73,7 +74,18 @@ class ApiAuthRepository implements AuthRepository {
     final response = await _client.postMultipart(
       '/courier/auth/register',
       fields: request.fields,
-      filePaths: request.filePaths,
+      files: <String, MultipartFileSelection>{
+        'government_id': MultipartFileSelection(
+          path: request.governmentId.path,
+          fileName: request.governmentId.fileName,
+          bytes: request.governmentId.bytes,
+        ),
+        'vehicle_registration': MultipartFileSelection(
+          path: request.vehicleRegistration.path,
+          fileName: request.vehicleRegistration.fileName,
+          bytes: request.vehicleRegistration.bytes,
+        ),
+      },
       onCancel: onCancel,
     );
     final payload = _decodeObject(response.body);

@@ -10,7 +10,7 @@ class ProfilePhotoSelection {
     required this.bytes,
   });
 
-  /// The temporary local path used only for the multipart upload.
+  /// A readable native path when available; browser uploads use [bytes].
   final String path;
   final String fileName;
   final Uint8List bytes;

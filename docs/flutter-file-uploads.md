@@ -5,7 +5,7 @@
 - This is Flutter-client implementation guidance for the same Courier app on Android and at `http://localhost:8765` through `flutter run -d web-server --web-hostname localhost --web-port 8765`. It does not authorize a separate web UI or a production browser release.
 - Scope: registration evidence (`government_id`, `vehicle_registration`), account profile photo (`photo`), and independent vehicle documents (`file` for each `{kind}`). Photo/signature delivery proof remains deferred.
 - The Laravel upload endpoints and [shared image policy](references/file-upload-requirements.md) are unchanged. The server remains authoritative for ownership, MIME/signature/decode, the strict under-10-MiB limit, persistence, and private delivery.
-- Current client status: Android/native uploads use `ApiClient.postMultipart` with `MultipartFile.fromPath`; the web build compiles, but browser upload success has not been verified. `fromPath` requires `dart:io` and is not a web upload method. Treat browser uploads as implementation work, not as already supported.
+- Current client status: `ApiClient.postMultipart` now uses a shared platform-safe adapter. Android/native targets preserve the readable-path `MultipartFile.fromPath` branch, while web-server uses bounded selected bytes with `MultipartFile.fromBytes`. Browser and installed-APK runtime/CORS acceptance has not yet been verified, so build success is not treated as full support.
 
 ## MUST
 
@@ -23,7 +23,7 @@
 ### Client handoff
 
 - Keep upload creation centralized in `lib/core/networking/api_client.dart`, not in screens. Adapt the current `filePaths`-only input to a platform-neutral selected-file representation that keeps bytes or a readable source, filename, measured size, and optional native path without treating a web path as a disk path.
-- Registration currently stores only `RegistrationUpload.path` after checking `XFile.readAsBytes()`; retain a usable source through submission so its two selected browser files can be sent. Account and vehicle selections already retain validated bytes for preview but their repositories currently pass only `.path`; make those repositories hand the same selected content to the shared transport.
+- Registration selections retain their validated bytes, filename, size, and optional native path through submission so both browser files can be sent. Account and vehicle selections hand their already validated bytes, filename, and optional native path to the same shared transport; browser paths are never sent to `fromPath`.
 - Build `http.MultipartRequest` with the same fields and headers on both targets. Let `package:http` set the multipart boundary; do not hard-code `Content-Type: multipart/form-data`. Use a tested native path branch or byte-based part on Android, and a byte-based part on web. Keep the required part names and filenames stable.
 - The fixed localhost Flutter origin and API origin may differ by port. The Laravel API must allow the exact `http://localhost:8765` origin for the necessary `POST` uploads, private `GET` previews, and `OPTIONS` preflight, including `Authorization` and `Idempotency-Key` when sent. Do not bypass CORS with browser security flags, a secret-bearing frontend proxy, or disabled authentication. CORS configuration belongs to the backend owner; record any missing configuration as a contract/deployment gap.
 - Keep private photo and OR/CR previews in memory from authenticated API reads, and clear them on session change. Do not put bearer tokens in image URLs or use unauthenticated browser image loading for protected assets.

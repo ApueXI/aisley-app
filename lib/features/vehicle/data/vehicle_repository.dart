@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../../core/networking/api_client.dart';
 import '../../../core/networking/api_contract_exception.dart';
+import '../../../core/networking/multipart_file_selection.dart';
 import '../domain/vehicle_models.dart';
 
 abstract interface class VehicleRepository {
@@ -78,7 +79,13 @@ class ApiVehicleRepository implements VehicleRepository {
     final response = await _client.postMultipart(
       '/courier/vehicle/documents/${kind.value}',
       fields: <String, String>{'expected_revision': '$expectedRevision'},
-      filePaths: <String, String>{'file': selection.path},
+      files: <String, MultipartFileSelection>{
+        'file': MultipartFileSelection(
+          path: selection.path,
+          fileName: selection.fileName,
+          bytes: selection.bytes,
+        ),
+      },
       authenticated: true,
       requestHeaders: <String, String>{'Idempotency-Key': idempotencyKey},
       onCancel: onCancel,

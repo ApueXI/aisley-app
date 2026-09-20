@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../../core/networking/api_contract_exception.dart';
 
 enum CourierAccountStatus { pending, active, rejected, suspended, deactivated }
@@ -161,12 +163,14 @@ class RegistrationUpload {
   const RegistrationUpload({
     required this.path,
     required this.fileName,
-    required this.sizeInBytes,
+    required this.bytes,
   });
 
   final String path;
   final String fileName;
-  final int sizeInBytes;
+  final Uint8List bytes;
+
+  int get sizeInBytes => bytes.length;
 }
 
 class CourierRegistrationRequest {
