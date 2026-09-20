@@ -8,6 +8,25 @@ import 'package:aisley_app/features/notification/presentation/controllers/notifi
 import 'package:aisley_app/features/notification/presentation/notification_screen.dart';
 
 void main() {
+  testWidgets('starts only one initial refresh when it owns polling', (
+    tester,
+  ) async {
+    final repository = _FakeNotificationRepository();
+    final controller = NotificationController(
+      notificationRepository: repository,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: NotificationScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(repository.listCalls, 1);
+    expect(repository.unreadCountCalls, 1);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('shows unread notifications and explicit mark-read action', (
     tester,
   ) async {
@@ -125,6 +144,8 @@ class _FakeNotificationRepository implements NotificationRepository {
   bool failList = false;
   bool empty = false;
   ApiException? listError;
+  int listCalls = 0;
+  int unreadCountCalls = 0;
 
   @override
   Future<CourierNotificationPage> fetchNotifications({
@@ -132,6 +153,7 @@ class _FakeNotificationRepository implements NotificationRepository {
     int limit = 20,
     String? cursor,
   }) async {
+    listCalls++;
     if (listError != null) {
       throw listError!;
     }
@@ -148,7 +170,10 @@ class _FakeNotificationRepository implements NotificationRepository {
   }
 
   @override
-  Future<int> fetchUnreadCount() async => 1;
+  Future<int> fetchUnreadCount() async {
+    unreadCountCalls++;
+    return 1;
+  }
 
   @override
   Future<CourierNotification> fetchDetail(String notificationId) async =>

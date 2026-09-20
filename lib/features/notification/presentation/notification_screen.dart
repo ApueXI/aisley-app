@@ -41,8 +41,9 @@ class _NotificationScreenState extends State<NotificationScreen>
       }
       if (widget.managePolling) {
         widget.controller.startPolling();
+      } else {
+        unawaited(widget.controller.refresh());
       }
-      unawaited(widget.controller.refresh());
     });
   }
 

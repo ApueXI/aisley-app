@@ -5,8 +5,8 @@ title: Courier Notifications
 system: AISLEY
 type: Feature Specification
 version: 1.1
-status: Laravel Courier inbox API implemented; external Flutter inbox remains pending
-implementation_status: Scoped list, detail, unread-count, and mark-read routes plus pickup/final-mile producers implemented; Flutter client not implemented in this repository
+status: Laravel Courier inbox API and external Flutter inbox implemented; dashboard aggregate remains scaffold-only
+implementation_status: Scoped list, detail, unread-count, and mark-read routes plus pickup/final-mile producers implemented; Flutter client adopted in this repository
 canonical: true
 scope: Laravel Courier API and external Flutter mobile application
 backend_contract_commit: feature/courier-notifications
@@ -21,7 +21,7 @@ source_coverage: docs/requirements.md, docs/workspace.md, docs/schema.md, docs/d
 - Give an approved Courier a private, persistent in-app inbox for work alerts and a readable unread count in the external Flutter app.
 - The inbox reports committed events; it does not offer, accept, reject, pick up, validate, or deliver a task itself.
 - Laravel writes database notifications to the scheduled Courier for pickup-schedule assignment, revision, cancellation, and due reminder, and now delivers committed final-mile-offer alerts.
-- The protected `/api/v1/courier/notifications` list, count, detail, and mark-read routes are implemented in Laravel. The Flutter notification screen is external to this repository; the Courier dashboard notification section remains an unavailable aggregate scaffold.
+- The protected `/api/v1/courier/notifications` list, count, detail, and mark-read routes are implemented in Laravel. The Flutter notification screen is implemented in this repository; the Courier dashboard notification section remains an unavailable aggregate scaffold.
 - The inbox exposes existing pickup-schedule alerts and committed final-mile-offer alerts with deterministic recipient/type/source identity.
 - Final-mile offers remain visible through the owning task API even when an alert is delayed or unavailable.
 - Non-goals: SMTP, background push, SMS, chat, campaigns, generic Courier login alerts, notification-driven task mutations, or a Courier web UI.
@@ -93,12 +93,12 @@ Logistics action commits → durable recipient alert → Courier inbox/count
 - [x] List, detail, unread count, and mark-read agree on recipient/type scope and bounded ordering; a foreign UUID returns a scoped `404`.
 - [x] Mark-read is locked and idempotent, preserving the first `read_at`; delivery is decoupled from the committed source transaction.
 - [ ] Full re-offer/rejection history and worker-concurrency coverage require the remaining integration cases before this backend contract is considered complete.
-- [ ] Flutter shows honest loading, empty, read/unread, stale, forbidden, offline, retry, and unavailable-destination states.
+- [x] Flutter shows honest loading, empty, read/unread, stale, forbidden, offline, retry, and unavailable-destination states.
 - [ ] SQLite/PostgreSQL, API privacy/IDOR/concurrency, and Flutter contract/widget tests pass before the feature is marked implemented.
 
 ## HOW
 
-### Implemented backend API contract — Flutter adoption pending
+### Implemented backend API contract — Flutter adoption
 
 | Method and path | Request | Success |
 | --- | --- | --- |
@@ -107,7 +107,7 @@ Logistics action commits → durable recipient alert → Courier inbox/count
 | `GET /api/v1/courier/notifications/{notification}` | UUID path; no query/body | `200 {data:<notification>}`; read state unchanged |
 | `POST /api/v1/courier/notifications/{notification}/read` | Empty JSON body; no Idempotency-Key required | `200 {data:<notification>}` with persisted `read_at` |
 
-- These four routes are implemented under the protected Courier API. Flutter may adopt them only after copying this versioned contract and adding its own client/widget coverage; no Flutter screen is included here.
+- These four routes are implemented under the protected Courier API. Flutter adopts this versioned contract through its repository, controller, and widget coverage; the dashboard aggregate remains separate and unavailable.
 - Register `unread-count` before the UUID detail route. Reject unsupported query/body fields and malformed cursors with `422`.
 - Default list: `status=all`, `limit=20`, ordered by `created_at DESC, id DESC`; the opaque cursor preserves that stable pair and current recipient/type scope.
 - `meta.next_cursor` is null at the end. A cursor from another account, filter, or altered scope is invalid rather than a path to foreign rows.
@@ -180,13 +180,13 @@ Logistics action commits → durable recipient alert → Courier inbox/count
 
 ### Flutter implementation
 
-- Add an Inbox entry and unread badge without replacing the current task screens or treating dashboard scaffold sections as live notifications.
-- Foreground refresh may poll every 30 seconds while authenticated and visible; stop on background, logout, invalid affiliation, or consent gate.
-- Manual refresh and app resume fetch authoritative count/list; ignore older responses after a newer refresh or account change.
-- Keep only bounded in-memory items. The dashboard's possible 15-minute encrypted snapshot does not authorize persistent notification or task caches here.
-- Show unread/read labels with text and semantics, not color alone; support large text, 44-pixel touch targets, screen-reader order, light/dark themes, and safe notification previews.
-- A tap opens detail/current target when available; use a visible explicit mark-read action. A stale or removed target leaves the historical alert readable.
-- Offline mode may show an explicitly stale in-memory list but cannot mark read or change tasks; reconcile on reconnect.
+- The Flutter client provides an Inbox entry and unread badge without replacing the current task screens or treating dashboard scaffold sections as live notifications.
+- Foreground refresh polls every 30 seconds while the authenticated dashboard or inbox is visible and pauses on background, logout, invalid affiliation, or consent gate.
+- Manual refresh and app resume fetch authoritative count/list; controller epochs ignore older responses after a newer refresh or account change.
+- Only bounded in-memory items are retained. The dashboard's possible 15-minute encrypted snapshot does not authorize persistent notification or task caches here.
+- The inbox shows unread/read labels with text and semantics, not color alone; it supports large text, 44-pixel touch targets, screen-reader order, light/dark themes, and safe notification previews.
+- A tap opens detail/current target when available; the explicit mark-read action is separate. A stale or removed target leaves the historical alert readable.
+- Offline mode shows an explicitly stale in-memory list but cannot mark read or change tasks; the controller reconciles on reconnect.
 - Background push, OS notification permission, device-token registration, WebSockets, and deep links from external push remain out of scope.
 
 ### Verification and handoff
@@ -198,6 +198,6 @@ Logistics action commits → durable recipient alert → Courier inbox/count
 - Test Flutter JSON parsing, consent/session recovery, polling lifecycle, response races, stale target, read retry, accessibility, and logout cleanup.
 - Run focused Laravel SQLite and PostgreSQL suites plus Flutter analyzer/tests; record actual results instead of checking criteria from design alone.
 - Keep the Courier Dashboard aggregate's legacy `OPERATIONAL_SCHEMA_DEFERRED` literal; its notification subsection remains scaffold-only even though the separate inbox API is live.
-- Copy this spec to the Flutter project only with the implemented API commit/version and update both progress logs when client adoption occurs.
+- This copied spec records the implemented API commit/version and the external Flutter client adoption; both progress logs are updated with the verification boundary.
 
 **References:** `docs/features/courier/rules.md`, `docs/features/courier/dashboard/specs.md`, `docs/features/logistics/notification/spec.md`, `docs/features/orders/logistics-pickups/spec.md`, `docs/schema.md`, and [Laravel database notifications and after-commit delivery](https://laravel.com/docs/12.x/notifications).

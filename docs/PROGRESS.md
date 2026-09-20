@@ -293,3 +293,8 @@ This is the progress log for the external Courier Flutter application. It is sep
 
 - Reconciled Flutter-owned Courier guidance against the latest client progress: shared `mobile_scanner` QR/Code 128 candidate capture is implemented for Android APK and localhost web-server, while installed-device/browser camera acceptance remains pending. Removed pre-adoption scanner instructions from the pickup spec.
 - Clarified Android OS secure storage versus the approved package's reviewed localhost-browser storage in the Auth and Account handoffs. Separated implemented identifier-only delivery proof UI from deferred photo/signature media capture and upload states. The copied backend documentation baseline remains `4045cc57d6466d7e84f249a6ceaf45cb49a88151` for pickup/proof, with later `courier-notifications-v1` adoption recorded above; backend endpoints, fields, status transitions, and contract versions are unchanged. No Flutter or Laravel code changed or live API retest was performed.
+
+## 2026-09-20
+
+- Reconciled `docs/features/courier/notification/specs.md` with the implemented Flutter inbox against `feature/courier-notifications` / `courier-notifications-v1`, restoring the client-adoption status and keeping the dashboard aggregate scaffold-only.
+- Fixed notification inbox startup so an inbox-owned polling screen performs one initial list/count refresh instead of issuing duplicate requests. Added a widget regression test; notification routes, DTOs, authorization, and read-state behavior remain unchanged.
