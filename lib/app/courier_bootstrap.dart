@@ -14,6 +14,8 @@ import '../features/delivery/data/delivery_repository.dart';
 import '../features/delivery/presentation/controllers/delivery_controller.dart';
 import '../features/history/data/history_repository.dart';
 import '../features/history/presentation/controllers/history_controller.dart';
+import '../features/notification/data/notification_repository.dart';
+import '../features/notification/presentation/controllers/notification_controller.dart';
 import '../features/policy/data/policy_repository.dart';
 import '../features/policy/presentation/controllers/policy_controller.dart';
 import '../features/pickup/data/pickup_repository.dart';
@@ -36,6 +38,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
   PickupController? _pickupController;
   DeliveryController? _deliveryController;
   HistoryController? _historyController;
+  NotificationController? _notificationController;
   VehicleController? _vehicleController;
   bool _hasStartupError = false;
 
@@ -64,6 +67,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
       late final PickupController pickupController;
       late final DeliveryController deliveryController;
       late final HistoryController historyController;
+      late final NotificationController notificationController;
       late final VehicleController vehicleController;
       final authController = AuthController(
         authRepository: ApiAuthRepository(
@@ -77,6 +81,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
           pickupController.clear();
           deliveryController.clear();
           historyController.clear();
+          notificationController.clear();
           vehicleController.clear();
         },
       );
@@ -102,6 +107,10 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         historyRepository: ApiHistoryRepository(client: apiClient),
         onAuthFailure: authController.handleHistoryAuthFailure,
       );
+      notificationController = NotificationController(
+        notificationRepository: ApiNotificationRepository(client: apiClient),
+        onAuthFailure: authController.handleNotificationAuthFailure,
+      );
       vehicleController = VehicleController(
         vehicleRepository: ApiVehicleRepository(client: apiClient),
         onAuthFailure: authController.handleVehicleAuthFailure,
@@ -118,6 +127,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         _pickupController = pickupController;
         _deliveryController = deliveryController;
         _historyController = historyController;
+        _notificationController = notificationController;
         _vehicleController = vehicleController;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -147,6 +157,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         pickupController: _pickupController,
         deliveryController: _deliveryController,
         historyController: _historyController,
+        notificationController: _notificationController,
         vehicleController: _vehicleController,
       );
     }

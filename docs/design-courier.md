@@ -4,7 +4,7 @@ system: AISLEY
 type: Design Guide
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active — core Courier UI and Android/web-server camera scanning implemented; route/location/media extensions deferred
+status: Active — core Courier UI, notification inbox, and Android/web-server camera scanning implemented; route/location/media extensions deferred
 ---
 
 # Courier Flutter Design Guide
@@ -13,7 +13,7 @@ status: Active — core Courier UI and Android/web-server camera scanning implem
 
 This guide applies to the external Flutter Courier application on Android and to local browser testing of that same app through Flutter `web-server`. It does not define the separate webapp's Customer storefront or React Admin, Seller, or Logistics dashboards. Laravel remains authoritative for identity, approval, ownership, and operational state.
 
-The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, Phase 1 account management, policy consent, the approved first-mile/final-mile pickup workflow, final-mile movement, P0 QR/tracking-ID/Order-reference proof, completion intent, and read-only delivered history. Android APK and Flutter web camera scanning are implemented client work; route/location telemetry, photo/signature proof media, earnings, notifications, and offline task screens remain deferred.
+The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, Phase 1 account management, policy consent, the Courier notification inbox, the approved first-mile/final-mile pickup workflow, final-mile movement, P0 QR/tracking-ID/Order-reference proof, completion intent, and read-only delivered history. Android APK and Flutter web camera scanning are implemented client work; background push, route/location telemetry, photo/signature proof media, earnings, and offline task screens remain deferred.
 
 ## Design goals
 
@@ -50,7 +50,7 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 ## Navigation and layout
 
 - Use a single, predictable authentication stack: Logistics selection → registration → pending result, or login → authenticated state.
-- Navigate to the implemented Pickup orders, Delivery work, and Delivery history screens from the dashboard. Deferred route/location and media capabilities must state that they are unavailable rather than showing fabricated jobs or controls.
+- Navigate to the implemented Notifications, Pickup orders, Delivery work, and Delivery history screens from the dashboard. Deferred route/location and media capabilities must state that they are unavailable rather than showing fabricated jobs or controls.
 - Use Flutter's adaptive navigation primitives. Phones are the primary target; tablets may use wider constrained content but must not become a desktop sidebar clone.
 - Preserve user input when validation or a recoverable network error returns. Confirm before discarding a partially completed registration.
 - Keep primary actions reachable above the keyboard when possible; use bottom action areas only when they do not obscure content or accessibility focus.

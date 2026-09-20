@@ -4,8 +4,8 @@ system: AISLEY
 type: Client Architecture
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active — authentication, account, vehicle, policy, pickup, delivery, and history client; route/location/media extensions deferred
-backend_contract_commit: 4045cc57d6466d7e84f249a6ceaf45cb49a88151
+status: Active — authentication, account, vehicle, policy, notification, pickup, delivery, and history client; route/location/media extensions deferred
+backend_contract_commit: feature/courier-notifications
 ---
 
 # Scope
@@ -50,8 +50,12 @@ The backend currently exposes Courier authentication, account and vehicle manage
 - `POST /api/v1/courier/tasks/{task}/proof-of-delivery` (authenticated P0 QR/reference proof submission)
 - `GET /api/v1/courier/tasks/{task}/completion` and `POST /api/v1/courier/tasks/{task}/completion` (authenticated completion projection/intent)
 - `GET /api/v1/courier/delivery-history` and `GET /api/v1/courier/delivery-history/{task}` (authenticated read-only delivered history)
+- `GET /api/v1/courier/notifications` (authenticated bounded inbox list)
+- `GET /api/v1/courier/notifications/unread-count` (authenticated unread count)
+- `GET /api/v1/courier/notifications/{notification}` (authenticated notification detail)
+- `POST /api/v1/courier/notifications/{notification}/read` (authenticated idempotent mark-read)
 
-The dashboard aggregation remains a read-only scaffold. Tracking IDs may resolve through the documented QR/reference flows, and the shared scanner supplies QR/Code 128 candidates on Android and the local web-server target. Route/location telemetry, photo/signature proof media, chat, earnings, notification transport, and offline synchronization endpoints are not currently available. The app renders explicit unavailable states for those capabilities and must not fabricate jobs or call conceptual routes from draft specifications. Logistics Linehaul and Sort plan operations do not create Courier endpoints.
+The dashboard aggregation remains a read-only scaffold. Tracking IDs may resolve through the documented QR/reference flows, and the shared scanner supplies QR/Code 128 candidates on Android and the local web-server target. Background push/WebSockets, route/location telemetry, photo/signature proof media, chat, earnings, and offline synchronization endpoints are not currently available. The app renders explicit unavailable states for those capabilities and must not fabricate jobs or call conceptual routes from draft specifications. Logistics Linehaul and Sort plan operations do not create Courier endpoints.
 
 ## Camera targets
 
@@ -132,7 +136,7 @@ invalid_affiliation
 recoverable_network_failure
 ```
 
-Pending Couriers cannot use `/me`; the current API does not provide a cross-device pending-status endpoint. The pending screen must therefore be local and informational until a future status or notification contract exists.
+Pending Couriers cannot use `/me`; the current API does not provide a cross-device pending-status endpoint. The pending screen must therefore be local and informational until a dedicated pending-status endpoint exists.
 
 ## Security and privacy
 

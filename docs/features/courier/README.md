@@ -4,14 +4,14 @@ system: AISLEY
 type: Feature Index
 role: Courier / Rider
 platform: Flutter / Dart
-status: Auth, account and vehicle management, policy consent, first/final-mile pickup, delivery, and read-only history implemented; route/location/media extensions deferred
+status: Auth, account, vehicle, policy consent, notification inbox, first/final-mile pickup, delivery, and read-only history implemented; route/location/media extensions deferred
 ---
 
 # Courier feature index
 
 ## Implementation rule
 
-`auth/spec.md`, `account-management/specs.md`, `../logistics/vehicle-fleet-management/specs.md` (the shared Courier/Logistics vehicle contract), the policy-consent specification, `accept-delivery-requests/specs.md`, `pick-up-order/specs.md`, `delivery-order/specs.md`, `proof-of-delivery/specs.md`, `complete-delivery/specs.md`, and `delivery-history/specs.md` describe currently implemented API slices. The remaining Courier specifications are planning drafts copied for future design work. They are not endpoint contracts and must not be used to invent Flutter requests, response fields, statuses, providers, or offline behavior.
+`auth/spec.md`, `account-management/specs.md`, `../logistics/vehicle-fleet-management/specs.md` (the shared Courier/Logistics vehicle contract), the policy-consent specification, `notification/specs.md`, `accept-delivery-requests/specs.md`, `pick-up-order/specs.md`, `delivery-order/specs.md`, `proof-of-delivery/specs.md`, `complete-delivery/specs.md`, and `delivery-history/specs.md` describe currently implemented API slices. The remaining Courier specifications are planning drafts copied for future design work. They are not endpoint contracts and must not be used to invent Flutter requests, response fields, statuses, providers, or offline behavior.
 
 Before implementing a remaining draft feature, verify that the backend provides:
 
@@ -20,7 +20,7 @@ Before implementing a remaining draft feature, verify that the backend provides:
 3. any required shared Shipment/Delivery Task schema and transition rules; and
 4. integration/contract-test coverage.
 
-Until then, implement only a truthful scaffold or unavailable state for that missing capability. Do not fabricate task counts, route/location telemetry, proof media, earnings, or notifications; the working task, P0 proof, and read-only history APIs above remain available.
+Until then, implement only a truthful scaffold or unavailable state for that missing capability. Do not fabricate task counts, route/location telemetry, proof media, earnings, or notification data; the working task, P0 proof, notification inbox, and read-only history APIs above remain available.
 
 ## Current Courier API
 
@@ -59,6 +59,10 @@ Until then, implement only a truthful scaffold or unavailable state for that mis
 - `POST /api/v1/courier/tasks/{task}/proof-of-delivery` (authenticated QR/reference proof)
 - `GET /api/v1/courier/tasks/{task}/completion` and `POST /api/v1/courier/tasks/{task}/completion` (authenticated completion projection/intent)
 - `GET /api/v1/courier/delivery-history` and `GET /api/v1/courier/delivery-history/{task}` (authenticated delivered history)
+- `GET /api/v1/courier/notifications` (authenticated bounded inbox list)
+- `GET /api/v1/courier/notifications/unread-count` (authenticated unread count)
+- `GET /api/v1/courier/notifications/{notification}` (authenticated notification detail)
+- `POST /api/v1/courier/notifications/{notification}/read` (authenticated idempotent mark-read)
 
 All other routes shown in the draft files are conceptual placeholders. They are not implemented merely because they appear in a specification. The backend documents QR, tracking-ID, and Order-reference proof, and the Flutter client exposes all three input types plus Android/web-server camera candidates. The client uses text/area delivery context, revision-checked movement, and read-only completion/history projections; route/location telemetry and proof media remain unavailable in Flutter. Linux remains manual-input only. Logistics-owned Linehaul and Sort plan routes are not Courier API routes.
 
@@ -74,4 +78,4 @@ Flutter camera work targets the Android release APK and the same Flutter app ser
 
 ## Draft files
 
-The following files remain backlog material: Chat/Messaging, Dashboard operational aggregation, Incident Reporting, Profit Dashboard, and route/location extensions. Acceptance, Deliver Order movement, P0 Proof of Delivery, Complete Delivery intent, and Delivery History are implemented through the dedicated Flutter flows and their owning contracts; photo/signature proof remains deferred.
+The following files remain backlog material: Chat/Messaging, Dashboard operational aggregation, Incident Reporting, Profit Dashboard, and route/location extensions. Acceptance, Deliver Order movement, P0 Proof of Delivery, Complete Delivery intent, Delivery History, and the Courier notification inbox are implemented through the dedicated Flutter flows and their owning contracts; background push, photo/signature proof, and notification-driven mutations remain deferred.
