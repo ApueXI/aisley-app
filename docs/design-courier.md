@@ -1,19 +1,19 @@
 ---
-title: Courier Mobile Design Guide
+title: Courier Flutter Design Guide
 system: AISLEY
 type: Design Guide
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active — authentication, account management, policy consent, pickup, delivery, and history UI implemented; route/location/media extensions deferred
+status: Active — core Courier UI implemented; Android APK and Flutter web-server camera scanning planned; route/location/media extensions deferred
 ---
 
-# Courier Mobile Design Guide
+# Courier Flutter Design Guide
 
 ## Scope
 
-This guide applies to the external Flutter Courier application. It does not define the Customer storefront or the React Admin, Seller, or Logistics dashboards. Courier UI is implemented in the Flutter project; the Laravel repository provides the API and remains authoritative for identity, approval, ownership, and operational state.
+This guide applies to the external Flutter Courier application on Android and to local browser testing of that same app through Flutter `web-server`. It does not define the separate webapp's Customer storefront or React Admin, Seller, or Logistics dashboards. Laravel remains authoritative for identity, approval, ownership, and operational state.
 
-The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, Phase 1 account management, policy consent, the approved first-mile/final-mile pickup workflow, final-mile movement, P0 QR/reference proof, completion intent, and read-only delivered history. Route/location telemetry, camera scanning, photo/signature proof media, earnings, notifications, and offline task screens remain deferred.
+The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, Phase 1 account management, policy consent, the approved first-mile/final-mile pickup workflow, final-mile movement, P0 QR/tracking-ID/Order-reference proof, completion intent, and read-only delivered history. Android APK and Flutter web camera scanning are planned client work; route/location telemetry, photo/signature proof media, earnings, notifications, and offline task screens remain deferred.
 
 ## Design goals
 
@@ -102,6 +102,8 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 - Show server-assigned Seller pickups and hub pickups in separate sections. The task list is read-only until the Courier explicitly accepts an assigned task.
 - Keep schedule, Seller/hub, authorized pickup address, Order reference, waybill reference, destination area, and lowercase server status visible without exposing Buyer contact details, prices, or private evidence.
 - Require an explicit confirmation after the QR/manual identifier candidate is entered. A waybill QR payload is untrusted text; the current client supports scanner keyboard/paste input and a manual Order ID/reference fallback, not camera decoding.
+- Planned **Scan** opens the camera only when selected, works in the installed Android release APK and in the same Flutter app at the fixed localhost web-server port, and displays a visible stop/cancel control. Show permission denied, unavailable, busy, unsupported, and insecure-origin states with a paste/manual alternative; release the stream when leaving the screen or switching tasks.
+- Decode QR payload as `qr` and the waybill Code 128 tracking ID as `tracking_id`; do not route tracking IDs through the QR-only resolver. Suppress repeated-frame candidates and show the matched task before the explicit pickup or hub-evidence action. Do not log or copy raw decoded values into analytics.
 - Use the documented idempotency key for physical first-mile confirmation and preserve the same key and identifier after an uncertain response. Final-mile hub evidence must remain visibly “Awaiting Logistics validation” until the server reports validated custody.
 - Present the schedule route manifest as an ordered, accessible stop list. It is not a Buyer delivery route, and the client does not add map credentials, provider calls, or turn-by-turn navigation.
 
@@ -111,6 +113,7 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 - After the server records `picked_up_from_hub`, show one explicit movement action at a time: `in_transit`, then `out_for_delivery`. Each action confirms the server-authorized transition and revision; it never writes an Order status locally.
 - Show the authorized hub, destination, recipient contact, instructions, and optional advisory metrics returned by the delivery-context endpoint. Missing route metrics remain visibly unavailable; no map, GPS, local ETA, or fabricated zero distance is shown.
 - At `out_for_delivery`, offer only the live P0 QR/reference proof input. Show `awaiting_validation` after the 202 response, map the returned proof reference to completion, and never treat a scan or completion intent as delivered.
+- Planned delivery-proof camera scanning reuses the Flutter barcode capture behavior on Android APK and local web-server. It fills a candidate for explicit proof submission; camera access does not enable photo or signature proof media.
 - Completion is an explicit intent followed by a fresh completion read. Display delivered only when the server returns the committed `delivered` projection.
 
 ### Delivery history
@@ -148,6 +151,7 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 - Unit-test validation, multipart field names, PSGC cascading behavior, JSON parsing, status mapping, secure-storage failures, and theme semantics.
 - Run integration/contract tests against the Laravel API for Logistics options, registration, login, `/me`, logout, role isolation, status denial, upload limits, and error codes. Mocks may support deterministic widget tests but cannot replace contract verification.
 - Add golden or screenshot tests only for stable, approved screens; verify text scaling and light/dark variants before accepting them.
+- Before marking scanning available, exercise QR and Code 128 capture, permission denial, manual fallback, task mismatch, duplicate-frame suppression, and camera cleanup in an installed Android release APK and the local fixed-port browser run.
 - Keep this guide and the copied Courier feature specs synchronized with the backend API version. Changes to deferred delivery UI require the matching API/schema decision first.
 
 **Related documents:** `../AGENTS.md`, `docs/features/courier/auth/spec.md`, `docs/domain/Courier.md`, `docs/domain/Logistics.md`, `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, `docs/references/user-registration-requirements.md`, and `docs/references/file-upload-requirements.md`.

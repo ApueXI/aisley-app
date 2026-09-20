@@ -4,12 +4,12 @@ feature: courier-proof-of-delivery
 title: Proof of Delivery (e-POD)
 system: AISLEY
 type: Feature Specification
-version: 1.6
+version: 1.7
 status: Implemented P0 QR/tracking-ID/Order-reference proof submission; media extensions deferred
 implementation_status: Courier QR/tracking-ID/Order-reference proof records and Logistics validation are implemented; image/signature uploads remain deferred
-flutter_status: QR payload and Order-reference proof UI reported implemented; tracking-ID input and camera decoding remain deferred; live API compatibility not verified here
+flutter_status: QR payload and Order-reference proof UI reported implemented; Android APK and local Flutter web-server camera scanning of QR/Code 128 tracking IDs is planned, not implemented
 canonical: true
-scope: External Flutter mobile client and Laravel Courier API
+scope: External Flutter Android/local-web-test client and Laravel Courier API
 backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378
 backend_contract_version: courier-epod-v1-qr-tracking-id
 source_coverage: docs/requirements.md, docs/workspace.md, docs/schema.md, docs/domains/Courier.md, docs/domains/Logistics.md, docs/references/file-upload-requirements.md, docs/features/shared/shipment-fulfillment/spec.md
@@ -149,6 +149,10 @@ final-mile task
 ### Flutter proof screen
 
 - Show task/Order reference, destination context, required methods, evidence status, upload progress, and the next server-authorized action.
+- Planned camera scanner uses the same Flutter implementation in the Android release APK and fixed-port localhost Flutter web-server run. QR yields `identifier_type: qr`; the waybill Code 128 value yields `identifier_type: tracking_id`. Manual Order/tracking-ID input remains available when camera access fails.
+- Camera decoding fills an untrusted candidate only; show the matching task/Order context and require an explicit **Submit proof** action. Do not call the first-mile waybill resolver for delivery proof, auto-submit repeated frames, or mark an HTTP 202 response as delivered.
+- Ask for camera access only when the scan view opens; handle permission denial, missing/busy camera, unsupported browser, and insecure origin with a text fallback. Release the camera on screen exit, task switch, or session loss; never log decoded identifiers or frames.
+- This scanner captures barcode values, not photo/signature proof media. Media upload remains deferred until its separate endpoint and policy are implemented.
 - Use explicit actions **Capture photo**, **Collect signature**, **Verify QR**, and **Submit proof** only when enabled by the response.
 - Announce validation/rejection reasons textually, provide retake/correct-and-resubmit actions, and keep controls keyboard/screen-reader accessible.
 - Clear private previews and cached evidence on logout, account denial, affiliation revocation, or task removal.
@@ -186,7 +190,7 @@ final-mile task
 
 - Test role/task/Order/organization isolation, wrong QR, cross-order reuse, invalid proof, upload limits/signatures, storage partial failure, private delivery, duplicate submissions, stale revisions, and actor preservation.
 - Test that Logistics records the Courier performer and Logistics recorder, that access/scan does not satisfy proof, and that notification failure cannot undo evidence.
-- Flutter tests cover capture permissions, file validation feedback, progress/retry, secure storage, offline/timeout/conflict states, and accessibility.
+- Flutter scanner tests cover installed Android release APK and localhost web-server QR/Code 128 input, permission denial, duplicate frames, task mismatch, cleanup, manual fallback, retry, offline/timeout/conflict states, and accessibility. Media capture/upload tests remain deferred with media endpoints.
 - Log task/proof/event IDs, performing Courier, recording Logistics account, evidence state, result, revision, and timestamp; never log media bytes, raw paths, or QR tokens.
 - Keep media upload endpoints unavailable until the shared file policy and storage contract are deployed. The QR/tracking-ID/Order-reference submission is live with the shared transition service; record its API revision separately from the deferred media extension in Flutter progress.
 

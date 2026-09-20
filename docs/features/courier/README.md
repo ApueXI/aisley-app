@@ -62,6 +62,8 @@ Until then, implement only a truthful scaffold or unavailable state for that mis
 
 All other routes shown in the draft files are conceptual placeholders. They are not implemented merely because they appear in a specification. The backend documents QR, tracking-ID, and Order-reference proof, while the current Flutter client exposes QR payload and Order-reference input only. The client uses text/area delivery context, revision-checked movement, and read-only completion/history projections; tracking-ID input, camera scanning, route/location telemetry, and proof media remain unavailable in Flutter. Logistics-owned Linehaul and Sort plan routes are not Courier API routes.
 
+Planned Flutter camera work targets the Android release APK and the same Flutter app served on a fixed localhost `web-server` port. It covers QR and Code 128 tracking-ID scanning for pickup and delivery proof, with manual fallback and explicit server-confirmed actions. Camera scanning is not implemented yet and does not add a Courier webapp or new backend endpoint.
+
 ## Canonical constraints for future features
 
 - Use lowercase `snake_case` API/status values from the approved backend contract.

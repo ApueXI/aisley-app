@@ -10,7 +10,7 @@ backend_contract_commit: 4045cc57d6466d7e84f249a6ceaf45cb49a88151
 
 # Scope
 
-This document describes the external Flutter application used by Couriers. It is not the architecture of the Laravel monorepo and it does not authorize changes to the backend, the Customer/Seller/Admin/Logistics web applications, or the database.
+This document describes the external Flutter application used by Couriers. Android APK is its mobile delivery target; a local Flutter `web-server` browser run of the same codebase is the camera-testing target. It is not the architecture of the Laravel monorepo and it does not authorize changes to the backend, the Customer/Seller/Admin/Logistics web applications, or the database.
 
 The Laravel API remains the source of truth for identity, approval, role access, organization and hub ownership, order status, task assignment, and delivery state. The Flutter app renders server responses and submits only fields allowed by the versioned API contract.
 
@@ -52,6 +52,14 @@ The backend currently exposes Courier authentication, account and vehicle manage
 - `GET /api/v1/courier/delivery-history` and `GET /api/v1/courier/delivery-history/{task}` (authenticated read-only delivered history)
 
 The dashboard aggregation remains a read-only scaffold. Tracking IDs may resolve through the documented QR/reference flows, but camera QR decoding remains deferred. Route/location telemetry, photo/signature proof media, chat, earnings, notification transport, and offline synchronization endpoints are not currently available. The app renders explicit unavailable states for those capabilities and must not fabricate jobs or call conceptual routes from draft specifications. Logistics Linehaul and Sort plan operations do not create Courier endpoints.
+
+## Planned camera targets
+
+- Add one Flutter camera-scanning workflow usable in the Android release APK and the same Flutter app at `http://localhost:8080` via `flutter run -d web-server --web-hostname localhost --web-port 8080`. This is a local browser test target, not a separate Courier web UI or a production web deployment.
+- Decode QR payloads and the Code 128 waybill tracking ID on-device/in-browser, then pass the untrusted value to the existing first-mile, hub-pickup, or delivery-proof controller. The owning feature selects `qr` or `tracking_id`; the server remains authoritative. Preserve manual Order-reference entry and explicit mutation confirmation.
+- Keep scanner camera lifecycle and permission feedback in Flutter presentation code; repositories continue to use the documented bearer-token endpoints. Select a package only after confirming Android and web support and obtaining the project's required dependency approval.
+- Before claiming browser support, isolate the current direct `dart:io` import in `lib/core/networking/api_client.dart`, verify secure-storage behavior and API CORS for the fixed origin, and test camera permission on localhost. Non-local browser camera tests need HTTPS. Do not use a plaintext token fallback.
+- Android release acceptance requires camera permission behavior and successful QR/Code 128 scans in an installed release APK. Browser acceptance requires the same decoded identifiers through the fixed-port Flutter web-server run. Until verified, camera scanning remains deferred.
 
 ## Client structure
 

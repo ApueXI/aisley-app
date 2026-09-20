@@ -13,7 +13,7 @@ backend: External Laravel API
 
 ## Overview
 
-The Courier application is a Flutter/Dart mobile client for the AISLEY Laravel API. It is a separate project from the Laravel monorepo and must not contain Laravel, React, Next.js, Tailwind, or browser-dashboard implementation.
+The Courier application is a Flutter/Dart client for the AISLEY Laravel API. Android APK is the mobile delivery target; the same Flutter app may run through `flutter run -d web-server` on a fixed localhost port for browser camera testing. It is a separate project from the Laravel monorepo and must not contain Laravel, React, Next.js, Tailwind, or a separate Courier browser dashboard.
 
 Courier is one of AISLEY's roles alongside Customer, Seller, Admin, and Logistics. Courier screens, mobile networking, secure token storage, local mobile state, and accessibility belong here. The Laravel API remains the authority for identity, authorization, ownership, status transitions, data privacy, and operational eligibility.
 
@@ -36,9 +36,9 @@ Do not commit secret files, generated credentials, local device data, or unrelat
 1. Read `docs/PROGRESS.md` first. Identify the latest Flutter work and the backend contract version before starting a new task.
 2. Read `docs/features/courier/rules.md` and the matching Courier feature specification completely before implementing or revising that feature.
 3. Follow the existing Flutter/Dart architecture, null-safety settings, state management, routing, networking, and design system. Do not add packages or frameworks without explicit approval.
-4. Courier is mobile-only. Do not create a web page, React component, browser cookie flow, or Laravel source file in this project.
+4. Keep one Flutter Courier codebase. Support Android APK and local Flutter web-server camera testing where the matching feature spec permits it; do not create a separate web page, React component, browser cookie flow, or Laravel source file in this project.
 5. Treat the authenticated Courier, approved Logistics affiliation, and sole operational hub as server-derived facts. Never let the client choose a different Courier, organization, hub, reviewer, role, ability, or status.
-6. Send the documented Sanctum bearer token as `Authorization: Bearer <token>`. Store it only in OS secure storage such as Keychain/Keystore through the project's approved Flutter package.
+6. Send the documented Sanctum bearer token as `Authorization: Bearer <token>`. On Android, store it only in OS secure storage through the approved Flutter package. Before authenticated browser testing, verify the approved package's web behavior and document its security boundary; never fall back to plaintext token storage.
 7. Never log, persist in ordinary app storage, place in URLs, or include in analytics a password, bearer token, token hash, reset token, or secret key.
 8. Never read, print, copy, commit, or modify secret-bearing `.env` files such as `.env`, `.env.local`, or `.env.production`. Use only `.env.example`, redacted values, or the project's approved non-secret build configuration.
 9. Never place API credentials, storage keys, private provider keys, or reset tokens in Dart source, assets, logs, screenshots, fixtures, or commits.
@@ -55,9 +55,9 @@ Do not commit secret files, generated credentials, local device data, or unrelat
 
 - Read the latest `docs/PROGRESS.md` entry and record the backend/API version used by the Flutter change.
 - Read `docs/features/courier/rules.md` and the exact matching feature spec. Existing specs may use either `spec.md` or `specs.md`; preserve the path.
-- Read `docs/features/courier/design-courier.md` when it is present before changing screen layout, styling, interaction, animation, or accessibility.
-- Read the Courier-related sections of copied `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, and `docs/domains/Courier.md`.
-- Read `docs/domains/Logistics.md` when affiliation, hub, assignment, parcel, or Logistics authority is involved.
+- Read `docs/design-courier.md` before changing screen layout, styling, interaction, animation, or accessibility.
+- Read the Courier-related sections of copied `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, and `docs/domain/Courier.md`.
+- Read `docs/domain/Logistics.md` when affiliation, hub, assignment, parcel, or Logistics authority is involved.
 - Read `docs/references/user-registration-requirements.md` for registration or approval work.
 - Read `docs/references/file-upload-requirements.md` for ID, OR/CR, profile, proof, or any other image/file upload.
 - Read copied API endpoint notes or contract-version records when available.
@@ -116,6 +116,7 @@ Do not commit secret files, generated credentials, local device data, or unrelat
 
 ## Operational and dashboard boundary
 
+- Camera scanning is planned for the Android release APK and the same Flutter app served on localhost through `web-server`. Implement it only after an approved cross-platform scanner dependency and target-specific permission/security checks. Keep decoded values as untrusted candidates; scanning never accepts, picks up, or proves delivery without the explicit documented action and server response.
 - Do not implement live task, parcel, scan, waybill, assignment, proof, notification, route, or delivery mutations until the shared operational schema and endpoint contract are implemented by Laravel.
 - A Dashboard may display safe read-only sections for notifications, available tasks, active tasks, and freshness only when the API marks them usable.
 - Dashboard card taps navigate to the owning feature. Opening a card must not accept, assign, scan, pick up, deliver, or complete a task.

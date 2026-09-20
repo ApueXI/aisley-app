@@ -269,3 +269,9 @@ This is the progress log for the external Courier Flutter application. It is sep
 
 - Applied the synchronized documentation snapshot to this project's existing `docs/` directory. Kept the Flutter progress history and clarified that the backend's newer tracking-ID contract has not yet been adopted by the Flutter pickup/proof input controls; waybill candidate resolution remains QR-only, and camera decoding remains deferred.
 - Documentation-only verification: compared the synced document inventory, checked the changed Courier spec line counts, and ran `git diff --check`. Flutter source, live API compatibility, and runtime tests were not changed or verified by this documentation sync.
+
+## 2026-09-20
+
+- Documented camera scanning as planned Flutter client work for an installed Android release APK and the same Flutter app served at `http://localhost:8080` through `web-server`, using the existing backend documentation baseline `4045cc57d6466d7e84f249a6ceaf45cb49a88151` and unchanged Courier pickup/proof endpoint contracts.
+- Updated project rules, architecture, design, pickup and proof specs, feature index, and setup guides to require QR/Code 128 tracking-ID capture, explicit server-authoritative actions, camera permission/error handling, stream cleanup, manual fallback, and verification on both targets. The browser build still needs `dart:io` isolation, CORS and secure-storage review; no camera package, Flutter source, manifest, backend route, or runtime behavior was changed.
+- Documentation checks: Courier spec line counts and `git diff --check`. Camera scanning remains deferred until implementation and release APK/browser testing pass.

@@ -4,12 +4,12 @@ feature: courier-pick-up-order
 title: Pick Up Order
 system: AISLEY
 type: Feature Specification
-version: 2.8
+version: 2.9
 status: Implemented first-mile pickup and shared final-mile handoff bridge with tracking-ID verification
 implementation_status: First-mile Courier API, route-manifest API, and final-mile companion backend are implemented; QR, tracking-ID, and Order-reference identifiers are accepted
-flutter_status: Both-leg pickup screens accept QR payload and Order-reference input; tracking-ID input, camera decoding, and map navigation remain deferred
+flutter_status: Both-leg pickup screens accept pasted QR payload and Order-reference input; Android APK and local Flutter web-server camera scanning of QR/Code 128 tracking IDs is planned, not implemented
 canonical: true
-scope: Laravel API, development-only React courier mockup, and external Flutter Courier mobile application
+scope: Laravel API, development-only React courier mockup, and external Flutter Courier Android/local-web-test application
 backend_contract_commit: d5c160d4a5a21272e487b6f46a82de35e81395cb
 backend_contract_version: first-and-final-mile-pickup-v1-tracking-id
 source_coverage: docs/requirements.md, docs/workspace.md, docs/schema.md, docs/domains/Courier.md, docs/domains/Logistics.md
@@ -23,7 +23,7 @@ source_coverage: docs/requirements.md, docs/workspace.md, docs/schema.md, docs/d
 - **Purpose:** Let the selected Courier review a scheduled bulk pickup, identify each assigned parcel, and confirm physical possession from the Seller.
 - **Actors:** Seller prepares Orders; Logistics selects one approved Courier and a pickup window; Courier performs the mobile pickup; the API remains authoritative for ownership and state.
 - **Scope:** Courier task receipt, schedule/address/order details, route-manifest consumption, QR/tracking-ID/Order-reference verification, first-mile pickup confirmation, and final-mile hub-handoff evidence submission.
-- **Mobile boundary:** Production Courier screens, secure token storage, offline decoding, and device accessibility belong to the external Flutter app. `src/couriermockup` is a development-only React harness for verifying the same bearer-token API, camera/manual input states, and handoff behavior in a browser; it is not a deployable Courier web application.
+- **Flutter boundary:** Production Android APK screens and local Flutter web-server camera testing use this external Flutter app. `src/couriermockup` is a separate development-only React harness for the bearer-token API; its camera implementation does not supply a scanner to Flutter.
 - **Current implementation:** Logistics scheduling creates one `first_mile_task` per selected Order, in `assigned`, for the chosen Courier. The Courier can list and accept tasks, resolve an assigned waybill QR, and explicitly confirm pickup with the QR payload, printed tracking ID, or legacy printed Order reference. Confirmation resolves the identifier to its matching parcel in the open schedule, records immutable idempotency/history data, sets the task to `picked_up_from_seller`, advances the Order to `picked_up`, and fulfills the Order's Inventory reservation atomically. Each committed schedule revision also creates a queued route manifest: the server groups parcels sharing one immutable pickup address, resolves exact or maintained address-default coordinates, calls the bounded Geoapify Matrix API, applies the deterministic nearest-next-stop heuristic, obtains bounded Routing API road geometry through Logistics → pickups → Logistics, stores the result, and serves sanitized GeoJSON to the authorized Courier. The additive fulfillment bridge creates one shared Parcel/Shipment and links the legacy first-mile task without replaying Inventory; Logistics can then receive, sort, and dispatch the parcel, offer an independent final-mile task, and validate final-mile QR/tracking-ID handoff and delivery completion through the owning operational APIs.
 - **Flutter handoff (2026-09-13):** Both-leg pickup screens, keyboard/pasted QR payloads, manual Order references, and ordered first-mile manifests are reported implemented. Tracking-ID input, camera decoding, Flutter map/navigation, media proof, and telemetry remain deferred; Logistics operations UI now exists.
 
@@ -132,9 +132,9 @@ Seller packs Orders and requests one Logistics provider
 - The current Geoapify Free plan lists 3,000 credits/day and limited commercial use with attribution. Enforce one cached matrix calculation per schedule revision, bounded map loading, usage metrics, and a circuit breaker; quota exhaustion yields `unavailable`, never an automatic paid call.
 - Under the current Matrix pricing formula, a 31×31 request costs `max(31,31) × min(31,31,10) = 310` baseline credits before any distance/avoidance surcharges. The application must meter that estimate and keep a daily safety margin for map tiles.
 - Render the map on schedule-detail open, not through an unbounded polling loop. Cache the manifest and avoid reloading identical tiles/data when the user revisits the same revision.
-- Recommend `mobile_scanner` with its bundled Android ML Kit model for local QR/Code 128 decoding. Do not choose its unbundled model for MVP because first-use download would undermine offline scanning.
-- Free alternatives are `flutter_zxing` (MIT, ZXing C++/FFI) and `qr_code_dart_scan` (MIT, Dart decoder). Select one after testing the target Android/iOS devices; do not add all three.
-- Offline decoding may identify and display a candidate, but authoritative status mutation requires connectivity in MVP. A network failure must not show `picked_up_from_seller`; an offline queue is deferred and must use secure storage plus idempotency.
+- Evaluate `mobile_scanner` as one cross-platform QR/Code 128 candidate for Android APK and Flutter web; its bundled Android ML Kit model avoids first-use model download. Obtain approval before adding it and verify browser decoder loading/availability rather than assuming offline web scanning.
+- Free alternatives include `flutter_zxing` (MIT, ZXing C++/FFI) and `qr_code_dart_scan` (MIT, Dart decoder). Select one only after testing both target platforms; do not add all three.
+- Local decoding may identify and display a candidate, but authoritative status mutation requires connectivity in MVP. A network failure must not show `picked_up_from_seller`; an offline queue is deferred and must use secure storage plus idempotency.
 
 ### Errors, privacy, and retry behavior
 
@@ -209,15 +209,17 @@ Example GeoJSON geometry (first-mile manifest only):
 
 - `src/couriermockup` implements the temporary browser contract check with `@zxing/browser` and `maplibre-gl`, both loaded only when their scanner/map state opens. It groups tasks by schedule, renders the authorized GeoJSON and numbered stops, resolves a scanned QR or manual tracking-ID/Order reference to the matching parcel in that open schedule, keeps the identifier as an untrusted candidate until the explicit confirmation call, and selects the matched task before showing the server result.
 - The mockup adds no provider/browser secret. `VITE_API_URL` remains a non-secret origin only; Geoapify calls and `GEOAPIFY_SERVER_API_KEY` remain server-side.
-- Flutter stores tokens only in OS secure storage and sends Bearer auth. It implements loading, empty, assigned, accepted, manifest-pending, manifest-ready, map-unavailable, permission-denied, mismatch, not-found, offline, retry, success, and stale-task states.
+- Flutter sends Bearer auth; Android uses OS secure storage, while authenticated local web testing requires reviewed browser storage without plaintext fallback. It implements loading, empty, assigned, accepted, manifest-pending, manifest-ready, map-unavailable, permission-denied, mismatch, not-found, offline, retry, success, and stale-task states.
 - The current Flutter client accepts pasted or scanner-keyboard QR payloads and manual Order references, announces textual results, and uses adequate touch targets. Camera decoding and permission handling remain deferred.
+- Planned scanner: use the same Flutter UI in an Android release APK and at `http://localhost:8080` through `flutter run -d web-server --web-hostname localhost --web-port 8080`; scan QR as `qr` or the waybill Code 128 value as `tracking_id`, with manual Order/tracking-ID fallback. The first-mile waybill resolver accepts QR payloads only; scanning never triggers acceptance, pickup, or hub evidence submission by itself.
+- Request camera access on Scan, handle denied/missing/busy/unsupported camera and insecure browser origins, stop the stream on exit or task switch, ignore repeated frames, and preserve keyboard/paste/manual input. Browser camera tests use localhost or HTTPS; decoded content is untrusted and must never be logged.
 - Cache only bounded, encrypted, private task/manifest data; clear it on logout, denial, affiliation invalidation, or account switch. Cached data never authorizes pickup.
 
 ### Verification, rollout, and open decisions
 
 - API coverage verifies task receipt, schedule handling, QR/tracking-ID/manual matching, wrong identifiers without side effects, idempotent replay, immutable confirmation and Order-status history, the `picked_up` Order transition, Inventory fulfillment, and private/no-store reads. Dedicated concurrent database verification remains part of the production rollout gate.
 - Current route fixtures cover exact/default/missing coordinates, same-address parcel grouping, cache reuse, matrix metrics, road geometry with Logistics return, sanitized GeoJSON, attribution, credential hiding, and tenant scope. Null-route, 31-node boundary, quota circuit-breaker, and dedicated PostgreSQL concurrency fixtures remain rollout work.
-- Add Logistics map tests for GeoJSON layers, ordered markers, accessible list fallback, stale revisions, and no map mutation. Add Flutter contract/widget tests for scanner fallback and server-error mapping.
+- Add Logistics map tests for GeoJSON layers, ordered markers, accessible list fallback, stale revisions, and no map mutation. Flutter tests must cover Android release APK and fixed-port browser QR/Code 128 scans, permission denial, wrong-task match, duplicate frames, stream cleanup, manual fallback, and server-error mapping before camera support is marked implemented.
 - Production rollout still requires PostgreSQL verification, populated and reviewed address-coordinate defaults, and Geoapify usage monitoring; current list/accept/resolve behavior remains intact.
 - Open: schedule early/late pickup grace; native Flutter map versus list-only; turn-by-turn navigation; offline mutation queue; Courier push transport. Logistics receipt is implemented under Update Status, not a Courier action.
 
