@@ -11,6 +11,7 @@ import 'controllers/pickup_controller.dart';
 part 'components/pickup_list.dart';
 part 'components/pickup_task_detail.dart';
 part 'components/pickup_task_actions.dart';
+part 'components/pickup_hub_handoff.dart';
 part 'components/pickup_task_interactions.dart';
 part 'components/pickup_task_info.dart';
 part 'components/pickup_route.dart';

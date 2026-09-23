@@ -1,15 +1,25 @@
 part of 'delivery_controller.dart';
 
-class _PendingIdentifierAttempt {
-  const _PendingIdentifierAttempt({
-    required this.identifierType,
-    required this.identifier,
+class _PendingMovementAttempt {
+  const _PendingMovementAttempt({
+    required this.targetStatus,
     required this.expectedRevision,
     required this.idempotencyKey,
   });
 
-  final String identifierType;
-  final String identifier;
+  final String targetStatus;
+  final int expectedRevision;
+  final String idempotencyKey;
+}
+
+class _PendingPhotoAttempt {
+  const _PendingPhotoAttempt({
+    required this.photo,
+    required this.expectedRevision,
+    required this.idempotencyKey,
+  });
+
+  final DeliveryPhotoSelection photo;
   final int expectedRevision;
   final String idempotencyKey;
 }

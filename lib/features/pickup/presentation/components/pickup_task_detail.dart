@@ -88,7 +88,9 @@ class _PickupTaskDetailScreenState extends State<PickupTaskDetailScreen> {
       return _buildAcceptance(context, task);
     }
     if (task.isAccepted) {
-      return _buildVerification(context, task);
+      return task.isFinalMile
+          ? _buildHubHandoff(context, task)
+          : _buildVerification(context, task);
     }
     return Card(
       child: Padding(

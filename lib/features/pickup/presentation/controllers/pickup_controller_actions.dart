@@ -2,7 +2,7 @@ part of 'pickup_controller.dart';
 
 extension PickupControllerActions on PickupController {
   Future<bool> acceptTask(PickupTask task) async {
-    if (!task.isAssigned || isActionBusy(task)) {
+    if (!task.isFirstMile || !task.isAssigned || isActionBusy(task)) {
       return false;
     }
 
@@ -13,9 +13,7 @@ extension PickupControllerActions on PickupController {
     _notifyPickupListeners();
 
     try {
-      final accepted = task.isFirstMile
-          ? await pickupRepository.acceptFirstMileTask(task.id)
-          : await pickupRepository.acceptFinalMileTask(task.id);
+      final accepted = await pickupRepository.acceptFirstMileTask(task.id);
       _replaceTask(accepted);
       _actionStatuses[key] = PickupTaskActionStatus.accepted;
       _notifyPickupListeners();
@@ -220,41 +218,51 @@ extension PickupControllerActions on PickupController {
     return false;
   }
 
-  Future<bool> submitFinalMilePickup(
-    PickupTask task, {
-    required String identifierType,
-    required String identifier,
-  }) async {
+  Future<bool> submitFinalMilePickup(PickupTask task) async {
     if (!task.isFinalMile ||
         task.status != PickupTaskStatus.deliveryAccepted ||
-        task.revision == null ||
-        isActionBusy(task)) {
+        isActionBusy(task) ||
+        (actionStatus(task) == PickupTaskActionStatus.awaitingValidation &&
+            hubPickupSubmissions.containsKey(task.id))) {
       return false;
     }
-
-    final normalizedIdentifier = identifier.trim();
-    if (!PickupController._validIdentifier(
-      identifierType,
-      normalizedIdentifier,
-    )) {
-      _setLocalValidationError(
-        task,
-        'Choose QR, tracking ID, or Order ID/reference and enter a value up to 128 characters.',
+    final key = PickupController._taskKey(task);
+    _actionStatuses[key] = PickupTaskActionStatus.confirming;
+    _actionErrors[key] = null;
+    _notifyPickupListeners();
+    try {
+      final current = await pickupRepository.fetchFinalMileTask(task.id);
+      if (current.id != task.id || !current.isFinalMile) {
+        throw const ApiContractException('pickup.final_mile.task_identity');
+      }
+      _replaceTask(current);
+      if (current.status != PickupTaskStatus.deliveryAccepted ||
+          current.revision == null) {
+        _actionStatuses[key] = PickupTaskActionStatus.conflict;
+        _actionErrors[key] =
+            'This hub handoff changed. Refresh the task before trying again.';
+        _notifyPickupListeners();
+        return false;
+      }
+      final pending = _PendingHubPickupAttempt(
+        expectedRevision: current.revision!,
+        idempotencyKey: PickupController._newUuid(),
       );
-      return false;
+      _pendingHubPickups[key] = pending;
+      return await _performFinalMilePickup(current, pending);
+    } on ApiException catch (error) {
+      await _setActionError(task, error);
+    } on TokenStorageException {
+      _setActionStorageError(task);
+    } on ApiContractException {
+      _setActionContractError(task);
     }
-
-    final pending = _pendingAttempt(
-      task,
-      identifierType: identifierType,
-      identifier: normalizedIdentifier,
-    );
-    return _performFinalMilePickup(task, pending);
+    return false;
   }
 
   Future<bool> retryFinalMilePickup(PickupTask task) async {
-    final pending = _pendingAttempts[PickupController._taskKey(task)];
-    if (pending == null || pending.leg != PickupTaskLeg.finalMile) {
+    final pending = _pendingHubPickups[PickupController._taskKey(task)];
+    if (pending == null || !task.isFinalMile) {
       return false;
     }
     return _performFinalMilePickup(task, pending);
@@ -262,10 +270,12 @@ extension PickupControllerActions on PickupController {
 
   Future<bool> _performFinalMilePickup(
     PickupTask task,
-    _PendingPickupAttempt pending,
+    _PendingHubPickupAttempt pending,
   ) async {
     final key = PickupController._taskKey(task);
-    if (isActionBusy(task) || task.revision == null) {
+    if (task.status != PickupTaskStatus.deliveryAccepted ||
+        (isActionBusy(task) &&
+            _actionStatuses[key] != PickupTaskActionStatus.confirming)) {
       return false;
     }
     _actionStatuses[key] = PickupTaskActionStatus.confirming;
@@ -276,17 +286,24 @@ extension PickupControllerActions on PickupController {
     try {
       final result = await pickupRepository.submitFinalMilePickup(
         taskId: task.id,
-        identifierType: pending.identifierType,
-        identifier: pending.identifier,
-        expectedRevision: task.revision!,
+        expectedRevision: pending.expectedRevision,
         idempotencyKey: pending.idempotencyKey,
       );
+      if (result.taskId != task.id) {
+        throw const ApiContractException('pickup.final_mile.response.task_id');
+      }
       lastFinalMilePickup = result;
-      _pendingAttempts.remove(key);
+      hubPickupSubmissions[task.id] = result;
+      _pendingHubPickups.remove(key);
       _actionStatuses[key] = PickupTaskActionStatus.awaitingValidation;
       _notifyPickupListeners();
       return true;
     } on ApiException catch (error) {
+      if (error.statusCode == 404 ||
+          error.statusCode == 409 ||
+          error.statusCode == 422) {
+        _pendingHubPickups.remove(key);
+      }
       await _setActionError(task, error);
     } on TokenStorageException {
       _setActionStorageError(task);

@@ -4,20 +4,28 @@ class _ProofAndCompletionCard extends StatelessWidget {
   const _ProofAndCompletionCard({
     required this.task,
     required this.controller,
-    required this.identifierController,
-    required this.identifierType,
-    required this.onIdentifierTypeChanged,
-    required this.onScan,
+    required this.selectedPhoto,
+    required this.selectionError,
+    required this.isPicking,
+    required this.canCancelUpload,
+    required this.onChoosePhoto,
+    required this.onDiscardPhoto,
+    required this.onSubmitPhoto,
+    required this.onCancelUpload,
     required this.onOpenPolicies,
     required this.showPolicyAction,
   });
 
   final PickupTask task;
   final DeliveryController controller;
-  final TextEditingController identifierController;
-  final String identifierType;
-  final ValueChanged<String> onIdentifierTypeChanged;
-  final VoidCallback onScan;
+  final DeliveryPhotoSelection? selectedPhoto;
+  final String? selectionError;
+  final bool isPicking;
+  final bool canCancelUpload;
+  final VoidCallback onChoosePhoto;
+  final VoidCallback onDiscardPhoto;
+  final VoidCallback onSubmitPhoto;
+  final VoidCallback onCancelUpload;
   final VoidCallback onOpenPolicies;
   final bool showPolicyAction;
 
@@ -27,16 +35,24 @@ class _ProofAndCompletionCard extends StatelessWidget {
     final actionError = controller.actionError(task);
     final completion = controller.completions[task.id];
     final proof = controller.proofs[task.id];
-    final evidenceId = proof?.proofId ?? completion?.evidenceId;
-    final evidenceStatus = proof?.evidenceStatus ?? completion?.evidenceStatus;
-    final proofRecorded = proof != null || completion?.evidenceId != null;
+    final evidenceStatus = controller.evidenceStatusFor(task);
+    final failedNewProof = actionError != null && proof == null;
+    final evidenceId = failedNewProof
+        ? null
+        : proof?.proofId ?? completion?.evidenceId;
     final proofRejected = evidenceStatus == 'rejected';
+    final completionPending =
+        !failedNewProof && controller.isCompletionPending(task);
     final busy = controller.isActionBusy(task);
-    final proofPending =
-        actionStatus == DeliveryActionStatus.proofAwaitingValidation ||
-        evidenceStatus == 'awaiting_validation';
-    final completionPending = controller.isCompletionPending(task);
     final actionBlocked = !controller.canStartAction(task);
+    final canChoosePhoto =
+        !busy &&
+        !actionBlocked &&
+        !isPicking &&
+        !controller.hasPendingProof(task) &&
+        !completionPending &&
+        (evidenceId == null || proofRejected);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -44,75 +60,77 @@ class _ProofAndCompletionCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Proof and completion',
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w800),
+              'Photo proof of delivery',
+              style: Theme.of(context).textTheme.titleMedium,
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             const Text(
-              'The current P0 proof method is QR or printed Order reference. Photo and signature proof are not enabled.',
+              'Choose a JPEG, PNG, or WebP photo under 10 MiB. '
+              'The server checks this photo for the current delivery task.',
             ),
-            const SizedBox(height: 16),
-            SegmentedButton<String>(
-              segments: const <ButtonSegment<String>>[
-                ButtonSegment<String>(
-                  value: 'qr',
-                  label: Text('Delivery QR'),
-                  icon: Icon(Icons.qr_code_2),
-                ),
-                ButtonSegment<String>(
-                  value: 'tracking_id',
-                  label: Text('Tracking ID'),
-                  icon: Icon(Icons.view_week_outlined),
-                ),
-                ButtonSegment<String>(
-                  value: 'order_id',
-                  label: Text('Order reference'),
-                  icon: Icon(Icons.receipt_long_outlined),
-                ),
-              ],
-              selected: <String>{identifierType},
-              onSelectionChanged: busy || actionBlocked
-                  ? null
-                  : (values) {
-                      if (values.isNotEmpty) {
-                        onIdentifierTypeChanged(values.first);
-                      }
-                    },
-            ),
-            const SizedBox(height: 14),
-            if (BarcodeScannerScreen.isSupported) ...[
-              OutlinedButton.icon(
-                onPressed: busy || proofPending || actionBlocked
-                    ? null
-                    : onScan,
-                icon: const Icon(Icons.camera_alt_outlined),
-                label: const Text('Scan QR or tracking ID'),
+            if (proofRejected) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Logistics rejected the previous photo. Choose a new photo and submit a new proof.',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
-              const SizedBox(height: 10),
             ],
-            TextField(
-              controller: identifierController,
-              enabled: !busy && !proofPending && !actionBlocked,
-              maxLength: 128,
-              autocorrect: false,
-              enableSuggestions: false,
-              decoration: InputDecoration(
-                labelText: switch (identifierType) {
-                  'qr' => 'Raw delivery QR payload',
-                  'tracking_id' => 'Tracking ID',
-                  _ => 'Public Order reference',
-                },
-                helperText: switch (identifierType) {
-                  'qr' => 'Submit the QR payload exactly as scanned; the server verifies it for this task.',
-                  'tracking_id' => 'Enter the printed Code 128 tracking ID; the server verifies it for this task.',
-                  _ => 'Enter the public Order reference shown above. Database IDs and waybill references are not accepted.',
-                },
-                border: const OutlineInputBorder(),
+            if (canChoosePhoto) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: onChoosePhoto,
+                icon: const Icon(Icons.add_a_photo_outlined),
+                label: Text(
+                  selectedPhoto == null ? 'Choose photo' : 'Change photo',
+                ),
               ),
-            ),
+            ],
+            if (isPicking)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: LinearProgressIndicator(),
+              ),
+            if (selectionError != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                selectionError!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+            if (selectedPhoto != null && canChoosePhoto) ...[
+              const SizedBox(height: 12),
+              Semantics(
+                label: 'Selected proof photo preview',
+                child: Image.memory(
+                  selectedPhoto!.bytes,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) =>
+                      const Text('Photo preview unavailable.'),
+                ),
+              ),
+              TextButton(
+                onPressed: onDiscardPhoto,
+                child: const Text('Remove photo'),
+              ),
+              FilledButton.icon(
+                onPressed: onSubmitPhoto,
+                icon: const Icon(Icons.cloud_upload_outlined),
+                label: const Text('Submit photo proof'),
+              ),
+            ],
+            if (actionStatus == DeliveryActionStatus.proofSubmitting) ...[
+              const SizedBox(height: 12),
+              const LinearProgressIndicator(),
+              if (canCancelUpload)
+                TextButton(
+                  onPressed: onCancelUpload,
+                  child: const Text('Cancel upload'),
+                ),
+            ],
             if (actionError != null) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Text(
                 actionError,
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
@@ -124,8 +142,7 @@ class _ProofAndCompletionCard extends StatelessWidget {
                   icon: const Icon(Icons.policy_outlined),
                   label: const Text('Review policies'),
                 ),
-              if (_canRetry(actionStatus) &&
-                  actionStatus == DeliveryActionStatus.conflict)
+              if (actionStatus == DeliveryActionStatus.conflict)
                 TextButton.icon(
                   onPressed: busy || !controller.canRetryRateLimit
                       ? null
@@ -141,7 +158,7 @@ class _ProofAndCompletionCard extends StatelessWidget {
                       ? null
                       : () => controller.retryProof(task),
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Retry same proof attempt'),
+                  label: const Text('Retry same photo upload'),
                 ),
               if (_canRetry(actionStatus) &&
                   actionStatus != DeliveryActionStatus.conflict &&
@@ -151,64 +168,26 @@ class _ProofAndCompletionCard extends StatelessWidget {
                       ? null
                       : () => controller.retryCompletion(task),
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Retry same completion attempt'),
+                  label: const Text('Retry same Delivered intent'),
                 ),
             ],
-            if (proofPending || (proofRecorded && !proofRejected)) ...[
+            if (evidenceId != null && !proofRejected) ...[
               const SizedBox(height: 12),
               Semantics(
                 liveRegion: true,
-                label: evidenceStatus == 'validated'
-                    ? 'Proof validated by Logistics'
-                    : 'Proof awaiting Logistics validation',
                 child: Text(
                   evidenceStatus == 'validated'
-                      ? 'Proof validated by Logistics. This does not mark the delivery complete.'
-                      : 'Awaiting Logistics validation. This proof submission does not mean the delivery is complete.',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ),
-            ] else ...[
-              if (proofRejected)
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(
-                    'Logistics rejected the previous proof. Correct the identifier and submit a new proof attempt.',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                ),
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: FilledButton.icon(
-                  onPressed: busy || actionBlocked
-                      ? null
-                      : () => controller.submitProof(
-                          task,
-                          identifierType: identifierType,
-                          identifier: identifierController.text,
-                        ),
-                  icon: busy
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.verified_outlined),
-                  label: const Text('Submit proof'),
+                      ? 'Photo proof validated by Logistics. Delivery is not complete until Logistics validates the completion intent.'
+                      : 'Photo proof received. Awaiting Logistics validation; this does not mark the Order delivered.',
                 ),
               ),
             ],
             const Divider(height: 32),
             Text(
-              'Complete delivery',
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w800),
+              'Delivered intent',
+              style: Theme.of(context).textTheme.titleMedium,
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             if (controller.completionErrors[task.id] != null) ...[
               Text(
                 controller.completionErrors[task.id]!,
@@ -216,39 +195,32 @@ class _ProofAndCompletionCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
             ],
-            if (completionPending)
-              const _AwaitingCompletionText()
-            else if (completion?.isDelivered == true)
+            if (completion?.isDelivered == true)
               const _DeliveredStatusText()
+            else if (completionPending)
+              const _AwaitingCompletionText()
             else if (evidenceId == null)
-              const Text(
-                'Submit the required proof before sending completion intent.',
-              )
+              const Text('Submit photo proof before sending Delivered intent.')
             else if (proofRejected)
-              const Text(
-                'Correct and resubmit the proof after Logistics rejected the previous evidence.',
-              )
+              const Text('Submit a new photo proof after Logistics rejection.')
             else ...[
-              Text(
-                evidenceStatus == 'awaiting_validation'
-                    ? 'Proof is awaiting Logistics validation. Submit completion intent so Logistics can continue validation.'
-                    : 'The server returned proof for this task. Submit completion intent to finish the Courier handoff.',
+              const Text(
+                'Send a separate Delivered intent for this photo. '
+                'Logistics will decide when the delivery is complete.',
               ),
               const SizedBox(height: 12),
               FilledButton.icon(
-                onPressed: busy || actionBlocked
+                onPressed:
+                    busy ||
+                        actionBlocked ||
+                        controller.hasPendingCompletion(task)
                     ? null
                     : () => _confirmCompletion(context, evidenceId),
-                icon: busy
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.done_all),
-                label: const Text('Submit completion'),
+                icon: const Icon(Icons.done_all),
+                label: const Text('Submit Delivered intent'),
               ),
             ],
+            const SizedBox(height: 8),
             OutlinedButton.icon(
               onPressed:
                   busy ||
@@ -273,9 +245,10 @@ class _ProofAndCompletionCard extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Submit completion intent?'),
+        title: const Text('Submit Delivered intent?'),
         content: const Text(
-          'This sends the server the completion intent for this delivery. It will remain pending until Logistics validates the proof.',
+          'This sends a Delivered intent linked to the photo proof. '
+          'The Order stays pending until Logistics validates it.',
         ),
         actions: [
           TextButton(

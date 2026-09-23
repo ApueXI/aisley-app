@@ -40,7 +40,6 @@ extension DeliveryControllerReconciliation on DeliveryController {
     }
     final actionStatus = _actionStatuses[taskId];
     if (actionStatus == DeliveryActionStatus.conflict ||
-        actionStatus == DeliveryActionStatus.proofAwaitingValidation ||
         actionStatus == DeliveryActionStatus.completionAwaitingValidation) {
       _actionStatuses.remove(taskId);
       _actionErrors.remove(taskId);
@@ -54,20 +53,6 @@ extension DeliveryControllerReconciliation on DeliveryController {
   ) {
     final proofId = proofs[taskId]?.proofId;
     final evidenceId = completion.evidenceId;
-    return proofId == null || evidenceId == null || proofId == evidenceId;
-  }
-
-  int? _latestRevision(PickupTask task) {
-    final taskRevision = task.revision;
-    final projectionRevision = completions[task.id]?.revision;
-    if (taskRevision == null) {
-      return projectionRevision;
-    }
-    if (projectionRevision == null) {
-      return taskRevision;
-    }
-    return projectionRevision > taskRevision
-        ? projectionRevision
-        : taskRevision;
+    return proofId == null || proofId == evidenceId;
   }
 }

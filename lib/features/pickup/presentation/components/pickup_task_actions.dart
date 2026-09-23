@@ -48,6 +48,28 @@ extension _PickupTaskActions on _PickupTaskDetailScreenState {
   }
 
   Widget _buildAcceptance(BuildContext context, PickupTask task) {
+    if (task.isFinalMile) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Dispatch batch offer',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Final-mile offers must be accepted as a whole dispatch batch. '
+                'Individual task acceptance is unavailable here until the '
+                'batch response contract is confirmed.',
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     final controller = _pickupController;
     final actionStatus = controller.actionStatus(task);
     final error = controller.actionError(task);

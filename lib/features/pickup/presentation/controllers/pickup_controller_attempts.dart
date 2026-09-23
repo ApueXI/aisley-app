@@ -23,3 +23,13 @@ class _PendingRejectionAttempt {
   final String reason;
   final String idempotencyKey;
 }
+
+class _PendingHubPickupAttempt {
+  const _PendingHubPickupAttempt({
+    required this.expectedRevision,
+    required this.idempotencyKey,
+  });
+
+  final int expectedRevision;
+  final String idempotencyKey;
+}

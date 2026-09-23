@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -9,8 +10,39 @@ import 'package:aisley_app/core/networking/api_client.dart';
 import 'package:aisley_app/core/networking/api_contract_exception.dart';
 import 'package:aisley_app/core/security/token_storage.dart';
 import 'package:aisley_app/features/delivery/data/delivery_repository.dart';
+import 'package:aisley_app/features/delivery/domain/delivery_models.dart';
 
 void main() {
+  test('reads the exact final-mile task and current revision', () async {
+    late http.Request request;
+    final repository = _repository((incoming) async {
+      request = incoming;
+      return http.Response(
+        jsonEncode(<String, Object?>{
+          'data': <String, Object?>{
+            'id': 'delivery-task-1',
+            'leg': 'final_mile',
+            'status': 'out_for_delivery',
+            'revision': 9,
+            'order': <String, String>{'reference': 'ORD-100'},
+          },
+        }),
+        200,
+      );
+    });
+
+    final task = await repository.fetchFinalMileTask('delivery-task-1');
+
+    expect(
+      request.url.path,
+      '/api/v1/courier/final-mile-tasks/delivery-task-1',
+    );
+    expect(request.headers['authorization'], 'Bearer delivery-token');
+    expect(task.id, 'delivery-task-1');
+    expect(task.revision, 9);
+    expect(task.order?.reference, 'ORD-100');
+  });
+
   test(
     'reads final-mile delivery context with nullable advisory fields',
     () async {
@@ -47,6 +79,7 @@ void main() {
       taskId: 'delivery-task-1',
       status: 'in_transit',
       expectedRevision: 4,
+      idempotencyKey: '66666666-6666-4666-8666-666666666666',
     );
 
     expect(request.method, 'POST');
@@ -55,8 +88,12 @@ void main() {
       '/api/v1/courier/final-mile-tasks/delivery-task-1/status',
     );
     expect(request.headers['authorization'], 'Bearer delivery-token');
+    expect(
+      request.headers['idempotency-key'],
+      '66666666-6666-4666-8666-666666666666',
+    );
     expect(jsonDecode(request.body), <String, dynamic>{
-      'status': 'in_transit',
+      'target_state': 'in_transit',
       'expected_revision': 4,
     });
     expect(update.status, 'in_transit');
@@ -64,7 +101,7 @@ void main() {
   });
 
   test(
-    'submits QR proof with the exact P0 body and idempotency header',
+    'submits multipart photo proof with revision and idempotency header',
     () async {
       late http.Request request;
       final repository = _repository((incoming) async {
@@ -74,8 +111,7 @@ void main() {
 
       final proof = await repository.submitProof(
         taskId: 'delivery-task-1',
-        identifierType: 'qr',
-        identifier: 'RAW-QR-PAYLOAD 123',
+        photo: _photo(),
         expectedRevision: 6,
         idempotencyKey: '11111111-1111-4111-8111-111111111111',
       );
@@ -89,11 +125,15 @@ void main() {
         request.headers['idempotency-key'],
         '11111111-1111-4111-8111-111111111111',
       );
-      expect(jsonDecode(request.body), <String, dynamic>{
-        'identifier_type': 'qr',
-        'identifier': 'RAW-QR-PAYLOAD 123',
-        'expected_revision': 6,
-      });
+      expect(
+        request.headers['content-type'],
+        startsWith('multipart/form-data'),
+      );
+      final body = latin1.decode(request.bodyBytes);
+      expect(body, contains('name="expected_revision"'));
+      expect(body, contains('name="photo"; filename="proof.jpg"'));
+      expect(body, contains('6'));
+      expect(body, isNot(contains('identifier_type')));
       expect(proof.proofId, 'proof-1');
       expect(proof.completionEligible, isFalse);
     },
@@ -217,29 +257,13 @@ void main() {
       );
     },
   );
-
-  test('submits the public Order reference as order_id', () async {
-    late http.Request request;
-    final repository = _repository((incoming) async {
-      request = incoming;
-      return http.Response(jsonEncode(_proofResponse), 202);
-    });
-
-    await repository.submitProof(
-      taskId: 'delivery-task-1',
-      identifierType: 'order_id',
-      identifier: ' ORD-100 ',
-      expectedRevision: 6,
-      idempotencyKey: '33333333-3333-4333-8333-333333333333',
-    );
-
-    expect(jsonDecode(request.body), <String, dynamic>{
-      'identifier_type': 'order_id',
-      'identifier': 'ORD-100',
-      'expected_revision': 6,
-    });
-  });
 }
+
+DeliveryPhotoSelection _photo() => DeliveryPhotoSelection(
+  path: null,
+  fileName: 'proof.jpg',
+  bytes: Uint8List.fromList(<int>[0xff, 0xd8, 0xff, 0xd9]),
+);
 
 ApiDeliveryRepository _repository(
   Future<http.Response> Function(http.Request) handler,

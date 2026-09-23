@@ -87,10 +87,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'ORD-100');
-    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    await tester.ensureVisible(find.text('Submit hub handoff'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Submit hub pickup evidence'));
+    await tester.tap(find.text('Submit hub handoff'));
+    await tester.pumpAndSettle();
+    expect(find.text('Submit hub handoff?'), findsOneWidget);
+    await tester.tap(find.text('Submit handoff'));
     await tester.pumpAndSettle();
 
     expect(
@@ -240,8 +242,6 @@ class _WidgetPickupRepository implements PickupRepository {
   @override
   Future<FinalMilePickupSubmission> submitFinalMilePickup({
     required String taskId,
-    required String identifierType,
-    required String identifier,
     required int expectedRevision,
     required String idempotencyKey,
   }) async {

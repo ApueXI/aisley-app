@@ -66,8 +66,6 @@ class _FinalMilePickupRepository {
 
   Future<FinalMilePickupSubmission> submitPickup({
     required String taskId,
-    required String identifierType,
-    required String identifier,
     required int expectedRevision,
     required String idempotencyKey,
   }) async {
@@ -75,11 +73,7 @@ class _FinalMilePickupRepository {
       '/courier/final-mile-tasks/${_pathSegment(taskId)}/pickup',
       authenticated: true,
       headers: <String, String>{'Idempotency-Key': idempotencyKey},
-      body: <String, Object?>{
-        'identifier_type': identifierType,
-        'identifier': identifier.trim(),
-        'expected_revision': expectedRevision,
-      },
+      body: <String, Object?>{'expected_revision': expectedRevision},
     );
     final payload = _decodeObject(response.body, 'pickup.final_mile');
     return FinalMilePickupSubmission.fromResponse(payload);

@@ -73,6 +73,8 @@ class PickupController extends ChangeNotifier {
   PickupSectionStatus? waybillResolutionStatus;
   FirstMilePickupResult? lastFirstMilePickup;
   FinalMilePickupSubmission? lastFinalMilePickup;
+  final Map<String, FinalMilePickupSubmission> hubPickupSubmissions =
+      <String, FinalMilePickupSubmission>{};
 
   final Map<String, PickupRouteManifest> routeManifests =
       <String, PickupRouteManifest>{};
@@ -86,6 +88,8 @@ class PickupController extends ChangeNotifier {
   final Map<String, Duration?> _actionRetryAfter = <String, Duration?>{};
   final Map<String, _PendingPickupAttempt> _pendingAttempts =
       <String, _PendingPickupAttempt>{};
+  final Map<String, _PendingHubPickupAttempt> _pendingHubPickups =
+      <String, _PendingHubPickupAttempt>{};
   final Map<String, _PendingRejectionAttempt> _pendingRejections =
       <String, _PendingRejectionAttempt>{};
 
@@ -122,8 +126,9 @@ class PickupController extends ChangeNotifier {
         status == PickupTaskActionStatus.confirming;
   }
 
-  bool hasPendingAttempt(PickupTask task) =>
-      _pendingAttempts.containsKey(_taskKey(task));
+  bool hasPendingAttempt(PickupTask task) => task.isFinalMile
+      ? _pendingHubPickups.containsKey(_taskKey(task))
+      : _pendingAttempts.containsKey(_taskKey(task));
 
   bool hasPendingRejection(PickupTask task) =>
       _pendingRejections.containsKey(_taskKey(task));
@@ -157,6 +162,7 @@ class PickupController extends ChangeNotifier {
     waybillResolutionStatus = null;
     lastFirstMilePickup = null;
     lastFinalMilePickup = null;
+    hubPickupSubmissions.clear();
     routeManifests.clear();
     routeStatuses.clear();
     routeErrors.clear();
@@ -164,6 +170,7 @@ class PickupController extends ChangeNotifier {
     _actionErrors.clear();
     _actionRetryAfter.clear();
     _pendingAttempts.clear();
+    _pendingHubPickups.clear();
     _pendingRejections.clear();
     notifyListeners();
   }

@@ -1,5 +1,19 @@
+import 'dart:typed_data';
+
 import '../../../core/networking/api_contract_exception.dart';
 import '../../pickup/domain/pickup_models.dart';
+
+class DeliveryPhotoSelection {
+  const DeliveryPhotoSelection({
+    required this.path,
+    required this.fileName,
+    required this.bytes,
+  });
+
+  final String? path;
+  final String fileName;
+  final Uint8List bytes;
+}
 
 class DeliveryContext {
   const DeliveryContext({
