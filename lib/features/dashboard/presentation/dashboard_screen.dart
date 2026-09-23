@@ -377,6 +377,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                     historyController: widget.historyController,
                     onOpenDeliveries: _openDeliveries,
                     onOpenHistory: _openHistory,
+                    onOpenNotifications: widget.notificationController == null
+                        ? null
+                        : _openNotifications,
                   )
                 : AnimatedBuilder(
                     animation: widget.accountController!,
@@ -389,6 +392,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                       historyController: widget.historyController,
                       onOpenDeliveries: _openDeliveries,
                       onOpenHistory: _openHistory,
+                      onOpenNotifications: widget.notificationController == null
+                          ? null
+                          : _openNotifications,
                       profilePhoto: widget.accountController!.profilePhoto,
                     ),
                   ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:aisley_app/app/courier_app.dart';
+import 'package:aisley_app/core/networking/api_contract_exception.dart';
 import 'package:aisley_app/features/account/data/account_repository.dart';
 import 'package:aisley_app/features/account/domain/account_models.dart';
 import 'package:aisley_app/features/account/presentation/controllers/account_controller.dart';
@@ -84,13 +85,38 @@ void main() {
 
     expect(find.text('Courier dashboard'), findsOneWidget);
     expect(find.text('Available work'), findsOneWidget);
-    expect(find.text('Unavailable in this build'), findsNWidgets(3));
+    expect(find.text('Summary unavailable'), findsNWidgets(3));
     expect(
       find.text(
-        'Operational delivery data will appear here when it is available.',
+        'Dashboard summaries are not available yet. Open the work screens for current tasks.',
       ),
       findsOneWidget,
     );
+    expect(find.text('Notification summary'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Refresh dashboard'), 300);
+    expect(find.text('Refresh dashboard'), findsOneWidget);
+  });
+
+  testWidgets('dashboard contract failure is not shown as empty work', (
+    WidgetTester tester,
+  ) async {
+    final authController = AuthController(
+      authRepository: _FakeAuthRepository(),
+      dashboardRepository: _FakeDashboardRepository()
+        ..error = const ApiContractException('dashboard.sections'),
+    )
+      ..status = AuthStatus.authenticated
+      ..courier = _FakeAuthRepository().courier;
+
+    await tester.pumpWidget(
+      MaterialApp(home: DashboardScreen(authController: authController)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('unexpected response'), findsOneWidget);
+    expect(find.text('Nothing to show'), findsNothing);
+    expect(find.text('Summary unavailable'), findsNothing);
+    expect(find.text('Retry'), findsOneWidget);
   });
 
   testWidgets('dashboard refreshes its avatar after a profile photo update', (
@@ -228,11 +254,14 @@ class _FakeAuthRepository implements AuthRepository {
 }
 
 class _FakeDashboardRepository implements DashboardRepository {
+  Object? error;
+
   @override
   Future<DashboardSnapshot> fetchDashboard() async {
-    return DashboardSnapshot.fromJson(const <String, dynamic>{
+    if (error case final error?) throw error;
+    return DashboardSnapshot.fromScaffoldResponse(const <String, dynamic>{
       'data': <dynamic>[],
-      'meta': <String, dynamic>{'generated_at': 'now'},
+      'meta': <String, dynamic>{'next_cursor': null, 'generated_at': 'now'},
       'sections': <String, dynamic>{
         'notifications': <String, dynamic>{
           'state': 'unavailable',

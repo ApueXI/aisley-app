@@ -44,6 +44,7 @@ extension AuthControllerState on AuthController {
     bool fromSession = false,
   }) async {
     if (error.statusCode == 401) {
+      _invalidateDashboardRequest();
       await _clearTokenAndBecomeSignedOut(
         message: fromSession ? null : 'Your session is no longer valid.',
       );
@@ -61,6 +62,7 @@ extension AuthControllerState on AuthController {
     }
 
     if (fromSession && error.isNetworkError) {
+      _invalidateDashboardRequest();
       status = AuthStatus.recoverableNetworkFailure;
       errorMessage = _messageForAuthError(error);
       retryAfter = null;
@@ -69,6 +71,7 @@ extension AuthControllerState on AuthController {
       return;
     }
 
+    _invalidateDashboardRequest();
     status = AuthStatus.signedOut;
     errorMessage = _messageForAuthError(error);
     retryAfter = error.retryAfter;
@@ -86,6 +89,7 @@ extension AuthControllerState on AuthController {
   }
 
   Future<void> _clearTokenAndSetBlocked(ApiException error) async {
+    _invalidateDashboardRequest();
     try {
       await _authRepository.clearStoredToken();
       final blockedStatus = _blockedStatusFor(error.code);
@@ -103,6 +107,7 @@ extension AuthControllerState on AuthController {
   }
 
   void _preserveSessionForPolicyConsent(ApiException error) {
+    _invalidateDashboardRequest();
     status = AuthStatus.policyConsentRequired;
     dashboard = null;
     dashboardStatus = DashboardLoadStatus.idle;
@@ -114,6 +119,7 @@ extension AuthControllerState on AuthController {
   }
 
   void _becomeSignedOut({String? message}) {
+    _invalidateDashboardRequest();
     status = AuthStatus.signedOut;
     courier = null;
     dashboard = null;
@@ -140,6 +146,7 @@ extension AuthControllerState on AuthController {
   }
 
   void _becomeStorageSafeFailure(String message) {
+    _invalidateDashboardRequest();
     status = AuthStatus.secureStorageFailure;
     courier = null;
     dashboard = null;

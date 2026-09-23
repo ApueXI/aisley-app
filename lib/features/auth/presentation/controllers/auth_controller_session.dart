@@ -2,7 +2,11 @@ part of 'auth_controller.dart';
 
 extension AuthControllerSession on AuthController {
   Future<void> initialize() async {
+    _invalidateDashboardRequest();
     status = AuthStatus.checkingSession;
+    dashboard = null;
+    dashboardStatus = DashboardLoadStatus.idle;
+    dashboardErrorMessage = null;
     errorMessage = null;
     retryAfter = null;
     _notify();
@@ -32,6 +36,7 @@ extension AuthControllerSession on AuthController {
       return;
     }
 
+    _invalidateDashboardRequest();
     status = AuthStatus.authenticating;
     errorMessage = null;
     retryAfter = null;
@@ -66,6 +71,7 @@ extension AuthControllerSession on AuthController {
       return false;
     }
 
+    _invalidateDashboardRequest();
     isSigningOut = true;
     errorMessage = null;
     _notify();

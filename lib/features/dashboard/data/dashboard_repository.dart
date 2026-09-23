@@ -30,6 +30,6 @@ class ApiDashboardRepository implements DashboardRepository {
       throw const ApiContractException('dashboard.response');
     }
 
-    return DashboardSnapshot.fromJson(decoded);
+    return DashboardSnapshot.fromScaffoldResponse(decoded);
   }
 }

@@ -1,3 +1,5 @@
+import '../../../core/networking/api_contract_exception.dart';
+
 class DashboardSnapshot {
   const DashboardSnapshot({
     required this.sections,
@@ -8,6 +10,51 @@ class DashboardSnapshot {
   final Map<String, DashboardSection> sections;
   final DashboardFreshness freshness;
   final String? generatedAt;
+
+  /// The current API exposes a scaffold, not an operational task feed.
+  /// Fail closed if that contract changes instead of showing invented queues.
+  factory DashboardSnapshot.fromScaffoldResponse(Map<String, dynamic> json) {
+    final data = json['data'];
+    if (data is! List || data.isNotEmpty) {
+      throw const ApiContractException('dashboard.data');
+    }
+    final meta = json['meta'];
+    if (meta is! Map ||
+        !meta.containsKey('next_cursor') ||
+        meta['next_cursor'] != null ||
+        meta['generated_at'] is! String ||
+        (meta['generated_at'] as String).isEmpty) {
+      throw const ApiContractException('dashboard.meta');
+    }
+    final sections = json['sections'];
+    if (sections is! Map) {
+      throw const ApiContractException('dashboard.sections');
+    }
+    for (final key in const [
+      'notifications',
+      'available_tasks',
+      'active_tasks',
+    ]) {
+      final section = sections[key];
+      if (section is! Map ||
+          section['state'] != 'unavailable' ||
+          section['reason'] != 'OPERATIONAL_SCHEMA_DEFERRED' ||
+          (section.containsKey('data') &&
+              (section['data'] is! List ||
+                  (section['data'] as List).isNotEmpty))) {
+        throw ApiContractException('dashboard.sections.$key');
+      }
+    }
+    final freshness = json['freshness'];
+    if (freshness is! Map ||
+        freshness['state'] != 'scaffold' ||
+        freshness['reason'] != 'OPERATIONAL_SCHEMA_DEFERRED' ||
+        freshness['generated_at'] is! String ||
+        (freshness['generated_at'] as String).isEmpty) {
+      throw const ApiContractException('dashboard.freshness');
+    }
+    return DashboardSnapshot.fromJson(json);
+  }
 
   factory DashboardSnapshot.fromJson(Map<String, dynamic> json) {
     final rawSections = json['sections'];
