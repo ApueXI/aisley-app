@@ -1,8 +1,8 @@
 # Database Schema
 
-> **Status:** Implemented foundation, marketplace/order schema, Product Q&A, Customer Product Reviews, Seller-to-Logistics pickup scheduling, shared waybills, first-mile pickup confirmation, and final-mile fulfillment flow
+> **Status:** Implemented foundation, marketplace/order schema, Product Q&A, Customer Product Reviews, Seller Review Management, Seller-to-Logistics pickup scheduling, shared waybills, first-mile pickup confirmation, and final-mile fulfillment flow
 >
-> **Last synchronized:** 2026-09-20 (Customer Product Reviews and Ratings MVP)
+> **Last synchronized:** 2026-09-23 (Company Truck Linehaul Dispatch)
 >
 > **Database:** PostgreSQL 18.3
 >
@@ -30,7 +30,7 @@ The current authentication and Logistics foundation includes:
 
 Admin approves Logistics registration applications. The associated Logistics organization approves or rejects its Courier affiliations. Admin account lifecycle actions such as suspension, restoration, and deactivation remain separate from Courier affiliation approval.
 
-The MVP uses exactly one operational hub/sorting center per Logistics organization. Registration creates the hub from the Logistics operational-hub address, and the unique organization foreign key prevents a second hub. Sub-hubs, additional hubs, and multi-hub operations are out of scope. Seller pickup requests, immutable shared waybills, schedules, first-mile assignment/acceptance/pickup-confirmation records, shared Parcel/Shipment records, hub milestones, independent final-mile offers, Courier handoff evidence, and QR-based delivery completion are implemented through additive migrations and the shared fulfillment transition service.
+The MVP uses exactly one operational hub/sorting center per Logistics organization. Registration creates the hub from the Logistics operational-hub address, and the unique organization foreign key prevents a second hub. Sub-hubs, additional hubs, and multi-hub operations are out of scope. Seller pickup requests, immutable shared waybills, schedules, first-mile assignment/acceptance/pickup-confirmation records, shared Parcel/Shipment records, hub milestones, independent final-mile offers, Courier hub-handoff evidence, private photo POD, and Logistics-confirmed delivery are implemented through additive migrations and the shared fulfillment transition service.
 
 ### Implemented Logistics cardinality and deferred operations
 
@@ -39,7 +39,7 @@ The MVP uses exactly one operational hub/sorting center per Logistics organizati
 - The Logistics registration address is the organization's sole operational hub/sorting-center address. The Logistics account operates that hub through the Logistics dashboard; no separate hub or sub-hub address is collected.
 - Courier registration selects the Logistics organization; the sole hub is derived server-side rather than supplied as a client-controlled ID.
 - Current foundation cardinality is one Logistics user per organization. Staff/sub-account support is a later authorization decision and is not part of this foundation.
-- Implemented pickup requests, waybills, schedules, first-mile tasks, shared Shipment/Parcel records, hub milestones, final-mile offers, QR evidence, delivery completion, and Courier vehicle-management APIs resolve through the organization's sole hub. Deferred advanced fleet extensions (maintenance, vehicle history, and capacity matching), zone, capacity, subscription, route/location telemetry, advanced media proof, returns, and failure-recovery records must preserve that scope when introduced.
+- Implemented pickup requests, waybills, schedules, first-mile tasks, shared Shipment/Parcel records, hub milestones, final-mile offers and batch acceptance, hub-pickup QR evidence, photo POD, failed-attempt retry, delivery completion, and Courier vehicle-management APIs resolve through the organization's sole hub. Deferred advanced fleet extensions (maintenance, vehicle history, and capacity matching), zone, capacity, subscription, live Courier location telemetry, signature proof, returns, and exceptional recovery records must preserve that scope when introduced.
 
 ## 2. Database conventions
 
@@ -164,7 +164,7 @@ Every column in this section is stored as a string in PostgreSQL and cast to the
 | `DocumentType` | `government_id`, `business_registration`, `tax_document`, `drivers_license`, `vehicle_registration`, `official_receipt`, `certificate_of_registration`, `proof_of_address`, `other` | `documents.type` |
 | `DocumentStatus` | `pending`, `verified`, `rejected` | `documents.status` |
 | `AddressType` | `shipping`, `billing`, `both` | `addresses.type` |
-| `VehicleType` | `motorcycle`, `car`, `van` | `vehicles.type` |
+| `VehicleType` | `motorcycle`, `car`, `van`, `truck` | `vehicles.type` |
 | `VehicleStatus` | `active`, `inactive`, `maintenance` | `vehicles.status` |
 | `CourierAffiliationStatus` | `pending`, `approved`, `rejected`, `revoked` | `courier_logistics_affiliations.status` |
 | `ShopStatus` | `pending`, `active`, `suspended`, `deactivated` | `shops.status` |
@@ -1141,7 +1141,7 @@ Scheduling, Courier acknowledgement, scanning, and typing do not mutate `orders.
 - `PickupScheduleLifecycleService` now completes a still-`scheduled` parent from the final Courier pickup transaction, records one append-only completion history row, suppresses pending/claimed reminders, and leaves Order, Inventory, and final-mile effects untouched. Existing schedule conflict, revision, cancellation, and Courier availability queries continue to treat only `scheduled` rows as active.
 - Existing zero-remaining `scheduled` rows are reconciled in place by the bounded, rerunnable `pickups:reconcile-schedules` command. It locks and revalidates schedule membership, completes only schedules whose linked tasks are all `picked_up_from_seller`, suppresses reminders atomically, and reports empty, missing, cancelled, or inconsistent task sets without inventing custody or replaying stock effects. PostgreSQL execution remains a release gate.
 
-The additive fulfillment migration creates one immutable `parcels` row and one `shipments` row per Order/waybill, then one independent `delivery_tasks` row per leg. `shipments.status` and task status remain detailed physical state, while the high-level Order projection is updated only by `FulfillmentTransitionService`. Receiving and Sorting batches use stable client UUIDs and commit parcel results independently. Sorting snapshots up to 100 oldest `received_at_hub` Shipments into one open sole-hub session; each Logistics tenant owns named sort plans with one active plan, exact four-digit postal-code mappings to standard lanes, and an exception fallback. Automatic scans resolve the tracking ID and current Buyer postal code on the server, record plan/lane/reason metadata, commit `sorted_at_hub` for a matched standard lane, or retain receipt custody for an exception hold. After sorting, `dispatch_schedules` groups 1–15 Shipments for one approved Courier and future time; `dispatch_schedule_shipments` retains per-parcel and final-task links. Schedule creation atomically records dispatch, creates each final-mile task/offer, and projects each Order to `assigned`. Courier offers are accepted independently, hub-pickup and delivery QR evidence is stored privately, and Logistics validates evidence before `picked_up_from_hub` or `delivered` is committed.
+The additive fulfillment migration creates one immutable `parcels` row and one `shipments` row per Order/waybill, then one independent `delivery_tasks` row per leg. `shipments.status` and task status remain detailed physical state, while the high-level Order projection is updated only by `FulfillmentTransitionService`. Receiving and Sorting batches use stable client UUIDs and commit parcel results independently. Sorting snapshots up to 100 oldest `received_at_hub` Shipments into one open sole-hub session; each Logistics tenant owns named sort plans with one active plan, exact four-digit postal-code mappings to standard lanes, and an exception fallback. Automatic scans resolve the tracking ID and current Buyer postal code on the server, record plan/lane/reason metadata, commit `sorted_at_hub` for a matched standard lane, or retain receipt custody for an exception hold. After sorting, `dispatch_schedules` groups 1–15 Shipments for one approved Courier and future time; `dispatch_schedule_shipments` retains per-parcel and final-task links. Schedule creation atomically records dispatch, creates each final-mile task/offer, and projects each Order to `assigned`. The Courier accepts the dispatch schedule atomically; each parcel still has separate task/offer/evidence records. Hub-pickup QR/reference evidence and private photo POD are stored separately. Logistics validates the corresponding evidence before `picked_up_from_hub` or `delivered` is committed.
 
 ### 9.18 Shared shipment, parcel, task, evidence, and history records
 
@@ -1162,17 +1162,28 @@ The additive fulfillment migration creates one immutable `parcels` row and one `
 | `sorting_sessions` | One open session per organization/hub through nullable unique `open_key`; stores human reference, 100-item maximum expected count, actors, lifecycle, revision, and open-request idempotency. |
 | `sorting_session_items` | Session snapshot membership and current pending/sorted/exception reconciliation state; stores expected Shipment revision, selected lane, exception context, and completion time. |
 | `sorting_scans` | Append-style idempotent capture results scoped by organization/hub/session/item/lane/Shipment; stores stable client UUID, request hash, source, captured/processed times, actor, automatic-routing flag, selected plan/mapping IDs, and optional exception context/reason. |
-| `shipment_evidence` | Private QR/reference evidence for hub pickup or delivery proof; stores only safe waybill reference, hashes, status, actors, timestamps, and metadata. |
+| `shipment_evidence` | Private QR/reference evidence for hub pickup and private photo POD for delivery; photo records include generated storage disk/path, MIME, byte size, dimensions, checksum, status, actors, timestamps, and failed-attempt count metadata. |
 | `completion_intents` | Explicit Courier completion intent linked to one delivery proof; remains awaiting validation until Logistics finalizes delivery. |
+| `final_mile_failed_attempts` | Append-only Courier/task-scoped reason, optional note, server timestamp, and idempotency key. Does not change Shipment, task, or Order status. |
 | `shipment_events` | Append-only physical transition history with before/after states, performing Courier, validating Logistics account, evidence/offer links, correlation, and idempotency references. |
 
-Logistics and Courier routes are private, tenant-scoped, and no-store. A final delivery changes the final-mile task, Shipment, and Order to `delivered` in one transaction after a validated QR proof and Courier completion intent; it does not fulfill Inventory again or change payment fields.
+Logistics and Courier routes are private, tenant-scoped, and no-store. A final delivery changes the final-mile task, Shipment, and Order to `delivered` in one transaction after a validated photo POD and Courier completion intent; it does not fulfill Inventory again or change payment fields.
+
+### 9.18.1 Company-truck linehaul records
+
+| Table | Purpose and constraints |
+| --- | --- |
+| `company_trucks` | Logistics-owned truck with immutable owner/home-hub scope, unique plate, optional make/model, positive parcel-count capacity, active flag, string-backed availability, last confirmed hub, and optimistic revision. It is separate from Courier-owned `vehicles`. |
+| `linehaul_trips` | Outbound or return assignment with owner/home/from/to hubs, company truck, qualified driver, scheduled time, capacity/load snapshots, string-backed lifecycle, optional manifest/parent trip, actor decisions, timestamps, idempotency fingerprint, and revision. A return has exactly one outbound parent. |
+| `linehaul_trip_shipments` | Deterministic reserved Shipment/route-hop membership with stable sequence and reservation revisions. `released_at` preserves rejected/cancelled history while making the hop eligible for a later trip. |
+
+`courier_logistics_affiliations.can_drive_company_truck` and `truck_driver_revision` hold the owning Logistics organization's independently revisioned driver capability. Row/hub locks serialize competing reservations. New hub-transfer departures require this trip workflow; historical already-departed `linehaul_manifests` retain their receipt path. Empty returns create a trip but no empty manifest.
 
 Sorting plan/lane/session/item/scan enum-like columns remain PostgreSQL-safe strings with Logistics-scoped PHP enum casts. The dedicated sort transition appends a `hub_sort` Shipment event containing the session UUID, lane UUID, source, device capture time, request hash, and Logistics actor. Automatic routing resolves the tenant-owned tracking ID and current plan under the hub boundary; a missing plan, postal code, mapping, or usable lane selects the active exception lane. A Sorting exception updates only the session item's operational hold; it does not add an Order status or advance Shipment custody.
 
-### 9.19 `product_reviews` and `product_review_images`
+### 9.19 `product_reviews`, `product_review_images`, and `seller_review_responses`
 
-**Models:** `ProductReview`, `ProductReviewImage`
+**Models:** `ProductReview`, `ProductReviewImage`, `SellerReviewResponse`
 
 `product_reviews` is the authoritative verified-purchase review ledger. Each row links one active Customer to a delivered Order, one immutable Order Item, and the purchased Product, with an optional Variant reference and name snapshot. The UUID `order_item_id` unique constraint permits exactly one review per delivered line, including when the line quantity is greater than one. Reviews are published at commit in the MVP; `status` and `published_at` remain explicit so future moderation can add a state transition without changing Customer-authored content.
 
@@ -1180,14 +1191,17 @@ Sorting plan/lane/session/item/scan enum-like columns remain PostgreSQL-safe str
 
 Product `average_rating` and `review_count` are transactionally refreshed from published `product_reviews` rows. The catalog seed data resets those projections to `NULL`/`0`; it does not create verified-purchase evidence. Public review lists and summaries apply the same Product visibility and publication scopes.
 
+`seller_review_responses` stores one immutable public Shop response per Review. The unique `review_id` is the final one-response guard; Seller-scoped UUID idempotency keys and request hashes make identical retries stable. Restrictive Review/Seller/Shop foreign keys preserve attribution, while `shop_name_snapshot` keeps the public author label stable. The status column is PostgreSQL-safe text cast to `ReviewResponseStatus`; the MVP publishes immediately and has no edit/delete route.
+
 | Table | Key fields and constraints |
 | --- | --- |
 | `product_reviews` | UUID primary key; restrictive Customer/Order/Order Item/Product FKs; nullable Variant `SET NULL`; immutable Product/Variant snapshots; integer rating 1–5; plain-text body; string publication state; unique `order_item_id`; Product/publication/time indexes. |
 | `product_review_images` | UUID primary key; restrictive Review/Customer FKs; configured disk/path; detected MIME, byte size, dimensions, checksum, publication state, and position; unique (`review_id`, `position`) plus Review/status index. |
+| `seller_review_responses` | UUID primary key; restrictive Review/Seller/Shop FKs; immutable Shop-name snapshot and plain-text body; string publication state; UUID idempotency key/request hash; unique Review and Seller/idempotency constraints; Shop/Seller publication-time indexes. |
 
 ### 9.20 Deferred review extensions
 
-Customer editing/deletion, moderation/reporting, helpful votes, threaded replies, Seller response authoring, video reviews, and return/refund effects remain deferred. They must preserve the immutable delivered-line evidence and the aggregate projection contract when introduced.
+Customer editing/deletion, response editing/deletion, moderation/reporting, helpful votes, threaded replies, video reviews, and return/refund effects remain deferred. They must preserve the immutable delivered-line evidence and the aggregate projection contract when introduced.
 
 ## 10. Framework infrastructure tables
 
@@ -1240,6 +1254,7 @@ Numeric IDs in `jobs`, `failed_jobs`, and the migration repository are intention
 | Product review → Customer/Order/Order Item/Product                 | `RESTRICT`                  | Preserve verified-purchase evidence and its immutable purchased-line identity                     |
 | Product review → Variant                                           | `SET NULL`                  | Preserve the review if a purchased Variant is later removed                                        |
 | Product review image → Review/Customer                             | `RESTRICT`                  | Keep approved review media tied to its owner and immutable review                                  |
+| Seller review response → Review/Seller/Shop                        | `RESTRICT`                  | Preserve the single published response, actor, and immutable Shop attribution                       |
 | Product Q&A → Product/Customer/Seller                             | `RESTRICT`                  | Preserve public question/answer history and verified ownership attribution                         |
 | Flash deal item → Flash deal/Product                              | `CASCADE`                   | Deal membership has no meaning without either side                                                  |
 | Recently viewed item → User/Product                               | `CASCADE`                   | History has no meaning without either side                                                          |
@@ -1284,6 +1299,7 @@ The current foreign keys guarantee referential integrity, but they cannot encode
 22a. A Product Review must reference the authenticated Customer's delivered Order Item; the database unique constraint on `order_item_id` and the locked service path enforce one review per line.
 22b. Product Reviews accept only whole-number ratings from 1 through 5 and bounded plain text; public aggregates count published reviews only, while review images remain owner- and visibility-scoped.
 22c. Product review public reads require both a published review and `Product::storefrontVisible()`; hidden/restricted Products retain private history without exposing standalone review/photo URLs.
+22d. A Seller Review response is authorized through Review → Product → Shop ownership, remains one immutable published response per Review, and never changes Customer content or Product rating aggregates.
 23. `carts.customer_id` must identify an active Customer for Cart access, and every Cart query/mutation must derive ownership from the authenticated Customer rather than client input.
 24. A Cart Item with Product options must reference one active, complete Variant combination belonging to that Product; a Product without options must use `variant_id = NULL`.
 25. Cart quantities must be positive and within current Product/Variant stock when mutated. Cart writes do not reserve or decrement inventory, and reads preserve unavailable intent while reporting current availability.
@@ -1311,7 +1327,7 @@ The current foreign keys guarantee referential integrity, but they cannot encode
 47. An accepted cancellation or rejection before `picked_up_from_seller` releases only that Order's reserved SKU quantities, exactly once and transactionally. `picked_up_from_seller` commits the reservation to fulfillment without decrementing `on_hand` twice; post-pickup release, returns, refunds, and partial fulfillment require a later approved policy.
 48. The Seller pickup-request transaction creates one immutable shared waybill per Order at `ready_for_pickup`. Its identifier, snapshot, selected Logistics organization, and Order/Parcel link do not change; later route, assignment, print, and scan activity appends events rather than overwriting history.
 49. Once the shared schema exists, a `ready_for_pickup` Order with a selected Logistics organization may have at most one active first-mile task; creation is authorized only to that organization and is idempotent across retries.
-50. Waybill creation, scheduling, task acceptance, scanning, and identifier entry cannot write physical custody or Inventory effects. Only the approved explicit first-mile pickup confirmation writes `picked_up_from_seller`, projects the Order to `picked_up`, and fulfills reserved Inventory atomically. The deployed fulfillment transition service records hub milestones, creates independent final-mile tasks, validates P0 QR evidence, and commits final delivery without replaying Inventory; advanced proof/location/return transitions remain prohibited until their own contracts are approved.
+50. Waybill creation, scheduling, task acceptance, scanning, and identifier entry cannot write physical custody or Inventory effects. Only the approved explicit first-mile pickup confirmation writes `picked_up_from_seller`, projects the Order to `picked_up`, and fulfills reserved Inventory atomically. The deployed fulfillment transition service records hub milestones, creates independent final-mile tasks, validates QR hub pickup and private photo POD, and commits final delivery without replaying Inventory; advanced proof/location/return transitions remain prohibited until their own contracts are approved.
 51. Customer Order mutations are scoped to owned `placed` COD Orders. Cancellation appends an immutable status/history record and releases only that Order's reservation once; delivery-address correction appends a versioned snapshot and never mutates the Address Book source. Item, quantity, voucher, shipping, repricing, and post-pickup changes remain deferred.
 52. Product Q&A reads and writes must re-apply `Product::storefrontVisible()`. Questions are active-Customer-owned, answers are restricted to the Product-owning Seller, and public DTOs contain no private Customer fields.
 53. Product Q&A question/answer mutations use actor-scoped idempotency keys and one-answer locking. Notifications are dispatched after the Q&A transaction commits and deterministic notification IDs prevent duplicate alerts.
@@ -1400,6 +1416,8 @@ Repository migrations are listed below in filename execution order; this invento
 73. `2026_09_16_000004_add_automatic_routing_to_sorting_scans.php` — automatic-routing marker and indexes for server-authoritative scan results.
 74. `2026_09_20_000001_allow_shared_hub_postal_coverage.php` — allows active postal-code coverage to be shared by multiple Logistics hubs while retaining hub/code uniqueness.
 75. `2026_09_20_000002_create_product_reviews.php` — delivered Order Item Product Reviews, authoritative rating projections, and validated Customer review-image metadata.
+76. `2026_09_22_000001_create_seller_review_responses.php` — one immutable public Shop response per Product Review with restrictive attribution, stable idempotency, and Seller/Shop publication indexes.
+77. `2026_09_23_000001_add_company_truck_linehaul_dispatch.php` — truck-driver capability, Logistics-owned company trucks, capacity-frozen outbound/return trips, and route-hop parcel reservations.
 
 ## 14. Fulfillment schema and deferred extensions
 
@@ -1410,7 +1428,7 @@ Repository migrations are listed below in filename execution order; this invento
 - Store offer, acceptance/rejection, re-offer, scan submission, evidence validation, and custody changes as append-only records. Current task/assignment state is a projection; closing an assignment cannot delete its history.
 - Preserve performing Courier and validating/recording Logistics actors with UTC timestamps. Restricted audit projections and role-safe Customer/Courier timelines may share history without sharing private payloads.
 - Scope future idempotency to actor, organization, task, action, and key; store request hash and original result. Identical retries replay that result; changed input conflicts. No duplicate inventory or notification effects are permitted.
-- Migration `2026_09_12_000001_create_fulfillment_operations.php` deploys the operational foundation and preserves existing migrations and immutable waybills. The implemented P0 proof contract uses QR/reference evidence; photo/signature evidence remains an extension of the shared upload policy.
+- Migration `2026_09_12_000001_create_fulfillment_operations.php` deploys the operational foundation and preserves existing migrations and immutable waybills. Migration `2026_09_20_000001_add_final_mile_photo_and_attempts.php` adds private photo POD metadata and retryable failed-attempt records. QR/reference evidence applies to hub pickup; destination delivery requires photo POD and Logistics confirmation. Signature remains deferred under the shared upload policy.
 
 ### Additive migration and service plan (implemented)
 
@@ -1469,9 +1487,9 @@ The following capabilities appear in requirements but have no migrations or mode
 | Catalog and inventory      | Reservation release before first-mile pickup and conversion at `picked_up_from_seller` are implemented; post-pickup release, returns/refunds, and partial-fulfillment records remain deferred |
 | Promotions                 | Admin/Seller Voucher management and Customer claim UX; checkout eligibility, calculation, snapshot, and redemption persistence are implemented                                               |
 | Payments and finance       | Payment gateways beyond COD, platform fees, Seller payouts, commissions, taxes, refunds, and transaction ledgers                                                                             |
-| First-party logistics      | Courier availability/capacity, route/location telemetry, failed delivery, returns/refunds/partial fulfillment, and Courier earnings remain deferred. Shared Shipment/Parcel milestones, hub receipt/sort/dispatch, final-mile offers, QR handoff evidence, and final-mile completion are implemented. |
+| First-party logistics      | Courier availability/capacity, live location telemetry, returns/refunds/partial fulfillment, and Courier earnings remain deferred. Shared Shipment/Parcel milestones, hub receipt/sort/dispatch, final-mile batch acceptance, QR hub handoff, private photo POD, failed-attempt retry, advisory final-mile routing, and final-mile completion are implemented. |
 | Logistics subscriptions   | Subscription billing, providers, subscription records, active-status checks, and operational gates are deferred; approved active Logistics access is not subscription-gated in the MVP |
-| Reviews                    | Customer verified-purchase ratings, review media, delivered-line eligibility, and public aggregates are implemented; moderation, editing, Seller responses, video, and refund effects remain deferred |
+| Reviews                    | Customer verified-purchase ratings/media/aggregates and Seller-scoped immutable public Shop responses are implemented; moderation, editing/deletion, video, and refund effects remain deferred |
 | Support and compliance     | Complaints/disputes, source-owned evidence, appeals, resolutions, automatic detection, and strike-threshold policy; manual compliance cases/actions and Product restrictions are implemented |
 | Messaging                  | Conversations, participants, messages, and conversation read state; the Admin database notification inbox is implemented separately                                                          |
 | Policy consent integration | Public policy reads, status/acceptance APIs, role-owned web consent screens, and protected-action enforcement are implemented; login/session bootstrap, logout, status, and acceptance remain reachable so users can complete consent |
@@ -1492,4 +1510,4 @@ Before adding these tables:
 - ensure every Seller-owned resource resolves to a shop for tenant isolation; and
 - update this document and `docs/PROGRESS.md` in the same change as the migrations.
 
-**Current/future boundary:** `ConfirmFirstMilePickup` remains the compatibility writer for the existing first-mile Seller handoff and Inventory fulfillment. It now idempotently bridges that result into shared Parcel/Shipment/DeliveryTask records without replaying stock. New hub and final-mile transitions use `FulfillmentTransitionService`, Logistics validation, and append-only physical events; photo/signature evidence, location telemetry, and exceptional recovery remain future extensions.
+**Current/future boundary:** `ConfirmFirstMilePickup` remains the compatibility writer for the existing first-mile Seller handoff and Inventory fulfillment. It now idempotently bridges that result into shared Parcel/Shipment/DeliveryTask records without replaying stock. New hub and final-mile transitions use `FulfillmentTransitionService`, Logistics validation, and append-only physical events; signature evidence, live location telemetry, and exceptional recovery remain future extensions; private photo POD and advisory final-mile routes are implemented.

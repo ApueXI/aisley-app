@@ -4,7 +4,7 @@ system: AISLEY
 type: Design Guide
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active — core Courier UI, notification inbox, and Android/web-server camera scanning implemented; route/location/media extensions deferred
+status: Active inbox and legacy Courier UI; final-mile task-bound handoff/photo POD/batch map need client adoption
 ---
 
 # Courier Flutter Design Guide
@@ -13,7 +13,7 @@ status: Active — core Courier UI, notification inbox, and Android/web-server c
 
 This guide applies to the external Flutter Courier application on Android and to local browser testing of that same app through Flutter `web-server`. It does not define the separate webapp's Customer storefront or React Admin, Seller, or Logistics dashboards. Laravel remains authoritative for identity, approval, ownership, and operational state.
 
-The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, Phase 1 account management, policy consent, the Courier notification inbox, the approved first-mile/final-mile pickup workflow, final-mile movement, P0 QR/tracking-ID/Order-reference proof, completion intent, and read-only delivered history. Android APK and Flutter web camera scanning are implemented client work; background push, route/location telemetry, photo/signature proof media, earnings, and offline task screens remain deferred.
+The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, account management, policy consent, notifications, first-mile identifier pickup, task-bound final-mile hub handoff, batch routes, final-mile movement, private photo POD, Logistics-reviewed completion, and delivered history. The supplied Flutter progress confirms the notification inbox and Android/web QR/Code 128 candidate capture, but its older identifier-based delivery-proof UI is **not** current API behavior. Flutter photo POD and batch-map adoption are unverified. Background push, live route telemetry, signature proof, earnings, and offline task screens remain deferred.
 
 ## Design goals
 
@@ -50,7 +50,7 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 ## Navigation and layout
 
 - Use a single, predictable authentication stack: Logistics selection → registration → pending result, or login → authenticated state.
-- Navigate to the implemented Notifications, Pickup orders, Delivery work, and Delivery history screens from the dashboard. Deferred route/location and media capabilities must state that they are unavailable rather than showing fabricated jobs or controls.
+- Navigate to the implemented Notifications, Pickup orders, Delivery work, and Delivery history screens from the dashboard, but distinguish a screen's existence from compatibility with the current backend. The inbox works against its adopted v1 contract; the final-mile photo-POD workflow needs a Flutter update. Do not fabricate jobs or controls for unadopted capabilities.
 - Use Flutter's adaptive navigation primitives. Phones are the primary target; tablets may use wider constrained content but must not become a desktop sidebar clone.
 - Preserve user input when validation or a recoverable network error returns. Confirm before discarding a partially completed registration.
 - Keep primary actions reachable above the keyboard when possible; use bottom action areas only when they do not obscure content or accessibility focus.
@@ -105,7 +105,7 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 - Keep schedule, Seller/hub, authorized pickup address, Order reference, waybill reference, destination area, and lowercase server status visible without exposing Buyer contact details, prices, or private evidence.
 - Require an explicit confirmation after the QR/manual identifier candidate is entered. A waybill QR payload is untrusted text; the current client supports camera, scanner keyboard/paste input, and a manual Order ID/reference fallback.
 - **Scan** opens the camera only when selected, works in the installed Android release APK and in the same Flutter app at `http://localhost:8765` through the fixed-port web-server run, and displays a visible manual-input control. Show permission denied, unavailable, busy, unsupported, and insecure-origin states with a manual alternative; release the stream when leaving the screen or switching tasks. Linux remains manual-input only.
-- Decode QR payload as `qr` and the waybill Code 128 tracking ID as `tracking_id`; do not route tracking IDs through the QR-only resolver. Suppress repeated-frame candidates and show the matched task before the explicit pickup or hub-evidence action. Do not log or copy raw decoded values into analytics.
+- Decode QR payload as `qr` and the waybill Code 128 tracking ID as `tracking_id` for **first-mile** verification; do not route tracking IDs through the QR-only resolver. Suppress repeated-frame candidates and show the matched task before explicit Seller pickup. Final-mile hub handoff uses the accepted task and revision without QR/reference input; the older Flutter identifier control must be removed or disabled for that endpoint. Do not log decoded values.
 - Use the documented idempotency key for physical first-mile confirmation and preserve the same key and identifier after an uncertain response. Final-mile hub evidence must remain visibly “Awaiting Logistics validation” until the server reports validated custody.
 - Present the schedule route manifest as an ordered, accessible stop list. It is not a Buyer delivery route, and the client does not add map credentials, provider calls, or turn-by-turn navigation.
 
@@ -113,9 +113,9 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 
 - Show only server-returned final-mile tasks. Keep `delivery_assigned`/`delivery_accepted` visibly separate from hub custody; accepting an offer does not mean the parcel was picked up.
 - After the server records `picked_up_from_hub`, show one explicit movement action at a time: `in_transit`, then `out_for_delivery`. Each action confirms the server-authorized transition and revision; it never writes an Order status locally.
-- Show the authorized hub, destination, recipient contact, instructions, and optional advisory metrics returned by the delivery-context endpoint. Missing route metrics remain visibly unavailable; no map, GPS, local ETA, or fabricated zero distance is shown.
-- At `out_for_delivery`, offer only the live P0 QR/reference proof input. Show `awaiting_validation` after the 202 response, map the returned proof reference to completion, and never treat a scan or completion intent as delivered.
-- Delivery-proof camera scanning reuses the Flutter barcode capture behavior on Android APK and local web-server. It fills a candidate for explicit proof submission; camera access does not enable photo or signature proof media.
+- Show the authorized hub, destination, recipient contact, instructions, and server-provided advisory metrics. The backend now offers a schedule-scoped batch route, but the supplied Flutter snapshot does not verify its map UI. Missing route geometry or metrics remain visibly unavailable; do not fabricate distance, ETA, or coordinates.
+- At `out_for_delivery`, the current backend requires a private JPEG/PNG/WebP **photo POD** tied to the task. Show `awaiting_validation` after upload and Delivered intent; only Logistics validation may mark delivered. The recorded QR/reference Flutter proof UI must not submit to the current photo endpoint.
+- Keep barcode scanning for first-mile identifiers. A new final-mile photo capture/upload UI must follow the shared upload policy, private bearer reads, retry/idempotency, permission, and accessibility rules; a barcode scan is not delivery proof.
 - Completion is an explicit intent followed by a fresh completion read. Display delivered only when the server returns the committed `delivered` projection.
 
 ### Delivery history

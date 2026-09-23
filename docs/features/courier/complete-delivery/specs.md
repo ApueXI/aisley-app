@@ -4,17 +4,25 @@ title: Complete Delivery
 system: AISLEY
 type: Feature Specification
 version: 1.5
-status: Implemented P0 QR completion flow; advanced proof methods deferred
+status: Implemented photo POD completion intent and Logistics confirmation
 implementation_status: Completion intent, Logistics proof validation, atomic delivered transition, and history records are implemented; Flutter UI is external
-flutter_status: Both-leg client slices reported implemented in the supplied 2026-09-13 Flutter handoff; source/runtime and full test verification not performed here
+flutter_status: Legacy completion intent UI recorded in Flutter progress; photo-linked Delivered intent and rejected-photo retry not verified/adopted
 canonical: true
+copied_backend_checkout: 833ee52 (origin/main 317223a)
 role: Courier
 scope: Laravel API and external Flutter application
 backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378
 backend_contract_version: courier-completion-v1-qr
+backend_contract_version_status: Historical QR baseline; the photo-POD revision below is authoritative
 ---
 
 # Complete Delivery
+
+**Flutter adoption boundary:** The older Flutter completion screen submits intent after identifier proof. Current Laravel completion requires the current private photo POD `proof_id`; HTTP `202` means pending Logistics review, not delivered. Do not present the legacy QR-based flow as a working final-mile completion against this backend. Update the external app's photo upload, intent, rejection, and retry handling first.
+
+## Final-mile photo and retry revision (2026-09-20)
+
+The Courier's **Delivered** action sends an intent linked to the current photo POD. HTTP 202 is pending Logistics review. Only Logistics can validate that private image and atomically mark the task, Shipment, and Order delivered. A failed doorstep attempt leaves `out_for_delivery` and the assignment intact for a later retry; it does not create a completion intent or a terminal delivery state. The existing reference-based proof contract described below is historical and superseded for final-mile delivery submissions.
 
 ## WHAT
 
@@ -60,10 +68,10 @@ out_for_delivery
 - Required proof must be durably stored and validated by Logistics before finalization.
 - Missing, rejected, or inaccessible evidence blocks finalization. Pending evidence may be validated inside Logistics finalization; pending proof does not block Courier intent submission.
 - Mandatory proof type/combination remains owned by the Proof of Delivery policy.
-- Do not silently choose photo, signature, OTP, or recipient QR as universally required.
+- Photo POD is required for final-mile delivery; additional signature, OTP, or recipient QR methods need a later policy.
 - A configured proof policy must exist before enabling completion.
 - Courier submits an opaque evidence UUID, never storage credentials or raw blob paths.
-- Submit QR/reference proof first, retain HTTP 202 `proof_id`, then submit completion with that UUID as `evidence_id`, current task revision, `confirmed: true`, and a distinct UUID Idempotency-Key. Do not wait for `completion_eligible: true` or prior Logistics validation.
+- Submit photo POD first, retain HTTP 202 `proof_id`, then submit completion with that UUID as `evidence_id`, current task revision, `confirmed: true`, and a distinct UUID Idempotency-Key. Do not wait for `completion_eligible: true` or prior Logistics validation.
 - Logistics finalization requires the same proof's Courier intent and validates pending proof atomically with delivery. It is not a separate pre-intent proof-approval workflow.
 - Use delivered for the target final-mile task, Shipment, and high-level Order projection.
 - Do not introduce a separate completed database value solely for history filtering.
@@ -129,12 +137,13 @@ out_for_delivery
 ## HOW
 
 ### Implemented endpoints
+- The development-only Courier API mockup may submit completion intent after proof submission and show the GET projection while Logistics validation is pending.
 
 | Method and path                                  | Actor            | Purpose                                               |
 | ------------------------------------------------ | ---------------- | ----------------------------------------------------- |
 | GET /api/v1/courier/tasks/{task}/completion      | Assigned Courier | Read eligibility, intent, proof, and committed result |
 | POST /api/v1/courier/tasks/{task}/completion     | Assigned Courier | Submit explicit completion intent                     |
-| POST /api/v1/logistics/update-status/transitions | Owning Logistics | Validate QR proof and atomically finalize delivery    |
+| POST /api/v1/logistics/update-status/transitions | Owning Logistics | Validate photo POD and atomically finalize delivery    |
 
 - The Logistics route is owned by Update Status; this spec does not create a second validation endpoint.
 - Courier POST uses application/json plus a UUID Idempotency-Key header.
@@ -198,7 +207,7 @@ out_for_delivery
 ### Acceptance criteria
 
 - [x] Only the eligible final-mile Courier submits completion intent.
-- [x] Logistics validation and required QR proof gate delivered.
+- [x] Logistics validation and required photo POD gate delivered.
 - [x] Task, Shipment, Order, history, and notification work commit atomically.
 - [x] Retries/concurrency cannot duplicate delivery or Inventory effects.
 - [ ] Verify external Flutter distinguishes pending evidence from confirmed delivery; this repository cannot certify its screens.

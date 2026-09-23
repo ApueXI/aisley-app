@@ -22,7 +22,7 @@ source_coverage: requirements.md, workspace.md, schema.md, Courier.md, Logistics
 - **Client boundary:** Courier screens belong to the separate Flutter project. This repository provides API behavior only; do not add a Courier React page, browser-cookie flow, or web dashboard under `src/`.
 - **MVP cardinality:** one Courier has one current Logistics affiliation. The selected organization owns exactly one operational hub; the server derives that hub and the client cannot select a sub-hub.
 - **Approval authority:** The associated active Logistics organization approves or rejects the Courier affiliation. Admin may suspend, restore, or deactivate an account through the separate lifecycle feature, but Admin does not approve the affiliation.
-- **Boundary:** recovery completion, email verification, MFA, affiliation history/revocation, and session-device policy remain deferred. First-mile pickup/routing and final-mile QR evidence, movement, completion, and history APIs exist under their owning specs; media proof, final-mile routing, earnings, and offline mutations remain deferred.
+- **Boundary:** recovery completion, email verification, MFA, affiliation history/revocation, and session-device policy remain deferred. First-mile pickup/routing and final-mile movement, completion, and history APIs exist under their owning specs; private photo POD and advisory final-mile batch routing are available in Laravel but not verified in the supplied Flutter client. Signature proof, live location telemetry, earnings, and offline mutations remain deferred.
 
 ```text
 GET active Logistics options
@@ -51,7 +51,7 @@ GET active Logistics options
 - Accept one `logistics_organization_id` UUID. Re-resolve an active Logistics organization with a hub inside the transaction; ignore any client `hub_id` or sub-hub field.
 - Accept nested `address` fields: `address_line_1`, optional `address_line_2`, `barangay`, `city_municipality`, `province`, `region`, and `postal_code` (maximum 10). Set country to `Philippines` server-side.
 - Use bundled PSGC Region → Province → City/Municipality → Barangay data and a manual fallback in Flutter. Current Courier registration stores labels/text only; it does not persist PSGC codes, coordinates, or provider IDs.
-- Accept `vehicle_type` values `motorcycle`, `car`, or `van`, plus a required `plate_number` (maximum 64). MVP requires exactly one Vehicle per Courier; registration creates one and the additive Vehicle Fleet migration now enforces uniqueness after duplicate preflight.
+- Accept `vehicle_type` values `motorcycle`, `car`, `van`, or `truck`, plus a required `plate_number` (maximum 64). MVP requires exactly one personal Vehicle per Courier; registration creates one and the additive Vehicle Fleet migration enforces uniqueness after duplicate preflight. This personal vehicle cannot satisfy a company-truck Linehaul assignment. The supplied Flutter snapshot does not verify that its registration selector exposes `truck`.
 - Multiple/shared vehicles, maintenance, vehicle history, and capacity values/units/matching are deferred under the Logistics Vehicle Fleet Management spec. This does not remove existing registration/operational history or add a map-pin contract.
 
 ### Flutter registration field map
@@ -63,7 +63,7 @@ GET active Logistics options
 - `address[address_line_1]` is the required street/house detail; `address[address_line_2]` is optional.
 - `address[barangay]`, `address[city_municipality]`, `address[province]`, and `address[region]` are PSGC/manual labels.
 - `address[postal_code]` is required text, preserving leading zeroes where applicable.
-- `vehicle_type` is one of `motorcycle`, `car`, or `van`; `plate_number` is required text.
+- `vehicle_type` is one of `motorcycle`, `car`, `van`, or `truck`; `plate_number` is required text.
 - `government_id` and `vehicle_registration` are separate multipart file parts, not Base64 JSON fields.
 - Do not send `age`, `country`, `role`, `status`, `hub_id`, `reviewer_id`, or a client-generated owner identifier.
 - Preserve the selected form values after a recoverable `422`, but clear password values before retrying.
