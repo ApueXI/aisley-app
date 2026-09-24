@@ -11,6 +11,7 @@ class _DashboardBody extends StatelessWidget {
     required this.onOpenDeliveries,
     required this.onOpenHistory,
     this.onOpenNotifications,
+    this.onOpenMessages,
     this.profilePhoto,
   });
 
@@ -23,6 +24,7 @@ class _DashboardBody extends StatelessWidget {
   final VoidCallback onOpenDeliveries;
   final VoidCallback onOpenHistory;
   final VoidCallback? onOpenNotifications;
+  final VoidCallback? onOpenMessages;
   final ProfilePhotoData? profilePhoto;
 
   @override
@@ -100,6 +102,14 @@ class _DashboardBody extends StatelessWidget {
             onPressed: onOpenNotifications,
             icon: const Icon(Icons.notifications_none_rounded),
             label: const Text('Open notifications'),
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (onOpenMessages != null) ...[
+          OutlinedButton.icon(
+            onPressed: onOpenMessages,
+            icon: const Icon(Icons.chat_bubble_outline),
+            label: const Text('Task messages'),
           ),
           const SizedBox(height: 12),
         ],

@@ -5,6 +5,8 @@ import 'package:file_selector/file_selector.dart';
 
 import '../../../core/networking/multipart_file_adapter.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
+import '../../chat/presentation/controllers/chat_controller.dart';
+import '../../chat/presentation/chat_thread_screen.dart';
 import '../../policy/presentation/controllers/policy_controller.dart';
 import '../../policy/presentation/policy_screen.dart';
 import '../../pickup/domain/pickup_models.dart';
@@ -30,6 +32,7 @@ class DeliveryScreen extends StatefulWidget {
     required this.deliveryController,
     this.policyController,
     this.onOpenPickup,
+    this.chatController,
     super.key,
   });
 
@@ -37,6 +40,7 @@ class DeliveryScreen extends StatefulWidget {
   final DeliveryController deliveryController;
   final PolicyController? policyController;
   final VoidCallback? onOpenPickup;
+  final ChatController? chatController;
 
   @override
   State<DeliveryScreen> createState() => _DeliveryScreenState();
@@ -85,6 +89,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
           policyController: widget.policyController,
           task: task,
           onOpenPickup: widget.onOpenPickup,
+          chatController: widget.chatController,
         ),
       ),
     );

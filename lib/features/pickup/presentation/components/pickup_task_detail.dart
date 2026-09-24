@@ -7,6 +7,7 @@ class PickupTaskDetailScreen extends StatefulWidget {
     required this.task,
     this.policyController,
     this.onOpenDelivery,
+    this.chatController,
     super.key,
   });
 
@@ -15,6 +16,7 @@ class PickupTaskDetailScreen extends StatefulWidget {
   final PickupTask task;
   final PolicyController? policyController;
   final VoidCallback? onOpenDelivery;
+  final ChatController? chatController;
 
   @override
   State<PickupTaskDetailScreen> createState() => _PickupTaskDetailScreenState();
@@ -64,12 +66,45 @@ class _PickupTaskDetailScreenState extends State<PickupTaskDetailScreen> {
                 const SizedBox(height: 16),
                 _TaskDetails(task: task),
                 const SizedBox(height: 16),
+                if (widget.chatController != null &&
+                    (task.isAssigned ||
+                        task.isAccepted ||
+                        (task.isFinalMile &&
+                            (task.status == PickupTaskStatus.pickedUpFromHub ||
+                                task.status == PickupTaskStatus.inTransit ||
+                                task.status ==
+                                    PickupTaskStatus.outForDelivery)))) ...[
+                  OutlinedButton.icon(
+                    onPressed: () => _openLogisticsChat(task),
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    label: const Text('Message Logistics'),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 _buildAction(context, task),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Future<void> _openLogisticsChat(PickupTask task) async {
+    final controller = widget.chatController;
+    if (controller == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ChatThreadScreen(
+          controller: controller,
+          authController: widget.authController,
+          task: ChatTaskContext(
+            leg: task.isFirstMile ? 'first_mile' : 'final_mile',
+            taskId: task.id,
+            reference: task.order?.reference,
+          ),
+        ),
+      ),
     );
   }
 

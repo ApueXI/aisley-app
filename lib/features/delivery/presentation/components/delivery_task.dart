@@ -7,6 +7,7 @@ class DeliveryTaskScreen extends StatefulWidget {
     required this.task,
     this.policyController,
     this.onOpenPickup,
+    this.chatController,
     super.key,
   });
 
@@ -15,6 +16,7 @@ class DeliveryTaskScreen extends StatefulWidget {
   final PickupTask task;
   final PolicyController? policyController;
   final VoidCallback? onOpenPickup;
+  final ChatController? chatController;
 
   @override
   State<DeliveryTaskScreen> createState() => _DeliveryTaskScreenState();
@@ -56,6 +58,18 @@ class _DeliveryTaskScreenState extends State<DeliveryTaskScreen>
               children: [
                 _DeliveryIdentity(task: task),
                 const SizedBox(height: 16),
+                if (widget.chatController != null &&
+                    task.isFinalMile &&
+                    (task.status == PickupTaskStatus.deliveryAssigned ||
+                        task.status == PickupTaskStatus.deliveryAccepted ||
+                        task.status == PickupTaskStatus.pickedUpFromHub ||
+                        task.status == PickupTaskStatus.inTransit ||
+                        task.status == PickupTaskStatus.outForDelivery))
+                  OutlinedButton.icon(
+                    onPressed: () => _openLogisticsChat(task),
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    label: const Text('Message Logistics'),
+                  ),
                 _DeliveryContextCard(
                   contextData: deliveryContext,
                   status:
@@ -71,6 +85,24 @@ class _DeliveryTaskScreenState extends State<DeliveryTaskScreen>
           ),
         );
       },
+    );
+  }
+
+  Future<void> _openLogisticsChat(PickupTask task) async {
+    final controller = widget.chatController;
+    if (controller == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ChatThreadScreen(
+          controller: controller,
+          authController: widget.authController,
+          task: ChatTaskContext(
+            leg: 'final_mile',
+            taskId: task.id,
+            reference: task.order?.reference,
+          ),
+        ),
+      ),
     );
   }
 

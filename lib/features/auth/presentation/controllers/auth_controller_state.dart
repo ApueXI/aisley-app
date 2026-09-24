@@ -25,6 +25,10 @@ extension AuthControllerState on AuthController {
     return _handleAuthError(error, fromSession: true);
   }
 
+  Future<void> handleChatAuthFailure(ApiException error) {
+    return _handleAuthError(error, fromSession: true);
+  }
+
   Future<void> handlePasswordChanged() {
     return _clearTokenAndBecomeSignedOut(
       message: 'Your password was changed. Please sign in again.',

@@ -7,6 +7,8 @@ import '../../account/presentation/controllers/account_controller.dart';
 import '../../account/presentation/account_screen.dart';
 import '../../auth/domain/auth_models.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
+import '../../chat/presentation/chat_inbox_screen.dart';
+import '../../chat/presentation/controllers/chat_controller.dart';
 import '../../delivery/presentation/controllers/delivery_controller.dart';
 import '../../delivery/presentation/delivery_screen.dart';
 import '../../history/presentation/controllers/history_controller.dart';
@@ -33,6 +35,7 @@ class DashboardScreen extends StatefulWidget {
     this.deliveryController,
     this.historyController,
     this.notificationController,
+    this.chatController,
     this.vehicleController,
     super.key,
   });
@@ -44,6 +47,7 @@ class DashboardScreen extends StatefulWidget {
   final DeliveryController? deliveryController;
   final HistoryController? historyController;
   final NotificationController? notificationController;
+  final ChatController? chatController;
   final VehicleController? vehicleController;
 
   @override
@@ -162,6 +166,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           pickupController: pickupController,
           policyController: widget.policyController,
           onOpenDelivery: _openDeliveries,
+          chatController: widget.chatController,
         ),
       ),
     );
@@ -180,6 +185,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           deliveryController: deliveryController,
           policyController: widget.policyController,
           onOpenPickup: _openPickups,
+          chatController: widget.chatController,
         ),
       ),
     );
@@ -240,6 +246,19 @@ class _DashboardScreenState extends State<DashboardScreen>
           );
         }
     }
+  }
+
+  Future<void> _openMessages() async {
+    final chatController = widget.chatController;
+    if (chatController == null || !mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ChatInboxScreen(
+          controller: chatController,
+          authController: widget.authController,
+        ),
+      ),
+    );
   }
 
   @override
@@ -380,6 +399,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                     onOpenNotifications: widget.notificationController == null
                         ? null
                         : _openNotifications,
+                    onOpenMessages: widget.chatController == null
+                        ? null
+                        : _openMessages,
                   )
                 : AnimatedBuilder(
                     animation: widget.accountController!,
@@ -395,6 +417,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                       onOpenNotifications: widget.notificationController == null
                           ? null
                           : _openNotifications,
+                      onOpenMessages: widget.chatController == null
+                          ? null
+                          : _openMessages,
                       profilePhoto: widget.accountController!.profilePhoto,
                     ),
                   ),
