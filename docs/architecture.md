@@ -4,8 +4,8 @@ system: AISLEY
 type: Client Architecture
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active Flutter inbox and legacy delivery client; current Laravel photo-POD/batch/linehaul contracts require separate adoption
-backend_contract_commit: 833ee52 (local backend checkout based on origin/main 317223a; Flutter adoption varies by feature)
+status: Active Flutter inbox and partial photo-POD client; batch acceptance and operational chat need separate client adoption
+backend_contract_commit: 94e3467 (copied Laravel documentation baseline; Flutter adoption varies by feature)
 ---
 
 # Scope
@@ -14,7 +14,7 @@ This document describes the external Flutter application used by Couriers. Andro
 
 The Laravel API remains the source of truth for identity, approval, role access, organization and hub ownership, order status, task assignment, and delivery state. The Flutter app renders server responses and submits only fields allowed by the versioned API contract.
 
-The supplied Flutter progress records an implemented notification inbox with analyzer, tests, web, and APK builds. It also records an older QR/reference delivery-proof UI. Laravel now accepts private photo POD instead; those two facts must not be collapsed into a claim that the current app can complete final-mile delivery against this API.
+The supplied Flutter progress records an implemented notification inbox and partial adoption of private photo POD and completion intent. It does not establish installed-device upload acceptance, authenticated Logistics validation, COD confirmation, normal dispatch-batch acceptance, or a Courier chat UI. Laravel remains authoritative for all of them.
 
 ## Current implementation boundary
 
@@ -61,9 +61,10 @@ The backend currently exposes Courier authentication, account and vehicle manage
 - `GET /api/v1/courier/notifications/unread-count` (authenticated unread count)
 - `GET /api/v1/courier/notifications/{notification}` (authenticated notification detail)
 - `POST /api/v1/courier/notifications/{notification}/read` (authenticated idempotent mark-read)
+- `/api/v1/courier/operational-conversations` with authenticated list/start, detail, paginated messages, send, and read actions for task-scoped Logistics, Seller, and Buyer threads (Flutter chat not adopted)
 - `GET /api/v1/courier/linehaul-trips` (authenticated assigned company-truck trips; client screen not verified)
 
-The dashboard aggregation remains a read-only scaffold even though the separate Flutter inbox is implemented. QR/Code 128 candidates remain valid for first-mile pickup; final-mile hub handoff is now task-bound and delivery proof is photo-only. Laravel's advisory batch route and photo storage are implemented, but their Flutter adoption is not documented in this snapshot. Background push/WebSockets, live route telemetry, signature proof, chat, earnings, and offline synchronization remain unavailable. Logistics Linehaul/Sort plan mutation routes are not Courier endpoints; the separate Courier trip-read route above is real.
+The dashboard aggregation remains a read-only scaffold even though the separate Flutter notification inbox is implemented. QR/Code 128 candidates remain valid for first-mile pickup; final-mile hub handoff is task-bound and delivery proof is photo-only. Flutter has partially adopted the hub-handoff/photo/intent contract, but Logistics validation, COD confirmation, and physical-device acceptance remain unverified. Laravel's advisory batch route and three Courier chat counterpart APIs exist; their Flutter UIs are not established by this snapshot. Background push/WebSockets, live route telemetry, signature proof, earnings, and offline synchronization remain unavailable. Logistics Linehaul/Sort plan mutations are not Courier endpoints; the separate Courier trip read is real.
 
 ## Camera targets
 
@@ -76,7 +77,7 @@ The dashboard aggregation remains a read-only scaffold even though the separate 
 ## File-upload targets
 
 - The supplied Flutter progress records platform-safe multipart transport for registration evidence, account photo, and vehicle OR/CR: selected bytes on web and readable paths on Android/native. Analyzer, tests, web build, and APK build pass; live browser CORS/private-read and installed-device upload acceptance remain unverified.
-- Follow [`flutter-file-uploads.md`](flutter-file-uploads.md) for the transport and Android regression boundary. Keep exact Laravel multipart parts and server-side validation; do not create web-only endpoints, a second Flutter codebase, or a React upload page. Delivery photo POD is implemented by Laravel but has **not** been adopted by the recorded Flutter client; signature remains deferred.
+- Follow [`flutter-file-uploads.md`](flutter-file-uploads.md) for the transport and Android regression boundary. Keep exact Laravel multipart parts and server-side validation; do not create web-only endpoints, a second Flutter codebase, or a React upload page. The recorded Flutter client partially adopted delivery photo POD, but authenticated Logistics validation and installed-device upload acceptance remain unverified; signature remains deferred.
 - The fixed `http://localhost:8765` origin needs backend CORS for upload `POST`, private-image `GET`, and applicable `OPTIONS` preflight with bearer/idempotency headers. The same secure session and authenticated private-read rules apply on web; browser upload acceptance and installed-APK regression remain verification tasks.
 
 ## Client structure
@@ -124,6 +125,8 @@ test/
 ```
 
 The exact state-management, routing, networking, and secure-storage packages are project decisions. Inspect `pubspec.yaml` and reuse existing choices before adding a dependency.
+
+Operational chat is a planned Flutter client module, not an implemented screen in the supplied progress. Its repository should use the existing bearer client and the six versioned Courier conversation actions in `features/courier/chat-messaging/api-handoff.md`; keep message bodies in session-bound memory and do not infer task eligibility from cached UI state.
 
 ## API integration
 

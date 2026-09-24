@@ -8,7 +8,7 @@ version: 1.1
 status: Laravel Courier inbox API and external Flutter inbox implemented; dashboard aggregate remains scaffold-only
 implementation_status: Scoped list, detail, unread-count, and mark-read routes plus pickup/final-mile/linehaul producers implemented; Flutter inbox adopted against courier-notifications-v1, linehaul navigation unverified
 canonical: true
-copied_backend_checkout: 833ee52 (origin/main 317223a)
+copied_backend_checkout: 94e3467
 scope: Laravel Courier API and external Flutter mobile application
 backend_contract_commit: feature/courier-notifications
 backend_contract_version: courier-notifications-v1

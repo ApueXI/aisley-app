@@ -10,7 +10,6 @@ flutter_status: Scaffold, navigation, and inbox implemented; final-mile handoff/
 canonical: true
 role: Courier / Rider
 scope: External Flutter mobile client and Laravel read API scaffold
-copied_backend_checkout: 833ee52 (origin/main 317223a)
 backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378
 backend_contract_version: courier-dashboard-scaffold-v1
 source_coverage: docs/requirements.md, docs/workspace.md, docs/schema.md, docs/domain/Courier.md, docs/domain/Logistics.md, docs/features/shared/shipment-fulfillment/spec.md
@@ -54,11 +53,11 @@ approved Courier session
 - Accept Delivery Requests owns first-mile task acceptance and normal atomic final-mile dispatch-batch acceptance; individual final-mile acceptance is exceptional recovery, not the normal batch action.
 - Pick Up Order owns first-mile identifier verification and explicit Seller pickup. Final-mile hub handoff uses the accepted task and revision without an identifier; Logistics validation, not evidence submission, establishes `picked_up_from_hub`.
 - Deliver Order owns final-mile transit context; Proof of Delivery owns private photo evidence; Complete Delivery owns the photo-linked intent, while Logistics validates before `delivered`.
-- Delivery History owns completed-task reads; Incident Reporting, Chat, and Profit Dashboard remain drafts and cannot supply dashboard data or actions.
+- Delivery History owns completed-task reads; Courier task-chat APIs exist but Flutter chat and dashboard integration are unverified. Incident Reporting and Profit Dashboard remain drafts and cannot supply dashboard data or actions.
 
 ### Current versus future content
 
-- Laravel implements Auth/account, first-mile tasks and manifests, final-mile tasks and 1–15-parcel batches, task-bound hub handoff, advisory batch route, private photo POD, movement, completion, history, inbox, and assigned Linehaul trip reads. Each client adoption is separate from dashboard aggregation.
+- Laravel implements Auth/account, first-mile tasks and manifests, final-mile tasks and 1–15-parcel batches, task-bound hub handoff, advisory batch route, private photo POD, movement, completion, history, notification and task-chat inboxes, and assigned Linehaul trip reads. Each client adoption is separate from dashboard aggregation.
 - Do not fabricate dashboard rows from the scaffold. Navigate to the owning first-mile or final-mile feature; those screens use their own implemented APIs and must refetch before showing actionable task state.
 - Linked task screens read `GET /api/v1/courier/first-mile-tasks` or `GET /api/v1/courier/final-mile-tasks`; the batch list/detail routes exist but their copied DTO is not sufficient for current Flutter adoption.
 - Future available work may include a first-mile pickup at a Seller and a final-mile pickup at the Logistics organization's sole hub.
@@ -224,4 +223,4 @@ approved Courier session
 - Keep Dashboard acceptance checks separate from Accept, Pickup, Deliver, and Complete feature checks.
 - Append material Flutter contract/documentation changes to this project's progress log; record a backend progress change only when Laravel itself changes.
 
-**References:** `docs/features/courier/rules.md`, `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, `docs/domain/Courier.md`, `docs/domain/Logistics.md`, `docs/features/courier/notification/specs.md`, `docs/features/courier/accept-delivery-requests/specs.md`, `docs/features/courier/pick-up-order/specs.md`, `docs/features/courier/delivery-order/specs.md`, and `docs/features/courier/complete-delivery/specs.md`.
+**References:** `docs/features/courier/rules.md`, `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, `docs/domain/Courier.md`, `docs/domain/Logistics.md`, `docs/features/courier/notification/specs.md`, `docs/features/courier/chat-messaging/specs.md`, `docs/features/courier/accept-delivery-requests/specs.md`, `docs/features/courier/pick-up-order/specs.md`, `docs/features/courier/delivery-order/specs.md`, and `docs/features/courier/complete-delivery/specs.md`.

@@ -48,9 +48,10 @@ Do not commit secret files, generated credentials, local device data, or unrelat
 13. Use the server's lowercase `snake_case` values for API status comparisons and human-readable labels only for presentation. Do not introduce legacy uppercase source values as client authority.
 14. Offline data may be displayed as bounded stale information, but offline mode must never bypass server authorization or submit acceptance, pickup, scan, delivery, or completion actions.
 15. Keep Customer, Seller, Admin, Logistics, and Courier data separated. Show only the minimum Buyer/Seller/address information required by the active authorized task.
-16. Update this project's `docs/PROGRESS.md` by appending a dated entry after a completed feature or meaningful contract synchronization. Never rewrite or delete prior entries.
+16. Append dated progress entries; never delete or rewrite historical entries. Archive them only as described in rule 19.
 17. Stay in scope. Do not refactor unrelated screens, rename shared packages, or change the Laravel repository from a Flutter task.
 18. For registration, profile-photo, or vehicle-document uploads, read `docs/flutter-file-uploads.md`. Keep Android's working upload path intact while adding browser-safe selected-file transport; do not use browser paths with `MultipartFile.fromPath` or claim web uploads work until browser and installed-APK checks pass.
+19. Archive the progress log at 150 lines. After appending a dated entry, if docs/PROGRESS.md exceeds 150 physical lines, preserve its complete contents unchanged in docs/logs/PROGRESS-YYYY-MM-DD.md; use a unique numbered suffix if that path exists, and never overwrite an archive. Replace the active log with its standard header, an up-to-date backend/API and Flutter-status snapshot, and a dated entry linking to the archive and summarizing the latest work. Historical entries may move to archives but must never be deleted or rewritten. Read an archive when older implementation history is relevant.
 
 ## Read before changing code
 

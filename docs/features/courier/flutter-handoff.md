@@ -1,6 +1,6 @@
 # External Courier Flutter handoff — 2026-09-13
 
-> Historical handoff record. Its commit IDs and verification state describe the 2026-09-13 import, not the current copied backend contract. For the 2026-09-20 contract baseline and working-route index, use `docs/PROGRESS.md` and `docs/features/courier/README.md`; newer tracking-ID and Courier vehicle rules are documented in their owning specs.
+> Historical handoff record. Its commit IDs and verification state describe the 2026-09-13 import, not the current copied backend contract. For the current copied contract baseline and working-route index, use `docs/PROGRESS.md` and `docs/features/courier/README.md`; newer chat, COD, tracking-ID, and Courier vehicle rules are documented in their owning specs.
 
 ## Evidence and authority
 

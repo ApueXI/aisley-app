@@ -2,7 +2,7 @@
 
 > **Status:** Implemented foundation, marketplace/order schema, Product Q&A, Customer Product Reviews, Seller Review Management, Seller-to-Logistics pickup scheduling, shared waybills, first-mile pickup confirmation, and final-mile fulfillment flow
 >
-> **Last synchronized:** 2026-09-23 (Company Truck Linehaul Dispatch)
+> **Last synchronized:** 2026-09-24 (Inbound Linehaul, Finance, Admin campaigns, Customer–Shop, Logistics–Courier, Customer–Logistics Order chat, Seller–Logistics pickup chat, and Courier–Seller/Buyer task chat)
 >
 > **Database:** PostgreSQL 18.3
 >
@@ -92,6 +92,15 @@ erDiagram
     USERS o|--o{ AUDIT_LOGS : historically_attributed_to
     USERS o|--o{ AUDIT_OUTBOX : performs
     USERS ||--o{ NOTIFICATIONS : receives
+    USERS ||--o{ CONVERSATIONS : customer_or_seller
+    SHOPS ||--o{ CONVERSATIONS : hosts
+    CONVERSATIONS ||--o{ CONVERSATION_PARTICIPANTS : has
+    USERS ||--o{ CONVERSATION_PARTICIPANTS : reads
+    CONVERSATIONS ||--o{ MESSAGES : contains
+    USERS ||--o{ MESSAGES : sends
+    USERS ||--o{ NOTIFICATION_CAMPAIGNS : creates
+    NOTIFICATION_CAMPAIGNS ||--o{ NOTIFICATION_CAMPAIGN_RECIPIENTS : snapshots
+    USERS ||--o{ NOTIFICATION_CAMPAIGN_RECIPIENTS : may_receive
     USERS ||--o{ ACCOUNT_LIFECYCLE_EVENTS : undergoes
     USERS ||--o{ ACCOUNT_LIFECYCLE_EVENTS : administers
 
@@ -173,7 +182,7 @@ Every column in this section is stored as a string in PostgreSQL and cast to the
 | `ProductVariantStatus` | `active`, `inactive` | `product_variants.status` |
 | `CheckoutMode` | `cart`, `buy_now` | Checkout request validation and `checkout_quotes.input_payload` |
 | `PaymentMethod` | `cod` | `orders.payment_method`, optional `vouchers.payment_method` |
-| `PaymentStatus` | `pending` | `orders.payment_status` |
+| `PaymentStatus` | `pending`, `paid` | `orders.payment_status` |
 | `OrderStatus` | `pending_payment`, `placed`, `seller_processing`, `ready_for_pickup`, `assigned`, `picked_up`, `in_transit`, `out_for_delivery`, `delivered`, `cancelled`, `rejected`, `delivery_failed`, `return_requested`, `returned` | `orders.status`, `order_status_events.from_status`/`to_status`; current COD placement skips `pending_payment` |
 | `VoucherIssuerType` | `app`, `shop` | `vouchers.issuer_type`, `order_vouchers.issuer_type` |
 | `VoucherBenefitType` | `discount`, `shipping` | `vouchers.benefit_type`, `order_vouchers.benefit_type` |
@@ -283,6 +292,8 @@ Each profile has a UUID primary key and a unique UUID `user_id`, enforcing at mo
 | `profile_photo_size` | BIGINT          | Yes      | Image bytes                                 |
 | `profile_photo_width` | INTEGER        | Yes      | Image width in pixels                       |
 | `profile_photo_height` | INTEGER       | Yes      | Image height in pixels                      |
+| `promotional_in_app_opted_in` | BOOLEAN | No | Customer-only, default `false`; explicit in-app marketing opt-in |
+| `promotional_in_app_opted_in_at` | TIMESTAMP | Yes | Customer-only latest opt-in time; cleared on opt-out |
 | `created_at`         | TIMESTAMP       | Yes      | Managed by Eloquent                         |
 | `updated_at`         | TIMESTAMP       | Yes      | Managed by Eloquent                         |
 
@@ -632,6 +643,20 @@ Laravel's database notification table stores role-scoped per-user inbox records.
 | `created_at`, `updated_at` | TIMESTAMP       | Yes      | Managed by Laravel                                             |
 
 Indexes cover the polymorphic recipient and recipient/read/time inbox query. Notification destinations are generated and allow-listed by the API; database payloads are never accepted directly from an Admin client.
+
+### 7.5a `notification_campaigns` and `notification_campaign_recipients`
+
+`notification_campaigns` stores one Admin-created UUID draft/send history row: bounded plain-text title/body, `opted_in_customers` audience, optional Product/Shop destination descriptor, string-backed status, revision, preview timestamp/count, hashed send idempotency key, audience cutoff, frozen snapshot/result counts, and completion time. The creator is a restricted FK to `users`; history is indexed by status/creation and completion. Browser/mobile push and SMS are not represented.
+
+`notification_campaign_recipients` stores UUID recipient work rows with campaign and Customer FKs, deterministic unique notification UUID, string-backed pending/delivered/skipped/failed status, attempts, and a safe error category. Unique `(campaign_id, user_id)` and `(notification_id)` prevent repeat delivery. Delivery rechecks current Customer status and the default-off profile preference before inserting one `customer-campaign.promotion` inbox row. A daily command removes per-recipient rows 90 days after terminal completion; campaign aggregate counts and Customer inbox rows remain.
+
+### 7.5b `conversations`, `conversation_participants`, and `messages`
+
+`conversations` has a UUID primary key, a string-backed `kind` (`customer_shop` by default, `logistics_courier`, `customer_logistics`, `seller_logistics`, `courier_seller`, or `courier_customer`), and server-owned last sequence/message/activity. Customer–Shop rows retain unique `(customer_user_id, shop_id)` and Customer/Seller/Shop UUID FKs. Courier operational rows use nullable Customer/Seller/Shop fields and immutable Logistics organization, sole hub, DeliveryTask, Courier, Logistics user, and task-leg fields. Unique `(logistics_organization_id, delivery_task_id, courier_user_id, logistics_user_id)` prevents duplicate bilateral Logistics–Courier task threads. Additive unique `(logistics_organization_id, delivery_task_id, courier_user_id, seller_user_id)` and `(logistics_organization_id, delivery_task_id, courier_user_id, customer_user_id)` keys keep first-mile Seller and final-mile Buyer threads distinct per task and Courier. Customer delivery rows use a nullable `order_id` FK and unique `(logistics_organization_id, order_id, customer_user_id)` to keep one thread per handling organization and owned Order. Seller pickup rows use a nullable `seller_pickup_request_id` FK and unique `(logistics_organization_id, seller_pickup_request_id, seller_user_id)` so one selected-provider pickup request has one private Seller–Logistics thread. A new Courier offer or Logistics handler never inherits the former party's history. Current task, Order/pickup relationship, custody, affiliation, hub, and account state are rechecked before sends; ended relationships remain historical read-only for authorized participants.
+
+`conversation_participants` has UUID identity, unique `(conversation_id, user_id)`, and monotonic `last_read_sequence`. Only other-party messages above that marker count as unread.
+
+`messages` has UUID identity, conversation/sender UUID FKs, a unique per-thread sequence, unique `(sender_user_id, idempotency_key)`, a payload hash for conflicting-key detection, plain-text body, and nullable Product/Order UUID context. Text is not a notification payload; the shared history and read markers are authoritative. File attachments, broadcast state, participant archive/mute/report, and retention decisions are not represented in this first release.
 
 ### 7.6 `account_lifecycle_events`
 
@@ -1163,11 +1188,11 @@ The additive fulfillment migration creates one immutable `parcels` row and one `
 | `sorting_session_items` | Session snapshot membership and current pending/sorted/exception reconciliation state; stores expected Shipment revision, selected lane, exception context, and completion time. |
 | `sorting_scans` | Append-style idempotent capture results scoped by organization/hub/session/item/lane/Shipment; stores stable client UUID, request hash, source, captured/processed times, actor, automatic-routing flag, selected plan/mapping IDs, and optional exception context/reason. |
 | `shipment_evidence` | Private QR/reference evidence for hub pickup and private photo POD for delivery; photo records include generated storage disk/path, MIME, byte size, dimensions, checksum, status, actors, timestamps, and failed-attempt count metadata. |
-| `completion_intents` | Explicit Courier completion intent linked to one delivery proof; remains awaiting validation until Logistics finalizes delivery. |
+| `completion_intents` | Explicit Courier completion intent linked to one delivery proof; COD intents store server-derived declared payable amount, currency, and declaration time, with Logistics reviewer and finalization time. |
 | `final_mile_failed_attempts` | Append-only Courier/task-scoped reason, optional note, server timestamp, and idempotency key. Does not change Shipment, task, or Order status. |
 | `shipment_events` | Append-only physical transition history with before/after states, performing Courier, validating Logistics account, evidence/offer links, correlation, and idempotency references. |
 
-Logistics and Courier routes are private, tenant-scoped, and no-store. A final delivery changes the final-mile task, Shipment, and Order to `delivered` in one transaction after a validated photo POD and Courier completion intent; it does not fulfill Inventory again or change payment fields.
+Logistics and Courier routes are private, tenant-scoped, and no-store. A final delivery changes the final-mile task, Shipment, and Order to `delivered` in one transaction after a validated photo POD and Courier completion intent. For COD only, the same transaction marks `payment_status = paid` after Logistics confirms the server-derived Order total declaration. Delivery does not fulfill Inventory again.
 
 ### 9.18.1 Company-truck linehaul records
 
@@ -1176,6 +1201,19 @@ Logistics and Courier routes are private, tenant-scoped, and no-store. A final d
 | `company_trucks` | Logistics-owned truck with immutable owner/home-hub scope, unique plate, optional make/model, positive parcel-count capacity, active flag, string-backed availability, last confirmed hub, and optimistic revision. It is separate from Courier-owned `vehicles`. |
 | `linehaul_trips` | Outbound or return assignment with owner/home/from/to hubs, company truck, qualified driver, scheduled time, capacity/load snapshots, string-backed lifecycle, optional manifest/parent trip, actor decisions, timestamps, idempotency fingerprint, and revision. A return has exactly one outbound parent. |
 | `linehaul_trip_shipments` | Deterministic reserved Shipment/route-hop membership with stable sequence and reservation revisions. `released_at` preserves rejected/cancelled history while making the hop eligible for a later trip. |
+
+The additive `2026_09_23_000002_add_linehaul_receiving.php` migration adds:
+
+| Record | Added behavior |
+| --- | --- |
+| `linehaul_trips` | `arrived_at/by`, `unloading_closed_at/by`, string-backed `unloading_outcome`; `receiving` lifecycle state. No historical scan backfill. |
+| `company_trucks.availability` | New application enum value `unloading`; existing string storage retained. |
+| `shipments.condition_hold` | Boolean damage hold, false by default; receipt still records physical custody. |
+| `linehaul_receipts` | Unique trip/Shipment receipt, original tracking reference/condition/source, actor, capture/server timestamps, immutable JSON result. |
+| `linehaul_discrepancies` | Unique trip/kind/reference (`missing`, `damaged`, `unexpected`), nullable Shipment only for known manifest members, original actor/reason/time and resolution actor/reason/time. Unexpected scans never resolve a foreign Shipment. |
+| `linehaul_receiving_actions` | Append-only start/scan/finish/resolve audit; unique actor/client UUID, trip/operation/payload fingerprint, original JSON payload/result and commit time. |
+
+New enum-like values use string columns and PHP enum casts. Receipt transactions lock receiving hub then trip before custody/resource work; per-scan commits preserve valid receipts when another member fails. Reservations release only when their parcel arrives (or a pre-departure cancellation releases it), not on shortage closure. A manifest becomes `received` only after its last parcel arrives; a trip can close earlier with discrepancies. Late receipt never rewrites truck availability or closure history.
 
 `courier_logistics_affiliations.can_drive_company_truck` and `truck_driver_revision` hold the owning Logistics organization's independently revisioned driver capability. Row/hub locks serialize competing reservations. New hub-transfer departures require this trip workflow; historical already-departed `linehaul_manifests` retain their receipt path. Empty returns create a trip but no empty manifest.
 
@@ -1418,6 +1456,16 @@ Repository migrations are listed below in filename execution order; this invento
 75. `2026_09_20_000002_create_product_reviews.php` — delivered Order Item Product Reviews, authoritative rating projections, and validated Customer review-image metadata.
 76. `2026_09_22_000001_create_seller_review_responses.php` — one immutable public Shop response per Product Review with restrictive attribution, stable idempotency, and Seller/Shop publication indexes.
 77. `2026_09_23_000001_add_company_truck_linehaul_dispatch.php` — truck-driver capability, Logistics-owned company trucks, capacity-frozen outbound/return trips, and route-hop parcel reservations.
+78. `2026_09_23_000002_add_customer_promotional_notification_preference.php` — durable default-off Customer in-app promotional consent and opt-in time.
+79. `2026_09_23_000002_add_linehaul_receiving.php` — inbound trip receipts, discrepancy and reconciliation records, and Shipment condition holds.
+80. `2026_09_23_000003_add_cod_declaration_to_completion_intents.php` — last-mile COD collection declaration on completion intents.
+81. `2026_09_23_000003_create_notification_campaigns.php` — Admin campaign history and bounded per-recipient delivery snapshot with deduplication and 90-day retention.
+82. `2026_09_23_000004_create_customer_shop_conversations.php` — UUID-backed Customer–Shop conversations, per-participant read markers, and idempotent ordered text messages.
+83. `2026_09_24_000001_create_commission_settlement_finance.php` — shipping rates and commission policies, pricing snapshots, balanced finance ledger, remittance/allocations, expenses, holds, period closures, and sandbox payouts.
+84. `2026_09_24_000001_extend_conversations_for_operational_messaging.php` — string-backed conversation kind and tenant/task/Courier identity for Logistics–Courier messages, retaining the shared participant/read/message ledger.
+85. `2026_09_24_000002_add_order_conversations.php` — nullable Order FK and unique Logistics organization/Order/Customer identity for separate Customer–Logistics delivery conversations.
+86. `2026_09_24_000003_add_pickup_request_conversations.php` — nullable Seller pickup request FK and unique Logistics organization/request/Seller identity for separate Seller–Logistics pickup conversations.
+87. `2026_09_24_000004_add_courier_counterparty_conversations.php` — unique organization/task/Courier/Seller and organization/task/Courier/Buyer identities for separate accepted-task Courier conversations.
 
 ## 14. Fulfillment schema and deferred extensions
 
@@ -1486,12 +1534,12 @@ The following capabilities appear in requirements but have no migrations or mode
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Catalog and inventory      | Reservation release before first-mile pickup and conversion at `picked_up_from_seller` are implemented; post-pickup release, returns/refunds, and partial-fulfillment records remain deferred |
 | Promotions                 | Admin/Seller Voucher management and Customer claim UX; checkout eligibility, calculation, snapshot, and redemption persistence are implemented                                               |
-| Payments and finance       | Payment gateways beyond COD, platform fees, Seller payouts, commissions, taxes, refunds, and transaction ledgers                                                                             |
+| Payments and finance       | Live payment/payout providers, taxes, and customer refund workflows remain deferred. COD collection/remittance, commission snapshots, balanced finance ledgers, reversing corrections, and sandbox payouts are implemented. |
 | First-party logistics      | Courier availability/capacity, live location telemetry, returns/refunds/partial fulfillment, and Courier earnings remain deferred. Shared Shipment/Parcel milestones, hub receipt/sort/dispatch, final-mile batch acceptance, QR hub handoff, private photo POD, failed-attempt retry, advisory final-mile routing, and final-mile completion are implemented. |
 | Logistics subscriptions   | Subscription billing, providers, subscription records, active-status checks, and operational gates are deferred; approved active Logistics access is not subscription-gated in the MVP |
 | Reviews                    | Customer verified-purchase ratings/media/aggregates and Seller-scoped immutable public Shop responses are implemented; moderation, editing/deletion, video, and refund effects remain deferred |
 | Support and compliance     | Complaints/disputes, source-owned evidence, appeals, resolutions, automatic detection, and strike-threshold policy; manual compliance cases/actions and Product restrictions are implemented |
-| Messaging                  | Conversations, participants, messages, and conversation read state; the Admin database notification inbox is implemented separately                                                          |
+| Messaging and support      | Shared Customer–Shop text conversations, Logistics–Courier task chat, separate Customer–Logistics Order chat, separate Seller–Logistics pickup chat, and accepted-task Courier–Seller/Buyer API channels with participant read markers and ordered messages are implemented. Admin support-ticket tables/API/UI, Courier Flutter UI, Seller/Customer Courier-chat screens, attachments, broadcasting, and retention/moderation workflow remain deferred. |
 | Policy consent integration | Public policy reads, status/acceptance APIs, role-owned web consent screens, and protected-action enforcement are implemented; login/session bootstrap, logout, status, and acceptance remain reachable so users can complete consent |
 | Reporting                  | Derived Seller/Admin aggregates; avoid report tables until query performance requires them                                                                                                   |
 

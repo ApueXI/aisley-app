@@ -9,7 +9,7 @@ status: Implemented final-mile task, batch route, movement, and delivery-context
 implementation_status: Final-mile tasks, batch acceptance, hub pickup evidence, movement, delivery context, and advisory Geoapify route are implemented
 flutter_status: Legacy delivery context/movement UI recorded in Flutter progress; 1–15 stop batch route, map, and parcel-price projection not verified/adopted
 canonical: true
-copied_backend_checkout: 833ee52 (origin/main 317223a)
+copied_backend_checkout: 94e3467
 scope: External Flutter mobile client and Laravel Courier API
 backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378
 backend_contract_version: courier-delivery-v1-final-mile-task

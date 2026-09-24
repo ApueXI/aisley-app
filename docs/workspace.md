@@ -343,6 +343,9 @@ The shared tracking ID, snapshot, selected Logistics organization, and Order/Par
 
 8.5 Receiving and Sorting
 
+Company-truck inbound flow (2026-09-23): Inbound linehaul starts receiving online and records truck arrival/unloading → Receive at hub scans against the selected manifest (offline captures remain provisional) → each successful parcel receipt changes custody/hop and may enter a separate Sorting session → receiving Logistics reviews damage/unexpected records and acknowledges any shortage with a reason → closes unloading and releases the truck for cargo/empty return. Missing parcels stay in transfer; valid late receipts resolve shortages without reopening the truck visit. Damaged parcels cannot sort or dispatch until a documented release. This supersedes whole-manifest receipt and historical deferred-transfer wording for company-truck cargo.
+
+
 The logistics workflow shall support:
 
 receive order → waybill → sort
@@ -818,7 +821,7 @@ Relevant Admin/compliance/support notifications.
 
 Real-time notification transport is not mandated by the source. Polling is acceptable for MVP dashboards if real-time infrastructure is not yet required.
 
-15. Messaging
+15. Messaging and Support Tickets
 
 Role documents include communication capabilities for Admin, Buyer, Seller, Logistics, and Courier.
 
@@ -834,7 +837,7 @@ Courier ↔ Logistics.
 
 Seller ↔ Logistics.
 
-Admin ↔ users.
+Admin ↔ users through requester-owned support tickets, not unrestricted live chat.
 
 Advanced chat functionality such as real-time typing indicators or complex media messaging is not required for P0.
 

@@ -7,9 +7,9 @@ type: Feature Specification
 version: 2.9
 status: Implemented first-mile identifier pickup and task-bound final-mile hub handoff
 implementation_status: First-mile Courier API and route-manifest API retain QR/tracking-ID/Order-reference verification; final-mile hub handoff uses an accepted task and revision without identifier entry; Flutter remains external
-flutter_status: First-mile and legacy identifier-based hub pickup UI recorded in Flutter progress; task-bound final-mile hub handoff not verified/adopted
+flutter_status: First-mile pickup and partial task-bound final-mile hub handoff recorded in Flutter progress; Logistics validation and installed-device acceptance remain unverified
 canonical: true
-copied_backend_checkout: 833ee52 (origin/main 317223a)
+copied_backend_checkout: 94e3467
 scope: Laravel API, development-only React courier mockup, and external Flutter Courier mobile application
 backend_contract_commit: d5c160d4a5a21272e487b6f46a82de35e81395cb
 backend_contract_version: first-and-final-mile-pickup-v1-tracking-id
@@ -20,7 +20,7 @@ source_coverage: docs/requirements.md, docs/workspace.md, docs/schema.md, docs/d
 
 # Pick Up Order Specification
 
-**Flutter adoption boundary:** The external Flutter progress records both pickup screens and QR/Code 128 camera candidates, but predates the task-bound final-mile handoff revision below. Do not send identifier fields to final-mile `pickup`; the current Laravel endpoint rejects them with `422`. First-mile Seller pickup retains its separate identifier verification. Update and test the Flutter client before claiming final-mile handoff compatibility.
+**Flutter adoption boundary:** The external Flutter progress records first-mile QR/Code 128 candidates and partial task-bound final-mile hub-handoff adoption. The final-mile `pickup` request sends only the current task revision; identifier fields return `422`. First-mile Seller pickup retains separate identifier verification. Authenticated Logistics validation and installed-device behavior remain unverified, so submission alone must not be shown as confirmed custody.
 
 ## Final-mile handoff revision (2026-09-21)
 

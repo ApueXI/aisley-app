@@ -4,7 +4,7 @@ system: AISLEY
 type: Design Guide
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active inbox and legacy Courier UI; final-mile task-bound handoff/photo POD/batch map need client adoption
+status: Active inbox and partial final-mile photo flow; batch acceptance and operational chat need client adoption
 ---
 
 # Courier Flutter Design Guide
@@ -13,7 +13,7 @@ status: Active inbox and legacy Courier UI; final-mile task-bound handoff/photo 
 
 This guide applies to the external Flutter Courier application on Android and to local browser testing of that same app through Flutter `web-server`. It does not define the separate webapp's Customer storefront or React Admin, Seller, or Logistics dashboards. Laravel remains authoritative for identity, approval, ownership, and operational state.
 
-The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, account management, policy consent, notifications, first-mile identifier pickup, task-bound final-mile hub handoff, batch routes, final-mile movement, private photo POD, Logistics-reviewed completion, and delivered history. The supplied Flutter progress confirms the notification inbox and Android/web QR/Code 128 candidate capture, but its older identifier-based delivery-proof UI is **not** current API behavior. Flutter photo POD and batch-map adoption are unverified. Background push, live route telemetry, signature proof, earnings, and offline task screens remain deferred.
+The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, account management, policy consent, notifications, first-mile identifier pickup, task-bound final-mile hub handoff, batch routes, final-mile movement, private photo POD, Logistics-reviewed completion, delivered history, and task-scoped chat with Logistics, Seller, and Buyer. The supplied Flutter progress confirms the notification inbox, Android/web QR/Code 128 candidates, and partial photo-POD/intent adoption; normal batch acceptance and chat screens are not recorded. COD confirmation, Logistics validation, and installed-device acceptance remain unverified. Background push, live route telemetry, signature proof, earnings, and offline task screens remain deferred.
 
 ## Design goals
 
@@ -50,7 +50,7 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 ## Navigation and layout
 
 - Use a single, predictable authentication stack: Logistics selection → registration → pending result, or login → authenticated state.
-- Navigate to the implemented Notifications, Pickup orders, Delivery work, and Delivery history screens from the dashboard, but distinguish a screen's existence from compatibility with the current backend. The inbox works against its adopted v1 contract; the final-mile photo-POD workflow needs a Flutter update. Do not fabricate jobs or controls for unadopted capabilities.
+- Navigate to the implemented Notifications, Pickup orders, Delivery work, and Delivery history screens from the dashboard, but distinguish a screen's existence from compatibility with the current backend. The notification inbox works against its adopted v1 contract; final-mile photo/COD validation remains incomplete, and chat UI is not yet adopted. Do not fabricate jobs or controls for unadopted capabilities.
 - Use Flutter's adaptive navigation primitives. Phones are the primary target; tablets may use wider constrained content but must not become a desktop sidebar clone.
 - Preserve user input when validation or a recoverable network error returns. Confirm before discarding a partially completed registration.
 - Keep primary actions reachable above the keyboard when possible; use bottom action areas only when they do not obscure content or accessibility focus.
@@ -114,9 +114,15 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 - Show only server-returned final-mile tasks. Keep `delivery_assigned`/`delivery_accepted` visibly separate from hub custody; accepting an offer does not mean the parcel was picked up.
 - After the server records `picked_up_from_hub`, show one explicit movement action at a time: `in_transit`, then `out_for_delivery`. Each action confirms the server-authorized transition and revision; it never writes an Order status locally.
 - Show the authorized hub, destination, recipient contact, instructions, and server-provided advisory metrics. The backend now offers a schedule-scoped batch route, but the supplied Flutter snapshot does not verify its map UI. Missing route geometry or metrics remain visibly unavailable; do not fabricate distance, ETA, or coordinates.
-- At `out_for_delivery`, the current backend requires a private JPEG/PNG/WebP **photo POD** tied to the task. Show `awaiting_validation` after upload and Delivered intent; only Logistics validation may mark delivered. The recorded QR/reference Flutter proof UI must not submit to the current photo endpoint.
-- Keep barcode scanning for first-mile identifiers. A new final-mile photo capture/upload UI must follow the shared upload policy, private bearer reads, retry/idempotency, permission, and accessibility rules; a barcode scan is not delivery proof.
+- At `out_for_delivery`, the current backend requires a private JPEG/PNG/WebP **photo POD** tied to the task. Show `awaiting_validation` after upload and Delivered intent; only Logistics validation may mark delivered. For COD, require the server-approved `cod_collected: true` confirmation on the intent; do not invent or edit a collected amount. The old QR/reference proof path must not submit to the photo endpoint.
+- Keep barcode scanning for first-mile identifiers. The partially adopted final-mile photo capture/upload UI must follow the shared upload policy, private bearer reads, retry/idempotency, permission, and accessibility rules; a barcode scan is not delivery proof.
 - Completion is an explicit intent followed by a fresh completion read. Display delivered only when the server returns the committed `delivered` projection.
+
+### Operational messaging (Flutter client not yet verified)
+
+- From an active offered/accepted task, offer **Message Logistics**; show **Message Seller** only after first-mile acceptance and **Message Buyer** only after final-mile acceptance. Laravel rechecks eligibility on every call.
+- Keep the task reference, leg, and safe counterpart label visible in a private thread. Render messages as plain text, show unread/read-only states, and offer explicit retry without claiming an uncertain send succeeded.
+- Poll only while the inbox/thread is foregrounded, clear private message state on logout or affiliation loss, and keep a failed draft and its UUID idempotency key for exact retry. Do not queue offline sends or treat chat text as a delivery/status action.
 
 ### Delivery history
 

@@ -5,7 +5,7 @@ system: AISLEY
 type: Feature Specification
 version: 2.3
 status: Implemented foundation; dedicated coverage and recovery completion deferred
-implementation_status: Auth foundation implemented; first- and final-mile APIs exist under their owning specs; external Flutter implementation unverified
+implementation_status: Auth foundation implemented; supplied Flutter progress records registration, bearer session, and protected scaffold UI; live cross-repository verification remains separate
 canonical: true
 role: Courier / Rider
 scope: Laravel API consumed by an external Flutter mobile client

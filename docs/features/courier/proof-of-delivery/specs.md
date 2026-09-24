@@ -7,9 +7,8 @@ type: Feature Specification
 version: 1.7
 status: Implemented photo POD submission and Logistics validation; signature deferred
 implementation_status: Courier private photo submission and Logistics private preview/validation are implemented; former reference proof is retired for delivery
-flutter_status: Legacy QR/reference delivery-proof UI recorded in Flutter progress; private photo POD capture/upload/read not verified/adopted
+flutter_status: Supplied Flutter progress records partial photo POD upload adoption; Logistics validation, installed-device upload, and current COD completion remain unverified
 canonical: true
-copied_backend_checkout: 833ee52 (origin/main 317223a)
 scope: External Flutter mobile client and Laravel Courier API
 backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378
 backend_contract_version: courier-epod-v2-photo
@@ -18,11 +17,13 @@ source_coverage: docs/requirements.md, docs/workspace.md, docs/schema.md, docs/d
 
 # Proof of Delivery (e-POD)
 
-**Flutter compatibility warning:** The copied Flutter progress describes a QR/Code 128/Order-reference delivery-proof screen. That client flow is **not compatible** with the current final-mile Laravel endpoint: delivery POD now requires an authorized private JPEG/PNG/WebP photo upload, and JSON identifier proof returns `422`. QR/tracking/Order reference remains useful for the separate first-mile pickup flow, not delivery proof. The Flutter code must be changed and tested before final-mile completion can be claimed against this backend. Preserve the shared upload policy and private bearer-token photo reads.
-
 ## Courier capture revision (2026-09-21)
 
 The Courier's final-mile delivery action is photo POD: **Open camera for POD** invokes rear-camera capture where supported, the Courier submits the selected photo, and **Delivered** sends the linked completion intent to Logistics for review. The browser mockup may use the device file chooser when camera capture is unavailable. The UI does not ask for or display a parcel identifier as a proof step. The hub handoff has also moved to task-bound confirmation without identifier entry; see Pick Up Order. The authorized photo and intent remain pending until Logistics validates them.
+
+## COD capture confirmation (2026-09-23)
+
+For COD Orders, the Courier mockup shows the server-projected payable total and requires a positive acknowledgment that the full cash amount was collected before sending Delivered intent. It does not accept a manually entered amount. The completion API derives amount/currency/time from the Order. Logistics reviews that declaration and confirms collection before delivery approval; an unsuccessful cash collection is recorded as an unsuccessful delivery attempt.
 
 ## Final-mile photo revision (2026-09-20)
 
