@@ -2,7 +2,9 @@
 
 Aisley Courier is the external Flutter/Dart application for Aisley Couriers. It is a Courier client, not a Customer, Seller, Admin, or Logistics dashboard.
 
-The current app provides Courier authentication, account and vehicle management, policy consent, first- and final-mile pickup, delivery proof/completion, and read-only delivery history. The dashboard's operational aggregation remains a scaffold. Camera barcode scanning is implemented for the Android release APK and local Flutter web-server testing; Linux remains manual-input only. See [docs/README.md](docs/README.md) and [docs/PROGRESS.md](docs/PROGRESS.md) for the current boundary.
+The current app provides Courier authentication, account and vehicle management, policy consent, notifications, first-mile pickup, task-bound final-mile hub handoff, photo upload/COD completion intent, delivery history, and Logistics/Seller task chat. The dashboard has separate read-only task previews while its backend aggregate remains a scaffold; Buyer chat is read-only and normal final-mile batch acceptance is not yet adopted. Camera barcode scanning is implemented for the Android release APK and local Flutter web-server testing; Linux remains manual-input only for barcodes. Live Logistics validation and device/browser acceptance remain unverified. See [docs/README.md](docs/README.md) and [docs/PROGRESS.md](docs/PROGRESS.md) for the current boundary.
+
+Frontend work follows the shared [Courier design guide](docs/design-courier.md): familiar Material interactions, consistent labels and navigation, and focused decisions based on Jakob's Law and Hick's Law. [AGENTS.md](AGENTS.md) requires review of changed screens against those rules; feature specs continue to define the authorized workflow.
 
 ## Requirements
 

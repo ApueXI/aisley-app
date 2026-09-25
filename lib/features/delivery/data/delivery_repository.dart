@@ -2,11 +2,14 @@ import 'dart:convert';
 
 import '../../../core/networking/api_client.dart';
 import '../../../core/networking/api_contract_exception.dart';
+import '../../../core/networking/multipart_file_selection.dart';
 import '../../pickup/domain/pickup_models.dart';
 import '../domain/delivery_models.dart';
 
 abstract interface class DeliveryRepository {
   Future<List<PickupTask>> fetchFinalMileTasks();
+
+  Future<PickupTask> fetchFinalMileTask(String taskId);
 
   Future<DeliveryContext> fetchDeliveryContext(String taskId);
 
@@ -14,14 +17,15 @@ abstract interface class DeliveryRepository {
     required String taskId,
     required String status,
     required int expectedRevision,
+    required String idempotencyKey,
   });
 
   Future<ProofSubmission> submitProof({
     required String taskId,
-    required String identifierType,
-    required String identifier,
+    required DeliveryPhotoSelection photo,
     required int expectedRevision,
     required String idempotencyKey,
+    void Function(void Function() cancel)? onCancel,
   });
 
   Future<CompletionProjection> fetchCompletion(String taskId);
@@ -31,6 +35,7 @@ abstract interface class DeliveryRepository {
     required int expectedRevision,
     required String evidenceId,
     required String idempotencyKey,
+    required bool codCollected,
   });
 }
 
@@ -64,6 +69,23 @@ class ApiDeliveryRepository implements DeliveryRepository {
   }
 
   @override
+  Future<PickupTask> fetchFinalMileTask(String taskId) async {
+    final response = await _client.get(
+      '/courier/final-mile-tasks/${_pathSegment(taskId)}',
+      authenticated: true,
+    );
+    final payload = _decodeObject(response.body, 'delivery.task');
+    final rawData = payload['data'];
+    if (rawData is! Map) {
+      throw const ApiContractException('delivery.task.data');
+    }
+    return PickupTask.fromJson(
+      Map<String, dynamic>.from(rawData),
+      defaultLeg: PickupTaskLeg.finalMile,
+    );
+  }
+
+  @override
   Future<DeliveryContext> fetchDeliveryContext(String taskId) async {
     final response = await _client.get(
       '/courier/tasks/${_pathSegment(taskId)}/delivery',
@@ -79,12 +101,14 @@ class ApiDeliveryRepository implements DeliveryRepository {
     required String taskId,
     required String status,
     required int expectedRevision,
+    required String idempotencyKey,
   }) async {
     final response = await _client.postJson(
       '/courier/final-mile-tasks/${_pathSegment(taskId)}/status',
       authenticated: true,
+      headers: <String, String>{'Idempotency-Key': idempotencyKey},
       body: <String, Object?>{
-        'status': status,
+        'target_state': status,
         'expected_revision': expectedRevision,
       },
     );
@@ -96,20 +120,24 @@ class ApiDeliveryRepository implements DeliveryRepository {
   @override
   Future<ProofSubmission> submitProof({
     required String taskId,
-    required String identifierType,
-    required String identifier,
+    required DeliveryPhotoSelection photo,
     required int expectedRevision,
     required String idempotencyKey,
+    void Function(void Function() cancel)? onCancel,
   }) async {
-    final response = await _client.postJson(
+    final response = await _client.postMultipart(
       '/courier/tasks/${_pathSegment(taskId)}/proof-of-delivery',
       authenticated: true,
-      headers: <String, String>{'Idempotency-Key': idempotencyKey},
-      body: <String, Object?>{
-        'identifier_type': identifierType,
-        'identifier': identifierType == 'qr' ? identifier : identifier.trim(),
-        'expected_revision': expectedRevision,
+      requestHeaders: <String, String>{'Idempotency-Key': idempotencyKey},
+      fields: <String, String>{'expected_revision': '$expectedRevision'},
+      files: <String, MultipartFileSelection>{
+        'photo': MultipartFileSelection(
+          path: photo.path,
+          fileName: photo.fileName,
+          bytes: photo.bytes,
+        ),
       },
+      onCancel: onCancel,
     );
     return ProofSubmission.fromResponse(
       _decodeObject(response.body, 'delivery.proof'),
@@ -133,6 +161,7 @@ class ApiDeliveryRepository implements DeliveryRepository {
     required int expectedRevision,
     required String evidenceId,
     required String idempotencyKey,
+    required bool codCollected,
   }) async {
     final response = await _client.postJson(
       '/courier/tasks/${_pathSegment(taskId)}/completion',
@@ -142,6 +171,7 @@ class ApiDeliveryRepository implements DeliveryRepository {
         'expected_revision': expectedRevision,
         'evidence_id': evidenceId,
         'confirmed': true,
+        if (codCollected) 'cod_collected': true,
       },
     );
     try {

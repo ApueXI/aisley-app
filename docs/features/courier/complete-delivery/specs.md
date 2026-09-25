@@ -3,18 +3,27 @@ feature: courier-complete-delivery
 title: Complete Delivery
 system: AISLEY
 type: Feature Specification
-version: 1.5
-status: Implemented P0 QR completion flow; advanced proof methods deferred
+version: 1.6
+status: Implemented photo POD completion intent and Logistics confirmation
 implementation_status: Completion intent, Logistics proof validation, atomic delivered transition, and history records are implemented; Flutter UI is external
-flutter_status: Both-leg client slices reported implemented in the supplied 2026-09-13 Flutter handoff; source/runtime and full test verification not performed here
+flutter_status: Photo-linked COD completion intent is implemented locally in Flutter; authenticated Logistics validation, rejected-photo retry, and installed-device acceptance remain unverified
 canonical: true
 role: Courier
 scope: Laravel API and external Flutter application
 backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378
 backend_contract_version: courier-completion-v1-qr
+backend_contract_version_status: Historical QR baseline; the photo-POD revision below is authoritative
 ---
 
 # Complete Delivery
+
+## Final-mile photo and retry revision (2026-09-20)
+
+The Courier's **Delivered** action sends an intent linked to the current photo POD. HTTP 202 is pending Logistics review. Only Logistics can validate that private image and atomically mark the task, Shipment, and Order delivered. A failed doorstep attempt leaves `out_for_delivery` and the assignment intact for a later retry; it does not create a completion intent or a terminal delivery state. The existing reference-based proof contract described below is historical and superseded for final-mile delivery submissions.
+
+## COD confirmation revision (2026-09-23)
+
+For COD Orders, refetch the accepted-task `GET /api/v1/courier/tasks/{task}/delivery` projection and show `data.order.payable_total` with `data.order.currency` when `data.order.payment_method` is `cod`; `data.parcel.price` is merchandise subtotal, not cash due. Require an explicit confirmation that this exact amount was collected before sending `cod_collected: true`. If payment fields are absent or the cash was not collected, do not submit a successful completion intent; refetch or record an unsuccessful attempt. The API derives declaration amount, currency, and time from the current Order and accepts no Courier-supplied amount. Logistics confirms the declaration and proof before atomically marking delivery and COD `payment_status` as `paid`. Future prepaid Orders require their own approved read/confirmation contract.
 
 ## WHAT
 
@@ -27,7 +36,7 @@ backend_contract_version: courier-completion-v1-qr
 - Seller receives the result and never marks an Order delivered.
 - Proof of Delivery owns capture, uploads, validation records, and private media delivery.
 - Delivery History owns read-only completed final-mile records.
-- Exclude returns/refunds, partial fulfillment, payments, payouts, tips, reviews, chat, and incident recovery.
+- Exclude returns/refunds, partial fulfillment, payment settlement beyond confirmed COD collection, payouts, tips, reviews, chat, and incident recovery.
 - Exclude automatic completion from GPS, map arrival, QR resolution, or notification delivery.
 
 ```text
@@ -60,10 +69,10 @@ out_for_delivery
 - Required proof must be durably stored and validated by Logistics before finalization.
 - Missing, rejected, or inaccessible evidence blocks finalization. Pending evidence may be validated inside Logistics finalization; pending proof does not block Courier intent submission.
 - Mandatory proof type/combination remains owned by the Proof of Delivery policy.
-- Do not silently choose photo, signature, OTP, or recipient QR as universally required.
+- Photo POD is required for final-mile delivery; additional signature, OTP, or recipient QR methods need a later policy.
 - A configured proof policy must exist before enabling completion.
 - Courier submits an opaque evidence UUID, never storage credentials or raw blob paths.
-- Submit QR/reference proof first, retain HTTP 202 `proof_id`, then submit completion with that UUID as `evidence_id`, current task revision, `confirmed: true`, and a distinct UUID Idempotency-Key. Do not wait for `completion_eligible: true` or prior Logistics validation.
+- Submit photo POD first, retain HTTP 202 `proof_id`, then submit completion with that UUID as `evidence_id`, current task revision, `confirmed: true`, and a distinct UUID Idempotency-Key. Do not wait for `completion_eligible: true` or prior Logistics validation.
 - Logistics finalization requires the same proof's Courier intent and validates pending proof atomically with delivery. It is not a separate pre-intent proof-approval workflow.
 - Use delivered for the target final-mile task, Shipment, and high-level Order projection.
 - Do not introduce a separate completed database value solely for history filtering.
@@ -71,9 +80,8 @@ out_for_delivery
 - Commit all three projections and one completion event in the same transaction.
 - Record delivered_at from the server's successful finalization time in UTC.
 - Preserve evidence performance/submission times separately from delivered_at.
-- The completed first-mile task remains unchanged.
-- Final-mile completion does not reserve, release, or fulfill stock again.
-- Do not change payment_status or infer COD payment collection from delivered.
+- The completed first-mile task remains unchanged; final-mile completion does not reserve, release, or fulfill stock again.
+- Do not infer COD payment collection from delivered alone. For COD only, the Courier declaration plus Logistics confirmation authorizes an atomic `payment_status = paid` update with final delivery.
 - Post-pickup cancellation, failure recovery, returns, refunds, and partial fulfillment remain deferred.
 
 ### Reliability and history
@@ -110,7 +118,7 @@ out_for_delivery
 - Production UI belongs in the external Flutter repository.
 - Store bearer tokens in OS secure storage and send Authorization: Bearer.
 - Use JSON model keys exactly as specified by the implemented API revision.
-- Load safe Order/task references, delivery state, proof status, and capability reasons.
+- Load safe Order/task references, delivery state, proof status, and capability reasons; refetch the accepted delivery context before displaying the COD amount or requesting cash confirmation.
 - Show recipient/destination details only when returned by the authorized active-task contract.
 - Never expose registration documents, payment secrets, private reviewer notes, or raw paths.
 - Show “Awaiting Logistics validation” for accepted intent that is not finalized.
@@ -129,16 +137,18 @@ out_for_delivery
 ## HOW
 
 ### Implemented endpoints
+- The development-only Courier API mockup may submit completion intent after proof submission and show the GET projection while Logistics validation is pending.
 
 | Method and path                                  | Actor            | Purpose                                               |
 | ------------------------------------------------ | ---------------- | ----------------------------------------------------- |
 | GET /api/v1/courier/tasks/{task}/completion      | Assigned Courier | Read eligibility, intent, proof, and committed result |
 | POST /api/v1/courier/tasks/{task}/completion     | Assigned Courier | Submit explicit completion intent                     |
-| POST /api/v1/logistics/update-status/transitions | Owning Logistics | Validate QR proof and atomically finalize delivery    |
+| POST /api/v1/logistics/update-status/transitions | Owning Logistics | Validate photo POD and atomically finalize delivery    |
 
 - The Logistics route is owned by Update Status; this spec does not create a second validation endpoint.
 - Courier POST uses application/json plus a UUID Idempotency-Key header.
-- Request fields: expected_revision (integer at least 1), evidence_id (UUID), confirmed (must be true).
+- Request fields: expected_revision (integer at least 1), evidence_id (UUID), confirmed (must be true), and `cod_collected: true` for COD Orders only.
+- Read COD method/total/currency from `GET /api/v1/courier/tasks/{task}/delivery` at `data.order.payment_method`, `data.order.payable_total`, and `data.order.currency` (see Deliver Order's redacted example). Declaration amount/currency/time are server-derived and returned to Logistics; the Courier POST accepts no amount.
 - Reject unknown authority fields and unrelated evidence references.
 - GET has no body and no client-controlled ownership parameters.
 - New intent and matching replay return 202. Replay may reflect updated intent/task state but still returns `delivered_at: null`; use GET for the authoritative completion projection and timestamp.
@@ -146,7 +156,7 @@ out_for_delivery
 - Initial GET may return `intent_id: null`, `completion_status: null`, `evidence_id: null`, and `delivered_at: null`; no intent is a valid state, not a parsing error.
 
 ```json
-{"expected_revision":4,"evidence_id":"00000000-0000-4000-8000-000000000001","confirmed":true}
+{"expected_revision":4,"evidence_id":"00000000-0000-4000-8000-000000000001","confirmed":true,"cod_collected":true}
 ```
 
 ```json
@@ -170,6 +180,7 @@ out_for_delivery
 | 409  | COMPLETION_STATE_CONFLICT | Refetch current projection                         |
 | 409  | IDEMPOTENCY_KEY_REUSED    | Retain original request; fix conflicting input     |
 | 409  | PROOF_NOT_VALIDATED       | Show pending/required proof state                  |
+| 422  | COD_COLLECTION_REQUIRED   | Confirm exact cash collection or record an unsuccessful attempt |
 | 422  | VALIDATION_FAILED         | Show field errors                                  |
 | 429  | TOO_MANY_REQUESTS         | Respect Retry-After                                |
 | 503  | FULFILLMENT_UNAVAILABLE   | Show unavailable; no local completion              |
@@ -189,7 +200,7 @@ out_for_delivery
 - Test pending/rejected proof, premature completion, and duplicate intent.
 - Test concurrent Logistics decisions and stale assignments without double completion.
 - Test rollback atomicity across task, Shipment, Order, event, and notification work.
-- Test that final delivery leaves inventory and payment fields unchanged.
+- Test that final delivery leaves Inventory unchanged; COD payment becomes `paid` only after Logistics validates proof and collection in the delivery transaction.
 - Test legacy pickup bridge records do not create false final-mile history.
 - Test notification failures and retries independently from completion state.
 - Flutter tests cover pending 202 versus delivered 200, nullable fields, timeout retry, and secure-storage failures.
@@ -198,7 +209,7 @@ out_for_delivery
 ### Acceptance criteria
 
 - [x] Only the eligible final-mile Courier submits completion intent.
-- [x] Logistics validation and required QR proof gate delivered.
+- [x] Logistics validation and required photo POD gate delivered.
 - [x] Task, Shipment, Order, history, and notification work commit atomically.
 - [x] Retries/concurrency cannot duplicate delivery or Inventory effects.
 - [ ] Verify external Flutter distinguishes pending evidence from confirmed delivery; this repository cannot certify its screens.

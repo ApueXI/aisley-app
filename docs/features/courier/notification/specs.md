@@ -6,8 +6,9 @@ system: AISLEY
 type: Feature Specification
 version: 1.1
 status: Laravel Courier inbox API and external Flutter inbox implemented; dashboard aggregate remains scaffold-only
-implementation_status: Scoped list, detail, unread-count, and mark-read routes plus pickup/final-mile producers implemented; Flutter client adopted in this repository
+implementation_status: Scoped list, detail, unread-count, and mark-read routes plus pickup/final-mile/linehaul producers implemented; Flutter inbox adopted against courier-notifications-v1, linehaul navigation unverified
 canonical: true
+copied_backend_checkout: ca1487c
 scope: Laravel Courier API and external Flutter mobile application
 backend_contract_commit: feature/courier-notifications
 backend_contract_version: courier-notifications-v1
@@ -15,6 +16,10 @@ source_coverage: docs/requirements.md, docs/workspace.md, docs/schema.md, docs/d
 ---
 
 # Courier Notifications
+
+## Backend linehaul alert added after Flutter inbox adoption — 2026-09-23
+
+Laravel now allows `courier-linehaul.trip-scheduled` for the assigned qualified driver when a visiting company truck's return is committed. The notification is informational: it cannot accept, reject, or complete a trip. The API may project an authorized `linehaul_trip` reference and `/linehaul-trips/{trip}` destination, but the copied Flutter progress does not show a matching trip screen or tested navigation. Keep the alert readable and markable; do not navigate to an invented route. A later client implementation may use the scoped `GET /api/v1/courier/linehaul-trips` API after its contract is adopted.
 
 ## WHAT
 
@@ -53,6 +58,7 @@ Logistics action commits → durable recipient alert → Courier inbox/count
 | `pickup-schedule.cancelled` | Existing committed cancellation producer | Historical summary; current task state must be refetched |
 | `pickup-schedule.reminder` | Existing due-reminder command and producer | Current schedule/task list only if still authorized |
 | `courier-task.final-mile-offered` | Committed new or re-offered task offer to this Courier | Final-mile task detail only while currently accessible |
+| `courier-linehaul.trip-scheduled` | Committed visiting-truck return for the assigned driver | Informational until a verified Flutter trip route exists |
 
 - Existing schedule rows are projected safely by the Courier inbox service; legacy payloads are not trusted as public DTOs.
 - The final-mile producer runs only for a committed offer/re-offer to the recipient and keys uniqueness to that offer, recipient, and type.

@@ -2,11 +2,19 @@
 model: Logistics
 type: Domain Context
 purpose: Shared Logistics workflow and implementation context
-version: 1.3
+version: 1.4
 status: Revised — aligned with the approved order/Logistics flow and implemented foundation
 ---
 
 # Logistics Model Context
+
+## Inbound linehaul receiving — 2026-09-23
+
+Inbound linehaul owns truck arrival, reconciliation, unloading closure, discrepancy decisions, and visiting-truck returns. Receive at hub owns trip-specific offline scanning; Sorting remains separate. A verified expected parcel independently enters receiving-hub custody and can enter the next available sorting snapshot. Damaged parcels stay held until documented inspection/release. Unexpected tracking IDs produce safe investigations only. Missing parcels remain unreceived when unloading closes with an explicit shortage reason; closure frees the truck for return and notifies the sender. A valid late scan resolves the shortage without moving the truck or reopening its visit. Company-truck whole-manifest receipt is unavailable; historical standalone manifests keep their original receipt compatibility.
+
+## Final-mile revision (2026-09-20)
+
+One dispatch schedule offers 1–15 destination-hub parcels to one Courier, who accepts the batch atomically. Each parcel retains its own Shipment, task, offer, photo POD, completion intent, and Order. Logistics privately previews the submitted POD and explicitly validates delivery; Courier intent alone never changes `out_for_delivery` to `delivered`. A failed doorstep attempt remains assigned and retryable. Advisory final-mile route calculations use Geoapify and exclude linehaul manifests. Historical QR-delivery and route-deferred statements below are superseded for final-mile proof and routing.
 
 ## Overview
 
@@ -41,7 +49,7 @@ pending_payment
 
 Its Logistics-facing meanings are deliberately broad: `ready_for_pickup` is Seller preparation complete, `picked_up` projects explicit first-mile confirmation, and `assigned` projects a committed dispatch schedule/final-mile Courier offer. Detailed task events remain authoritative proof of custody.
 
-Current COD placement skips `pending_payment`: the Order starts at `placed` with `payment_status = pending`. The Seller's selected eligible Logistics organization is retained in the future fulfillment context; Logistics may operate only Orders selected for its organization and may not silently replace the provider.
+Current COD placement skips `pending_payment`: the Order starts at `placed` with `payment_status = pending`. At final-mile delivery, Logistics reviews the Courier's server-derived COD declaration in the hub-scoped Delivery confirmations queue and confirms collection before approval; delivery and COD `payment_status = paid` commit atomically. The Seller's selected eligible Logistics organization is retained in the fulfillment context; Logistics may operate only Orders selected for its organization and may not silently replace the provider.
 
 Detailed physical milestones belong to a separate Shipment/Delivery Task contract and must not be added to `orders.status` without an approved migration:
 
@@ -100,6 +108,7 @@ Implemented hub-location capability: Logistics may confirm its actual sole-hub p
 - **System context:** Read-only aggregation over authoritative Order/Shipment/Delivery Task records. Counts, rows, filters, caches, and events must never cross Logistics organizations or imply that assignment is physical pickup.
 - Courier-submitted waybill QR/reference scans and handoff evidence are validated and recorded by an authorized Logistics account. The event preserves the Courier who performed the physical action, the Logistics account that recorded it, and the event timestamp; a scan or waybill access event alone never advances custody.
 - The protected authentication and hub scaffold remain available at `/dashboard`; the deployed `/dashboard/queue` projection and `/operations` Hub operations page consume the additive Shipment/Parcel/DeliveryTask schema. Advanced ranking, realtime, and stale-threshold policy remain deferred.
+- The Logistics sidebar keeps Dashboard directly accessible and groups the existing routes into Hub operations, Transport & delivery, Organization, and Communication. The active route's group opens automatically, while the separate account menu retains profile, policy, and notification access; grouping never changes operational authority.
 
 Subscription status is not a dashboard or operational gate in the MVP. Billing, provider, subscription records, and enforcement remain deferred; an approved active Logistics account with its sole hub is sufficient for current access.
 
@@ -157,6 +166,9 @@ Subscription status is not a dashboard or operational gate in the MVP. Billing, 
 
 ## Operational invariants
 
+- Company trucks are Logistics-owned fleet assets separate from Courier personal vehicles. Outbound linehaul requires a qualified home-affiliated driver, destination acceptance, bidirectional accepted routing connections, and a server-reserved load no larger than the truck's `max_parcels`. A received visitor can return only to its recorded home hub under the receiving Logistics organization's schedule; ownership and affiliation never transfer.
+- Linehaul may consolidate different physical source lanes when every parcel has the same immediate destination hub. Final-mile dispatch remains a separate 1–15 parcel schedule and cannot use visiting company trucks or visiting drivers.
+
 - Only an authenticated active Logistics account may operate its organization's sole hub.
 - Every Order/Shipment/Delivery Task, Courier affiliation, waybill, scan, assignment, cache entry, and event must be resolved server-side to that organization and hub. A pickup is eligible only when its immutable Seller-selected Logistics organization is this organization.
 - `delivery_assigned` is not `delivery_accepted`, and neither means `picked_up_from_hub`.
@@ -170,7 +182,7 @@ Subscription status is not a dashboard or operational gate in the MVP. Billing, 
 
 ## Deferred operational data
 
-The current schema implements Logistics identity, organization, sole hub, Courier affiliation, Seller pickup requests, shared waybills, pickup schedules, first-mile assignment/acceptance, additive Shipment/Parcel/DeliveryTask records, dedicated Sorting lanes/sessions/snapshot items/idempotent scans, and tenant-scoped sort plans with exact postal-code mappings. Logistics can record offline-first hub receipt and sorting, scheduled dispatch, independent final-mile offers, QR hub-pickup/delivery evidence, and final delivery through the shared transition service. Geocoding, postal ranges, handling containers, lane/vehicle capacity, multi-hub transfer, RFID/automation, returns, and exceptional recovery beyond sort holds remain deferred. Operational records preserve the one-organization/one-hub invariant, immutable Seller-selected provider context, one shared waybill/tracking ID, append-only custody history, and string-backed status columns with PHP enum casts. Subscription billing, records, and enforcement are also deferred.
+The current schema implements Logistics identity, organization, sole hub, Courier affiliation, Seller pickup requests, shared waybills, pickup schedules, first-mile assignment/acceptance, additive Shipment/Parcel/DeliveryTask records, dedicated Sorting lanes/sessions/snapshot items/idempotent scans, tenant-scoped sort plans, and company-truck linehaul trips with parcel-count capacity and scheduled returns. Logistics can record offline-first hub receipt and sorting, scheduled final-mile dispatch, route-aware linehaul, independent final-mile offers, QR hub-pickup/delivery evidence, and final delivery through the shared transition service. Geocoding, postal ranges, handling containers, personal-Courier vehicle capacity, RFID/automation, live GPS, general returns, and exceptional recovery beyond sort holds remain deferred. Operational records preserve the one-organization/one-hub invariant, immutable Seller-selected provider context, one shared waybill/tracking ID, append-only custody history, and string-backed status columns with PHP enum casts. Subscription billing, records, and enforcement are also deferred.
 
 ## Shared contracts
 

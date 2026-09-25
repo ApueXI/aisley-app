@@ -141,6 +141,9 @@ extension _PickupTaskInteractions on _PickupTaskDetailScreenState {
   }
 
   Future<void> _submitPickup(PickupTask task) async {
+    if (!task.isFirstMile) {
+      return;
+    }
     final identifier = _identifierController.text.trim();
     if (identifier.isEmpty || identifier.length > 128) {
       _pickupSetState(() {
@@ -150,19 +153,11 @@ extension _PickupTaskInteractions on _PickupTaskDetailScreenState {
       return;
     }
 
-    if (task.isFirstMile) {
-      await _pickupController.confirmFirstMilePickup(
-        task,
-        identifierType: _identifierType,
-        identifier: identifier,
-      );
-    } else {
-      await _pickupController.submitFinalMilePickup(
-        task,
-        identifierType: _identifierType,
-        identifier: identifier,
-      );
-    }
+    await _pickupController.confirmFirstMilePickup(
+      task,
+      identifierType: _identifierType,
+      identifier: identifier,
+    );
     await _closeIfSessionEnded();
   }
 

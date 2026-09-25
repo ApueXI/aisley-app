@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:aisley_app/core/networking/api_client.dart';
 import 'package:aisley_app/features/auth/data/auth_repository.dart';
 import 'package:aisley_app/features/auth/domain/auth_models.dart';
 import 'package:aisley_app/features/auth/presentation/controllers/auth_controller.dart';
@@ -14,15 +17,18 @@ import 'package:aisley_app/features/pickup/domain/pickup_models.dart';
 
 void main() {
   testWidgets(
-    'shows Submit completion after proof 202 while proof awaits validation',
+    'shows Delivered intent after photo proof 202 while Logistics validation is pending',
     (tester) async {
       final repository = _WidgetDeliveryRepository();
       final controller = DeliveryController(deliveryRepository: repository)
         ..tasks = <PickupTask>[_outForDeliveryTask];
       final proofSubmitted = await controller.submitProof(
         _outForDeliveryTask,
-        identifierType: 'qr',
-        identifier: 'RAW-QR-PAYLOAD',
+        photo: DeliveryPhotoSelection(
+          path: null,
+          fileName: 'proof.jpg',
+          bytes: Uint8List.fromList(<int>[0xff, 0xd8, 0xff, 0xd9]),
+        ),
       );
 
       expect(proofSubmitted, isTrue);
@@ -40,33 +46,122 @@ void main() {
 
       expect(find.text('ORD-100'), findsOneWidget);
       expect(find.text('WB-100'), findsOneWidget);
-      expect(
-        find.text(
-          'Proof is awaiting Logistics validation. Submit completion intent so Logistics can continue validation.',
-        ),
-        findsOneWidget,
-      );
-      await tester.drag(
-        find.byType(ListView).first,
-        const Offset(0, -500),
-      );
-      await tester.pump();
-      expect(find.text('Submit completion'), findsOneWidget);
+      expect(find.textContaining('Photo proof received.'), findsOneWidget);
+      final submitIntent = find.text('Submit Delivered intent');
+      await tester.ensureVisible(submitIntent);
+      await tester.pumpAndSettle();
+      expect(submitIntent, findsOneWidget);
       expect(find.text('Delivery completed by the server.'), findsNothing);
 
-      await tester.tap(find.text('Submit completion'));
+      await tester.tap(submitIntent);
       await tester.pumpAndSettle();
-      expect(find.text('Submit completion intent?'), findsOneWidget);
+      expect(find.text('Confirm COD collection'), findsOneWidget);
+      expect(find.text('Amount to collect: PHP 115.00'), findsOneWidget);
+      expect(find.text('I collected PHP 115.00 in full.'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Submit intent'),
+            )
+            .onPressed,
+        isNull,
+      );
+
+      await tester.tap(find.text('I collected PHP 115.00 in full.'));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('Submit intent'));
       await tester.pumpAndSettle();
 
       expect(repository.completionEvidenceId, 'proof-1');
+      expect(repository.codCollected, isTrue);
       expect(
         find.textContaining('Completion intent accepted by the server.'),
         findsOneWidget,
       );
       expect(find.text('Delivery completed by the server.'), findsNothing);
+    },
+  );
+
+  testWidgets('failed photo upload shows the error, not pending delivery', (
+    tester,
+  ) async {
+    final repository = _WidgetDeliveryRepository()
+      ..proofError = const ApiException(
+        statusCode: 422,
+        code: 'VALIDATION_ERROR',
+        message: 'The photo field is invalid.',
+      );
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..tasks = <PickupTask>[_outForDeliveryTask];
+    final submitted = await controller.submitProof(
+      _outForDeliveryTask,
+      photo: DeliveryPhotoSelection(
+        path: null,
+        fileName: 'proof.jpg',
+        bytes: Uint8List.fromList(<int>[0xff, 0xd8, 0xff, 0xd9]),
+      ),
+    );
+
+    expect(submitted, isFalse);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DeliveryTaskScreen(
+          authController: _authenticatedAuthController(),
+          deliveryController: controller,
+          task: _outForDeliveryTask,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('The photo field is invalid.'), findsOneWidget);
+    expect(find.textContaining('Photo proof received.'), findsNothing);
+    expect(find.text('Submit Delivered intent'), findsNothing);
+  });
+
+  testWidgets(
+    'missing COD total blocks the intent without using parcel price',
+    (tester) async {
+      final repository = _WidgetDeliveryRepository()
+        ..deliveryContext = const DeliveryContext(
+          taskId: 'delivery-task-1',
+          status: 'out_for_delivery',
+          revision: 7,
+          paymentMethod: 'cod',
+          paymentStatus: 'pending',
+          currency: 'PHP',
+        );
+      final controller = DeliveryController(deliveryRepository: repository)
+        ..tasks = <PickupTask>[_outForDeliveryTask];
+      await controller.submitProof(
+        _outForDeliveryTask,
+        photo: DeliveryPhotoSelection(
+          path: null,
+          fileName: 'proof.jpg',
+          bytes: Uint8List.fromList(<int>[0xff, 0xd8, 0xff, 0xd9]),
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DeliveryTaskScreen(
+            authController: _authenticatedAuthController(),
+            deliveryController: controller,
+            task: _outForDeliveryTask,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final submitIntent = find.text('Submit Delivered intent');
+      await tester.ensureVisible(submitIntent);
+      await tester.pumpAndSettle();
+      await tester.tap(submitIntent);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Confirm COD collection'), findsNothing);
+      expect(find.textContaining('payable total'), findsWidgets);
+      expect(repository.completionEvidenceId, isNull);
     },
   );
 }
@@ -94,6 +189,22 @@ AuthController _authenticatedAuthController() {
 
 class _WidgetDeliveryRepository implements DeliveryRepository {
   String? completionEvidenceId;
+  bool? codCollected;
+  ApiException? proofError;
+  DeliveryContext deliveryContext = const DeliveryContext(
+    taskId: 'delivery-task-1',
+    status: 'out_for_delivery',
+    revision: 7,
+    hub: PickupLocation(name: 'Makati Hub'),
+    destination: PickupLocation(
+      cityMunicipality: 'Pasig',
+      province: 'Metro Manila',
+    ),
+    paymentMethod: 'cod',
+    paymentStatus: 'pending',
+    payableTotal: '115.00',
+    currency: 'PHP',
+  );
 
   @override
   Future<List<PickupTask>> fetchFinalMileTasks() async {
@@ -101,17 +212,13 @@ class _WidgetDeliveryRepository implements DeliveryRepository {
   }
 
   @override
+  Future<PickupTask> fetchFinalMileTask(String taskId) async {
+    return _outForDeliveryTask;
+  }
+
+  @override
   Future<DeliveryContext> fetchDeliveryContext(String taskId) async {
-    return const DeliveryContext(
-      taskId: 'delivery-task-1',
-      status: 'out_for_delivery',
-      revision: 7,
-      hub: PickupLocation(name: 'Makati Hub'),
-      destination: PickupLocation(
-        cityMunicipality: 'Pasig',
-        province: 'Metro Manila',
-      ),
-    );
+    return deliveryContext;
   }
 
   @override
@@ -119,6 +226,7 @@ class _WidgetDeliveryRepository implements DeliveryRepository {
     required String taskId,
     required String status,
     required int expectedRevision,
+    required String idempotencyKey,
   }) async {
     return DeliveryStatusUpdate(
       taskId: taskId,
@@ -130,11 +238,12 @@ class _WidgetDeliveryRepository implements DeliveryRepository {
   @override
   Future<ProofSubmission> submitProof({
     required String taskId,
-    required String identifierType,
-    required String identifier,
+    required DeliveryPhotoSelection photo,
     required int expectedRevision,
     required String idempotencyKey,
+    void Function(void Function() cancel)? onCancel,
   }) async {
+    if (proofError != null) throw proofError!;
     return const ProofSubmission(
       taskId: 'delivery-task-1',
       proofId: 'proof-1',
@@ -146,10 +255,12 @@ class _WidgetDeliveryRepository implements DeliveryRepository {
 
   @override
   Future<CompletionProjection> fetchCompletion(String taskId) async {
-    return const CompletionProjection(
+    return CompletionProjection(
       taskId: 'delivery-task-1',
       taskStatus: 'out_for_delivery',
-      completionStatus: 'awaiting_validation',
+      completionStatus: completionEvidenceId == null
+          ? null
+          : 'awaiting_validation',
       evidenceStatus: 'awaiting_validation',
       evidenceId: 'proof-1',
       revision: 7,
@@ -162,8 +273,10 @@ class _WidgetDeliveryRepository implements DeliveryRepository {
     required int expectedRevision,
     required String evidenceId,
     required String idempotencyKey,
+    required bool codCollected,
   }) async {
     completionEvidenceId = evidenceId;
+    this.codCollected = codCollected;
     return const CompletionProjection(
       taskId: 'delivery-task-1',
       intentId: 'intent-1',

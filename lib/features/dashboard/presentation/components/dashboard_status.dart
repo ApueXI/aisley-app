@@ -1,20 +1,27 @@
 part of '../dashboard_screen.dart';
 
 class _UnavailableNotice extends StatelessWidget {
-  const _UnavailableNotice({required this.freshness, required this.isLoading});
+  const _UnavailableNotice({
+    required this.freshness,
+    required this.isLoading,
+    required this.hasRefreshError,
+  });
 
   final DashboardFreshness? freshness;
   final bool isLoading;
+  final bool hasRefreshError;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final isScaffold = freshness?.state == DashboardFreshnessState.scaffold;
-    final text = isLoading
+    final text = hasRefreshError
+        ? 'The last dashboard refresh failed. The summary below is from an earlier request; open a work screen to check current tasks.'
+        : isLoading
         ? 'Refreshing from the server…'
         : isScaffold
-        ? 'Operational delivery data is not available yet. This dashboard is ready for the approved Courier task contract.'
-        : 'This dashboard only shows data confirmed by the server.';
+        ? 'Dashboard summaries are unavailable. The notification inbox and work screens fetch their own current data.'
+        : 'The dashboard summary could not be loaded. Open a work screen to check current tasks.';
 
     return Semantics(
       liveRegion: true,
@@ -49,7 +56,7 @@ class _DashboardErrorBanner extends StatelessWidget {
   const _DashboardErrorBanner({required this.message, required this.onRetry});
 
   final String message;
-  final VoidCallback onRetry;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {

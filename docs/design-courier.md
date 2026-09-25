@@ -4,7 +4,7 @@ system: AISLEY
 type: Design Guide
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active — core Courier UI, notification inbox, and Android/web-server camera scanning implemented; route/location/media extensions deferred
+status: Active inbox and read-only dashboard task previews; photo/COD intent and Logistics/Seller chat flows implemented locally
 ---
 
 # Courier Flutter Design Guide
@@ -13,7 +13,29 @@ status: Active — core Courier UI, notification inbox, and Android/web-server c
 
 This guide applies to the external Flutter Courier application on Android and to local browser testing of that same app through Flutter `web-server`. It does not define the separate webapp's Customer storefront or React Admin, Seller, or Logistics dashboards. Laravel remains authoritative for identity, approval, ownership, and operational state.
 
-The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, Phase 1 account management, policy consent, the Courier notification inbox, the approved first-mile/final-mile pickup workflow, final-mile movement, P0 QR/tracking-ID/Order-reference proof, completion intent, and read-only delivered history. Android APK and Flutter web camera scanning are implemented client work; background push, route/location telemetry, photo/signature proof media, earnings, and offline task screens remain deferred.
+The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, account management, policy consent, notifications, first-mile identifier pickup, task-bound final-mile hub handoff, batch routes, final-mile movement, private photo POD, Logistics-reviewed completion, delivered history, and task-scoped chat with Logistics, Seller, and Buyer. Flutter implements the notification inbox, separate read-only first-/final-mile dashboard task previews, Android/web QR/Code 128 candidates, photo selection/upload and completion intent with COD cash confirmation, and Logistics/Seller task chat. Buyer chat remains read-only; normal batch acceptance, batch-route rendering, failed-attempt submission, and linehaul trip screens remain unadopted. Authenticated COD/Logistics validation, live chat exchange, and installed-device/browser acceptance remain unverified. The Laravel dashboard aggregate remains unavailable. Background push, live route telemetry, signature proof, earnings, and offline mutations remain deferred.
+
+## Frontend authority
+
+This is the shared Flutter UI contract for every Courier feature, including Android, Linux development, and local web-server testing. Feature specs own API fields, eligibility, and workflow steps; this guide owns their visual and interaction conventions. Architecture and agent rules must link here instead of defining competing UI rules. Copied webapp mockups demonstrate API behavior, not Flutter layout requirements. If a feature needs an exception, document its user need and accessibility impact here and in the matching spec before applying it; never use a visual simplification to change server authority.
+
+The rules below are requirements for new and revised frontend work. Publishing them does not certify that every existing screen already complies; review the affected screens and record remaining gaps when implementing a change.
+
+## Familiar patterns and focused decisions
+
+Apply Jakob's Law by retaining recognizable platform interactions and consistent meaning across screens. Apply Hick's Law by reducing unnecessary simultaneous decisions and organizing necessary choices around the current task. These are design principles, not a fixed limit on menu items or a reason to hide essential information. See [NN/g on consistency and standards](https://www.nngroup.com/articles/consistency-and-standards/) and [IxDF on Hick's Law](https://ixdf.org/literature/topics/hick-s-law).
+
+- Reuse the app's Material components, theme, navigation behavior, field conventions, and status presentation. The same action has the same visible label, icon meaning, and relative placement wherever its context is equivalent.
+- Keep destination names stable: **Pickup orders**, **Delivery work**, **Delivery history**, **Notifications**, **Task messages**, and **Account**. Preserve familiar Back, Cancel, Save, Retry, and Sign out behavior; do not replace visible controls with gestures alone.
+- Give each active task or form step one visually dominant next action when an action is available. Use secondary emphasis for alternatives, help, refresh, and cancellation. A read-only list or pending-review state need not have a primary mutation button.
+- Present only the actions relevant to the server-returned state. Keep the current state and next prerequisite visible; explain a temporarily disabled next action beside it. Omit unauthorized or unimplemented mutation controls instead of displaying a wall of disabled buttons.
+- Group necessary choices by task or purpose. Put optional details and infrequent actions behind clearly labelled expansion or secondary controls; preserve discoverability and keyboard/screen-reader access. Use search or filters for long lists only where the feature contract supports them.
+- Keep work entry points easy to find. Bound dashboard previews and link to their complete owning lists; do not duplicate every task action on the dashboard or treat a preview as a complete workload count.
+- Reveal workflow steps as prerequisites become satisfied. For final-mile delivery, movement, photo selection/upload, explicit cash acknowledgment when required, completion intent, and pending Logistics review remain distinct steps. Never skip a required step to reduce clicks.
+- Keep task identity, leg, current status, required address/contact context, cash due, validation errors, and consequences visible at the decision where they matter. Do not collapse essential information or preselect policy consent, cash collection, or an operational confirmation.
+- Label buttons by what the tap does. **Choose photo** opens a picker; **Scan** opens a scanner; a camera-specific label requires a working camera action. A **Delivered** intent action must explain before submission that Logistics review is pending; only the server-confirmed result may be labelled delivered.
+- Use one explicit confirmation at the point of a consequential action, following the owning spec. Avoid chains of equivalent confirmation dialogs and confirmations for ordinary navigation. Retain discard protection for unsaved work and the documented sign-out/removal confirmations.
+- Keep navigation and choices stable during refresh. Update status in place without stealing focus, changing the selected task, or moving an action under the user's pointer. Android and web-server share labels and workflow semantics while using their supported picker, permission, and input controls.
 
 ## Design goals
 
@@ -32,7 +54,7 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 - Error: `#FF3B30`.
 - Warning: `#FF8800`.
 - Use a neutral background and readable foreground for the majority of the screen; accents should guide attention, not fill every surface.
-- Use the 60/30/10 balance as a starting point: neutral surfaces, secondary structure, and small primary/contextual accents.
+- Use neutral surfaces with restrained accents. Any 60/30/10 color balance is optional guidance; readable contrast, status meaning, and clear action priority take precedence.
 
 ### Themes
 
@@ -50,7 +72,7 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 ## Navigation and layout
 
 - Use a single, predictable authentication stack: Logistics selection → registration → pending result, or login → authenticated state.
-- Navigate to the implemented Notifications, Pickup orders, Delivery work, and Delivery history screens from the dashboard. Deferred route/location and media capabilities must state that they are unavailable rather than showing fabricated jobs or controls.
+- Navigate to the implemented Notifications, Pickup orders, Delivery work, Delivery history, and Task messages screens from the dashboard, but distinguish a screen's existence from end-to-end backend acceptance. The notification inbox works against its adopted v1 contract; first-/final-mile dashboard previews are separate read-only task-list reads, not Laravel aggregate cards. Final-mile photo/COD validation and live chat exchange remain unverified. Do not fabricate jobs or controls for unadopted capabilities.
 - Use Flutter's adaptive navigation primitives. Phones are the primary target; tablets may use wider constrained content but must not become a desktop sidebar clone.
 - Preserve user input when validation or a recoverable network error returns. Confirm before discarding a partially completed registration.
 - Keep primary actions reachable above the keyboard when possible; use bottom action areas only when they do not obscure content or accessibility focus.
@@ -59,9 +81,9 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 
 - Use Material components (or the project's approved equivalent) with a centralized theme: buttons, text fields, dropdowns, searchable lists, dialogs, banners, progress indicators, cards, and navigation controls.
 - Give every interactive control a visible label, meaningful semantics label, disabled state, pressed/focused state, and clear success/error feedback.
-- Use at least a 44 × 44 logical-pixel touch target. Avoid gesture-only actions; provide visible controls for back, retry, remove, and submit.
+- Retain Material's default touch targets (normally at least 48 × 48 logical pixels); never shrink a custom interactive target below the shared 44 × 44 minimum. Avoid gesture-only actions; provide visible controls for back, retry, remove, and submit.
 - Keep forms single-column on phones. Group related fields into named sections and show required markers and input examples before submission.
-- Use confirmation dialogs for sign-out, destructive local-data removal, or abandoning a completed form; do not add confirmation friction to ordinary navigation.
+- Use confirmation dialogs for sign-out, destructive local-data removal, or discarding unsaved form changes. Operational confirmation follows the owning feature spec and the focused-decision rule above.
 
 ## Authentication and registration screens
 
@@ -93,7 +115,7 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 
 - Show the authenticated Courier's private account projection and keep email, status, legal identity fields, affiliation, and sole hub read-only.
 - Allow only the documented first name, middle name, last name, and contact number profile edits. Keep unsaved profile text local during recoverable failures and show field-level server validation.
-- Allow profile-photo selection only when the server capability flag is true. Show the JPEG/JPG/PNG/WebP and under-10-MB policy before opening the picker, keep the local preview separate from the saved private photo, and show upload progress, cancellation, retry, missing-photo fallback, and server rejection states.
+- Allow profile-photo selection only when the server capability flag is true. Show the JPEG/JPG/PNG/WebP and strict under-10-MiB policy before opening the picker, keep the local preview separate from the saved private photo, and show upload progress, cancellation, retry, missing-photo fallback, and server rejection states.
 - Fetch the saved profile photo through the authenticated private URL with the bearer token; never use a browser-style public URL, raw storage path, or unauthenticated network image widget. Confirm success only after the server response and private refresh succeed.
 - Confirm photo removal and reconcile uncertain upload/removal responses with a fresh account/photo read. Do not queue photo writes offline or expose the original filename as storage identity.
 - Use the same photo and independent OR/CR document controls on Android and local web-server. Browser selection, upload cancellation, CORS failure, and authenticated private preview need explicit feedback; keep Android's existing picker/upload behavior and verify both targets before marking web uploads supported.
@@ -101,11 +123,11 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 
 ### Pickup orders
 
-- Show server-assigned Seller pickups and hub pickups in separate sections. The task list is read-only until the Courier explicitly accepts an assigned task.
-- Keep schedule, Seller/hub, authorized pickup address, Order reference, waybill reference, destination area, and lowercase server status visible without exposing Buyer contact details, prices, or private evidence.
-- Require an explicit confirmation after the QR/manual identifier candidate is entered. A waybill QR payload is untrusted text; the current client supports camera, scanner keyboard/paste input, and a manual Order ID/reference fallback.
+- Show server-assigned Seller pickups and final-mile hub pickups in separate sections. First-mile acceptance is per task. Normal final-mile acceptance is atomic for a server-defined dispatch batch; its Flutter action remains unavailable until the batch contract is adopted. Reading a task never accepts it.
+- Show only authorized schedule, Seller/hub, pickup address, reference, and destination context. Present human-readable status labels while preserving lowercase server values in models. Do not expose Buyer contacts before the owning contract permits them. The final-mile projection may show **Parcel price** from `parcel.price`/`currency` when adopted; it is merchandise subtotal, never the COD cash amount.
+- For first mile, require an explicit confirmation after the QR/manual identifier candidate is resolved to the matching task. A waybill QR payload is untrusted text; the current client supports camera, scanner keyboard/paste input, and a manual Order ID/reference fallback. Final-mile hub handoff has no identifier step.
 - **Scan** opens the camera only when selected, works in the installed Android release APK and in the same Flutter app at `http://localhost:8765` through the fixed-port web-server run, and displays a visible manual-input control. Show permission denied, unavailable, busy, unsupported, and insecure-origin states with a manual alternative; release the stream when leaving the screen or switching tasks. Linux remains manual-input only.
-- Decode QR payload as `qr` and the waybill Code 128 tracking ID as `tracking_id`; do not route tracking IDs through the QR-only resolver. Suppress repeated-frame candidates and show the matched task before the explicit pickup or hub-evidence action. Do not log or copy raw decoded values into analytics.
+- Decode QR payload as `qr` and the waybill Code 128 tracking ID as `tracking_id` for **first-mile** verification; do not route tracking IDs through the QR-only resolver. Suppress repeated-frame candidates and show the matched task before explicit Seller pickup. The implemented final-mile hub-handoff control uses the accepted task and revision without QR/reference input. Do not log decoded values.
 - Use the documented idempotency key for physical first-mile confirmation and preserve the same key and identifier after an uncertain response. Final-mile hub evidence must remain visibly “Awaiting Logistics validation” until the server reports validated custody.
 - Present the schedule route manifest as an ordered, accessible stop list. It is not a Buyer delivery route, and the client does not add map credentials, provider calls, or turn-by-turn navigation.
 
@@ -113,15 +135,21 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 
 - Show only server-returned final-mile tasks. Keep `delivery_assigned`/`delivery_accepted` visibly separate from hub custody; accepting an offer does not mean the parcel was picked up.
 - After the server records `picked_up_from_hub`, show one explicit movement action at a time: `in_transit`, then `out_for_delivery`. Each action confirms the server-authorized transition and revision; it never writes an Order status locally.
-- Show the authorized hub, destination, recipient contact, instructions, and optional advisory metrics returned by the delivery-context endpoint. Missing route metrics remain visibly unavailable; no map, GPS, local ETA, or fabricated zero distance is shown.
-- At `out_for_delivery`, offer only the live P0 QR/reference proof input. Show `awaiting_validation` after the 202 response, map the returned proof reference to completion, and never treat a scan or completion intent as delivered.
-- Delivery-proof camera scanning reuses the Flutter barcode capture behavior on Android APK and local web-server. It fills a candidate for explicit proof submission; camera access does not enable photo or signature proof media.
+- Show the authorized hub, destination, recipient contact, instructions, and server-provided advisory metrics. The backend now offers a schedule-scoped batch route, but the supplied Flutter snapshot does not verify its map UI. Missing route geometry or metrics remain visibly unavailable; do not fabricate distance, ETA, or coordinates.
+- At `out_for_delivery`, the backend requires a private JPEG/PNG/WebP **photo POD** tied to the task. Show pending review after upload and Delivered intent; only Logistics validation may mark delivered. The implemented COD screen refetches `data.order.payment_method`, `payment_status`, `payable_total`, and `currency`, requires explicit acknowledgment of the displayed cash due, and rechecks it before sending `cod_collected: true`. Missing, unsupported, or changed payment data blocks the intent; Flutter never submits an amount or marks payment paid.
+- The implemented photo flow uses **Choose photo** and selected-file upload. Dedicated rear-camera POD capture remains a target requiring verification; first-mile barcode capture does not prove it works. Follow the shared upload policy, private bearer reads, retry/idempotency, permission, and accessibility rules for any camera extension.
 - Completion is an explicit intent followed by a fresh completion read. Display delivered only when the server returns the committed `delivered` projection.
+
+### Operational messaging (live exchange not yet verified)
+
+- The implemented client offers **Message Logistics** on an eligible active offered/accepted task and **Message Seller** only while a first-mile task is accepted. Buyer threads remain read-only. Seller production release still requires a verified counterpart reply screen and live exchange under the chat spec; Laravel rechecks eligibility on every call.
+- Keep the task reference, leg, and safe counterpart label visible in a private thread. Render messages as plain text, show unread/read-only states, and offer explicit retry without claiming an uncertain send succeeded.
+- Poll only while the inbox/thread is foregrounded, clear private message state on logout or affiliation loss, and keep a failed draft and its UUID idempotency key for exact retry. Do not queue offline sends or treat chat text as a delivery/status action.
 
 ### Delivery history
 
 - Present delivered final-mile records as read-only cards with order reference, delivered time, pickup/destination areas, item count, and safe proof/completion status.
-- History detail may show immutable item snapshots and opaque proof references, but never street addresses, contact phone numbers, raw proof bytes, storage paths, or mutation controls.
+- History detail may show immutable item snapshots and opaque proof references; exclude street addresses, contact phone numbers, raw proof payloads, storage paths, and mutation controls. An authorized private photo viewer requires adoption of the documented Courier proof-read endpoint; that viewer is not currently implemented.
 - Keep cursor pagination unavailable when the server does not provide a usable cursor; distinguish an empty successful list from unavailable, unauthorized, offline, and retryable states.
 
 ## Status, error, and network presentation
@@ -149,6 +177,9 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 
 ## Testing and implementation notes
 
+- For every frontend change, review the affected screens against the familiar-patterns and focused-decisions rules. Record which existing component/interaction is reused, the current step's primary action, discoverability of secondary choices, and any unresolved deviations.
+- Verify that Back/Cancel, selection, and focus behave consistently; large text and keyboard navigation retain required controls; loading/offline/error states preserve context; pending review never offers an unauthorized next mutation. Add or update relevant behavior/accessibility tests when UI code changes.
+- Keep contract terminology in developer documentation. Courier-facing messages should explain the work and recovery action in plain language rather than expose DTO, aggregate, endpoint, or idempotency implementation details.
 - Centralize API calls in a client/repository layer and map responses into immutable Dart models and explicit authentication states.
 - Unit-test validation, multipart field names, PSGC cascading behavior, JSON parsing, status mapping, secure-storage failures, and theme semantics.
 - Run integration/contract tests against the Laravel API for Logistics options, registration, login, `/me`, logout, role isolation, status denial, upload limits, and error codes. Mocks may support deterministic widget tests but cannot replace contract verification.

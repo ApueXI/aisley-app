@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:aisley_app/core/networking/api_client.dart';
@@ -28,6 +30,26 @@ void main() {
     },
   );
 
+  test('uncertain movement retries the same revision and UUID key', () async {
+    final repository = _FakeDeliveryRepository()
+      ..listedTask = _pickedUpTask
+      ..failMovementOnce = true;
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..tasks = <PickupTask>[_pickedUpTask];
+
+    final first = await controller.advanceStatus(_pickedUpTask);
+    final retry = await controller.retryMovement(_pickedUpTask);
+
+    expect(first, isFalse);
+    expect(retry, isTrue);
+    expect(repository.movementIdempotencyKeys, hasLength(2));
+    expect(
+      repository.movementIdempotencyKeys.first,
+      repository.movementIdempotencyKeys.last,
+    );
+    expect(controller.taskById(_pickedUpTask.id)?.rawStatus, 'in_transit');
+  });
+
   test('proof stays pending and completion is not inferred', () async {
     final controller = DeliveryController(
       deliveryRepository: _FakeDeliveryRepository(),
@@ -36,8 +58,7 @@ void main() {
 
     final submitted = await controller.submitProof(
       _outForDeliveryTask,
-      identifierType: 'qr',
-      identifier: 'RECIPIENT-QR',
+      photo: _photo(),
     );
 
     expect(submitted, isTrue);
@@ -50,6 +71,67 @@ void main() {
   });
 
   test(
+    'photo proof uses the exact task revision, not a stale list revision',
+    () async {
+      final repository = _FakeDeliveryRepository()
+        ..listedTask = _outForDeliveryTask.copyWith(revision: 8);
+      final controller = DeliveryController(deliveryRepository: repository)
+        ..tasks = <PickupTask>[_outForDeliveryTask];
+
+      final submitted = await controller.submitProof(
+        _outForDeliveryTask,
+        photo: _photo(),
+      );
+
+      expect(submitted, isTrue);
+      expect(repository.proofExpectedRevisions, <int>[8]);
+    },
+  );
+
+  test('wrong exact task identity blocks photo upload', () async {
+    final repository = _FakeDeliveryRepository()
+      ..listedTask = const PickupTask(
+        id: 'different-task',
+        leg: PickupTaskLeg.finalMile,
+        rawStatus: 'out_for_delivery',
+        revision: 7,
+      );
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..tasks = <PickupTask>[_outForDeliveryTask];
+
+    final submitted = await controller.submitProof(
+      _outForDeliveryTask,
+      photo: _photo(),
+    );
+
+    expect(submitted, isFalse);
+    expect(repository.proofExpectedRevisions, isEmpty);
+    expect(
+      controller.actionStatus(_outForDeliveryTask),
+      DeliveryActionStatus.failed,
+    );
+  });
+
+  test('server task no longer out for delivery blocks photo upload', () async {
+    final repository = _FakeDeliveryRepository()
+      ..listedTask = _outForDeliveryTask.copyWith(rawStatus: 'delivered');
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..tasks = <PickupTask>[_outForDeliveryTask];
+
+    final submitted = await controller.submitProof(
+      _outForDeliveryTask,
+      photo: _photo(),
+    );
+
+    expect(submitted, isFalse);
+    expect(repository.proofExpectedRevisions, isEmpty);
+    expect(
+      controller.actionStatus(_outForDeliveryTask),
+      DeliveryActionStatus.conflict,
+    );
+  });
+
+  test(
     'proof ID is handed to a separate completion intent while pending',
     () async {
       final repository = _FakeDeliveryRepository();
@@ -58,19 +140,19 @@ void main() {
 
       final proofSubmitted = await controller.submitProof(
         _outForDeliveryTask,
-        identifierType: 'qr',
-        identifier: 'RAW-QR-PAYLOAD',
+        photo: _photo(),
       );
       final completionSubmitted = await controller.submitCompletion(
         _outForDeliveryTask,
         evidenceId: controller.proofs[_outForDeliveryTask.id]!.proofId,
+        confirmedCollection: _codCollection,
       );
 
       expect(proofSubmitted, isTrue);
       expect(completionSubmitted, isTrue);
-      expect(repository.proofIdentifierType, 'qr');
-      expect(repository.proofIdentifier, 'RAW-QR-PAYLOAD');
+      expect(repository.proofPhoto?.fileName, 'delivery.jpg');
       expect(repository.completionEvidenceId, 'proof-1');
+      expect(repository.completionCodCollected, isTrue);
       expect(
         repository.proofIdempotencyKeys.single ==
             repository.completionIdempotencyKeys.single,
@@ -98,6 +180,7 @@ void main() {
           completionStatus: 'awaiting_validation',
           evidenceStatus: 'awaiting_validation',
           evidenceId: 'old-proof',
+          revision: 7,
         );
       final controller = DeliveryController(deliveryRepository: repository)
         ..tasks = <PickupTask>[_outForDeliveryTask]
@@ -115,6 +198,7 @@ void main() {
       final submitted = await controller.submitCompletion(
         _outForDeliveryTask,
         evidenceId: 'new-proof',
+        confirmedCollection: _codCollection,
       );
 
       expect(submitted, isTrue);
@@ -142,6 +226,7 @@ void main() {
       final submitted = await controller.submitCompletion(
         _outForDeliveryTask,
         evidenceId: 'proof-1',
+        confirmedCollection: _codCollection,
       );
 
       expect(submitted, isFalse);
@@ -152,30 +237,27 @@ void main() {
     },
   );
 
-  test(
-    'manual proof rejects a database ID or waybill reference locally',
-    () async {
-      final repository = _FakeDeliveryRepository();
-      final controller = DeliveryController(deliveryRepository: repository)
-        ..tasks = <PickupTask>[_outForDeliveryTask];
+  test('photo proof rejects an empty file locally', () async {
+    final repository = _FakeDeliveryRepository();
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..tasks = <PickupTask>[_outForDeliveryTask];
 
-      final submitted = await controller.submitProof(
-        _outForDeliveryTask,
-        identifierType: 'order_id',
-        identifier: 'WB-100',
-      );
+    final submitted = await controller.submitProof(
+      _outForDeliveryTask,
+      photo: DeliveryPhotoSelection(
+        path: null,
+        fileName: 'empty.jpg',
+        bytes: Uint8List(0),
+      ),
+    );
 
-      expect(submitted, isFalse);
-      expect(repository.proofIdentifier, isNull);
-      expect(
-        controller.actionError(_outForDeliveryTask),
-        contains('Database IDs and waybill references are not accepted'),
-      );
-    },
-  );
+    expect(submitted, isFalse);
+    expect(repository.proofPhoto, isNull);
+    expect(controller.actionError(_outForDeliveryTask), contains('non-empty'));
+  });
 
   test(
-    'wrong public reference maps PARCEL_NOT_FOUND without retaining an attempt',
+    'server photo rejection is displayed without retaining an attempt',
     () async {
       final repository = _FakeDeliveryRepository()
         ..proofError = const ApiException(
@@ -188,17 +270,15 @@ void main() {
 
       final submitted = await controller.submitProof(
         _outForDeliveryTask,
-        identifierType: 'order_id',
-        identifier: 'OTHER-ORDER-100',
+        photo: _photo(),
       );
 
       expect(submitted, isFalse);
-      expect(repository.proofIdentifierType, 'order_id');
-      expect(repository.proofIdentifier, 'OTHER-ORDER-100');
+      expect(repository.proofPhoto?.fileName, 'delivery.jpg');
       expect(controller.hasPendingProof(_outForDeliveryTask), isFalse);
       expect(
         controller.actionError(_outForDeliveryTask),
-        contains('does not belong to this delivery'),
+        contains('parcel for this delivery task was not found'),
       );
     },
   );
@@ -215,8 +295,7 @@ void main() {
 
     final first = await controller.submitProof(
       _outForDeliveryTask,
-      identifierType: 'qr',
-      identifier: 'RAW-QR-PAYLOAD',
+      photo: _photo(),
     );
     expect(first, isFalse);
     expect(
@@ -229,11 +308,7 @@ void main() {
       ..listedTask = _outForDeliveryTask.copyWith(revision: 8);
     await controller.load();
     final refreshedTask = controller.taskById(_outForDeliveryTask.id)!;
-    final retry = await controller.submitProof(
-      refreshedTask,
-      identifierType: 'qr',
-      identifier: 'RAW-QR-PAYLOAD',
-    );
+    final retry = await controller.submitProof(refreshedTask, photo: _photo());
 
     expect(retry, isTrue);
     expect(repository.proofExpectedRevisions, <int>[7, 8]);
@@ -252,8 +327,7 @@ void main() {
 
     final first = await controller.submitProof(
       _outForDeliveryTask,
-      identifierType: 'qr',
-      identifier: 'RAW-QR-PAYLOAD',
+      photo: _photo(),
     );
     repository.proofError = null;
     final retry = await controller.retryProof(_outForDeliveryTask);
@@ -269,7 +343,15 @@ void main() {
   });
 
   test('completion uses the latest known server revision', () async {
-    final repository = _FakeDeliveryRepository();
+    final repository = _FakeDeliveryRepository()
+      ..completionProjection = const CompletionProjection(
+        taskId: 'delivery-task-1',
+        taskStatus: 'out_for_delivery',
+        completionStatus: null,
+        evidenceStatus: 'awaiting_validation',
+        evidenceId: 'proof-1',
+        revision: 9,
+      );
     final controller = DeliveryController(deliveryRepository: repository)
       ..tasks = <PickupTask>[_outForDeliveryTask]
       ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
@@ -278,19 +360,12 @@ void main() {
         evidenceStatus: 'awaiting_validation',
         custodyState: 'out_for_delivery',
         completionEligible: false,
-      )
-      ..completions[_outForDeliveryTask.id] = const CompletionProjection(
-        taskId: 'delivery-task-1',
-        taskStatus: 'out_for_delivery',
-        completionStatus: 'awaiting_validation',
-        evidenceStatus: 'awaiting_validation',
-        evidenceId: 'proof-1',
-        revision: 9,
       );
 
     final submitted = await controller.submitCompletion(
       _outForDeliveryTask,
       evidenceId: 'proof-1',
+      confirmedCollection: _codCollection,
     );
 
     expect(submitted, isTrue);
@@ -309,8 +384,7 @@ void main() {
 
     final first = await controller.submitProof(
       _outForDeliveryTask,
-      identifierType: 'qr',
-      identifier: 'RAW-QR-PAYLOAD',
+      photo: _photo(),
     );
     repository.proofError = null;
     final retry = await controller.retryProof(_outForDeliveryTask);
@@ -325,18 +399,19 @@ void main() {
 
   test('completion timeout reuses the same idempotency key', () async {
     final repository = _FakeDeliveryRepository()..failCompletionOnce = true;
-    final controller = DeliveryController(deliveryRepository: repository);
-    controller.proofs[_outForDeliveryTask.id] = const ProofSubmission(
-      taskId: 'delivery-task-1',
-      proofId: 'proof-1',
-      evidenceStatus: 'awaiting_validation',
-      custodyState: 'out_for_delivery',
-      completionEligible: false,
-    );
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+        taskId: 'delivery-task-1',
+        proofId: 'proof-1',
+        evidenceStatus: 'awaiting_validation',
+        custodyState: 'out_for_delivery',
+        completionEligible: false,
+      );
 
     final first = await controller.submitCompletion(
       _outForDeliveryTask,
       evidenceId: 'proof-1',
+      confirmedCollection: _codCollection,
     );
     final retry = await controller.retryCompletion(_outForDeliveryTask);
 
@@ -347,6 +422,7 @@ void main() {
       repository.completionIdempotencyKeys.first,
       repository.completionIdempotencyKeys.last,
     );
+    expect(repository.completionCodCollected, isTrue);
     expect(
       controller.actionStatus(_outForDeliveryTask),
       DeliveryActionStatus.completionAwaitingValidation,
@@ -355,6 +431,218 @@ void main() {
       controller.completions[_outForDeliveryTask.id]?.isDelivered,
       isFalse,
     );
+  });
+
+  test(
+    'fresh COD read returns the Order payable total for confirmation',
+    () async {
+      final repository = _FakeDeliveryRepository();
+      final controller = DeliveryController(deliveryRepository: repository)
+        ..tasks = <PickupTask>[_outForDeliveryTask]
+        ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+          taskId: 'delivery-task-1',
+          proofId: 'proof-1',
+          evidenceStatus: 'awaiting_validation',
+          custodyState: 'out_for_delivery',
+          completionEligible: false,
+        );
+
+      final collection = await controller.prepareCodCompletion(
+        _outForDeliveryTask,
+      );
+
+      expect(repository.deliveryContextFetches, 1);
+      expect(collection?.displayAmount, 'PHP 115.00');
+      expect(repository.completionIdempotencyKeys, isEmpty);
+    },
+  );
+
+  test(
+    'missing payable total blocks completion even with a parcel price',
+    () async {
+      final repository = _FakeDeliveryRepository()
+        ..deliveryContext = const DeliveryContext(
+          taskId: 'delivery-task-1',
+          status: 'out_for_delivery',
+          revision: 7,
+          paymentMethod: 'cod',
+          paymentStatus: 'pending',
+          currency: 'PHP',
+        );
+      final controller = DeliveryController(deliveryRepository: repository)
+        ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+          taskId: 'delivery-task-1',
+          proofId: 'proof-1',
+          evidenceStatus: 'awaiting_validation',
+          custodyState: 'out_for_delivery',
+          completionEligible: false,
+        );
+
+      final submitted = await controller.submitCompletion(
+        _outForDeliveryTask,
+        evidenceId: 'proof-1',
+        confirmedCollection: _codCollection,
+      );
+
+      expect(submitted, isFalse);
+      expect(repository.completionIdempotencyKeys, isEmpty);
+      expect(
+        controller.actionError(_outForDeliveryTask),
+        contains('payable total'),
+      );
+    },
+  );
+
+  test('changed payable total requires a new cash confirmation', () async {
+    final repository = _FakeDeliveryRepository()
+      ..deliveryContext = const DeliveryContext(
+        taskId: 'delivery-task-1',
+        status: 'out_for_delivery',
+        revision: 7,
+        paymentMethod: 'cod',
+        paymentStatus: 'pending',
+        payableTotal: '120.00',
+        currency: 'PHP',
+      );
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+        taskId: 'delivery-task-1',
+        proofId: 'proof-1',
+        evidenceStatus: 'awaiting_validation',
+        custodyState: 'out_for_delivery',
+        completionEligible: false,
+      );
+
+    final submitted = await controller.submitCompletion(
+      _outForDeliveryTask,
+      evidenceId: 'proof-1',
+      confirmedCollection: _codCollection,
+    );
+
+    expect(submitted, isFalse);
+    expect(repository.completionIdempotencyKeys, isEmpty);
+    expect(
+      controller.actionError(_outForDeliveryTask),
+      contains('amount changed'),
+    );
+  });
+
+  test('unsupported payment method cannot submit COD intent', () async {
+    final repository = _FakeDeliveryRepository()
+      ..deliveryContext = const DeliveryContext(
+        taskId: 'delivery-task-1',
+        status: 'out_for_delivery',
+        revision: 7,
+        paymentMethod: 'prepaid',
+        paymentStatus: 'paid',
+        payableTotal: '115.00',
+        currency: 'PHP',
+      );
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+        taskId: 'delivery-task-1',
+        proofId: 'proof-1',
+        evidenceStatus: 'awaiting_validation',
+        custodyState: 'out_for_delivery',
+        completionEligible: false,
+      );
+
+    final collection = await controller.prepareCodCompletion(
+      _outForDeliveryTask,
+    );
+
+    expect(collection, isNull);
+    expect(
+      controller.actionError(_outForDeliveryTask),
+      contains('supported COD'),
+    );
+    expect(repository.completionIdempotencyKeys, isEmpty);
+  });
+
+  test('offline COD read blocks completion before any mutation', () async {
+    final repository = _FakeDeliveryRepository()
+      ..loadError = const ApiException.network('offline');
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+        taskId: 'delivery-task-1',
+        proofId: 'proof-1',
+        evidenceStatus: 'awaiting_validation',
+        custodyState: 'out_for_delivery',
+        completionEligible: false,
+      );
+
+    final collection = await controller.prepareCodCompletion(
+      _outForDeliveryTask,
+    );
+
+    expect(collection, isNull);
+    expect(
+      controller.actionStatus(_outForDeliveryTask),
+      DeliveryActionStatus.offline,
+    );
+    expect(repository.completionIdempotencyKeys, isEmpty);
+  });
+
+  test('COD read for another task cannot authorize this completion', () async {
+    final repository = _FakeDeliveryRepository()
+      ..deliveryContext = const DeliveryContext(
+        taskId: 'other-task',
+        status: 'out_for_delivery',
+        revision: 7,
+        paymentMethod: 'cod',
+        paymentStatus: 'pending',
+        payableTotal: '115.00',
+        currency: 'PHP',
+      );
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+        taskId: 'delivery-task-1',
+        proofId: 'proof-1',
+        evidenceStatus: 'awaiting_validation',
+        custodyState: 'out_for_delivery',
+        completionEligible: false,
+      );
+
+    final collection = await controller.prepareCodCompletion(
+      _outForDeliveryTask,
+    );
+
+    expect(collection, isNull);
+    expect(
+      controller.actionError(_outForDeliveryTask),
+      contains('delivery.context.task_id'),
+    );
+    expect(repository.completionIdempotencyKeys, isEmpty);
+  });
+
+  test('COD_COLLECTION_REQUIRED gives explicit recovery guidance', () async {
+    final repository = _FakeDeliveryRepository()
+      ..completionError = const ApiException(
+        statusCode: 422,
+        code: 'COD_COLLECTION_REQUIRED',
+        message: 'required',
+      );
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+        taskId: 'delivery-task-1',
+        proofId: 'proof-1',
+        evidenceStatus: 'awaiting_validation',
+        custodyState: 'out_for_delivery',
+        completionEligible: false,
+      );
+
+    final submitted = await controller.submitCompletion(
+      _outForDeliveryTask,
+      evidenceId: 'proof-1',
+      confirmedCollection: _codCollection,
+    );
+
+    expect(submitted, isFalse);
+    expect(
+      controller.actionError(_outForDeliveryTask),
+      contains('full Order payable total'),
+    );
+    expect(controller.hasPendingCompletion(_outForDeliveryTask), isFalse);
   });
 
   test('401 is delegated to the auth boundary', () async {
@@ -381,21 +669,34 @@ class _FakeDeliveryRepository implements DeliveryRepository {
   Object? proofError;
   Object? completionError;
   bool failCompletionOnce = false;
+  bool failMovementOnce = false;
   String? movementStatus;
-  String? proofIdentifier;
-  String? proofIdentifierType;
+  DeliveryPhotoSelection? proofPhoto;
   String? completionEvidenceId;
+  bool? completionCodCollected;
+  int deliveryContextFetches = 0;
+  DeliveryContext deliveryContext = const DeliveryContext(
+    taskId: 'delivery-task-1',
+    status: 'out_for_delivery',
+    revision: 7,
+    paymentMethod: 'cod',
+    paymentStatus: 'pending',
+    payableTotal: '115.00',
+    currency: 'PHP',
+  );
   CompletionProjection completionProjection = const CompletionProjection(
     taskId: 'delivery-task-1',
     taskStatus: 'out_for_delivery',
-    completionStatus: 'awaiting_validation',
+    completionStatus: null,
     evidenceStatus: 'awaiting_validation',
     evidenceId: 'proof-1',
+    revision: 7,
   );
   PickupTask listedTask = _outForDeliveryTask;
   final List<int> proofExpectedRevisions = <int>[];
   final List<int> completionExpectedRevisions = <int>[];
   final List<String> proofIdempotencyKeys = <String>[];
+  final List<String> movementIdempotencyKeys = <String>[];
   final List<String> completionIdempotencyKeys = <String>[];
 
   @override
@@ -407,11 +708,16 @@ class _FakeDeliveryRepository implements DeliveryRepository {
   }
 
   @override
+  Future<PickupTask> fetchFinalMileTask(String taskId) async {
+    if (loadError != null) throw loadError!;
+    return listedTask;
+  }
+
+  @override
   Future<DeliveryContext> fetchDeliveryContext(String taskId) async {
-    return const DeliveryContext(
-      taskId: 'delivery-task-1',
-      status: 'delivery_accepted',
-    );
+    deliveryContextFetches++;
+    if (loadError != null) throw loadError!;
+    return deliveryContext;
   }
 
   @override
@@ -419,8 +725,14 @@ class _FakeDeliveryRepository implements DeliveryRepository {
     required String taskId,
     required String status,
     required int expectedRevision,
+    required String idempotencyKey,
   }) async {
     movementStatus = status;
+    movementIdempotencyKeys.add(idempotencyKey);
+    if (failMovementOnce) {
+      failMovementOnce = false;
+      throw const ApiException.network('offline');
+    }
     return DeliveryStatusUpdate(
       taskId: taskId,
       status: status,
@@ -431,13 +743,12 @@ class _FakeDeliveryRepository implements DeliveryRepository {
   @override
   Future<ProofSubmission> submitProof({
     required String taskId,
-    required String identifierType,
-    required String identifier,
+    required DeliveryPhotoSelection photo,
     required int expectedRevision,
     required String idempotencyKey,
+    void Function(void Function() cancel)? onCancel,
   }) async {
-    proofIdentifier = identifier;
-    proofIdentifierType = identifierType;
+    proofPhoto = photo;
     proofExpectedRevisions.add(expectedRevision);
     proofIdempotencyKeys.add(idempotencyKey);
     if (proofError != null) {
@@ -463,8 +774,10 @@ class _FakeDeliveryRepository implements DeliveryRepository {
     required int expectedRevision,
     required String evidenceId,
     required String idempotencyKey,
+    required bool codCollected,
   }) async {
     completionEvidenceId = evidenceId;
+    completionCodCollected = codCollected;
     completionExpectedRevisions.add(expectedRevision);
     completionIdempotencyKeys.add(idempotencyKey);
     if (completionError != null) {
@@ -502,4 +815,12 @@ const _outForDeliveryTask = PickupTask(
   revision: 7,
   order: PickupOrderReference(reference: 'ORD-100'),
   waybill: PickupWaybillReference(reference: 'WB-100'),
+);
+
+const _codCollection = DeliveryCodCollection(amount: '115.00', currency: 'PHP');
+
+DeliveryPhotoSelection _photo() => DeliveryPhotoSelection(
+  path: null,
+  fileName: 'delivery.jpg',
+  bytes: Uint8List.fromList(<int>[0xff, 0xd8, 0xff, 0xd9]),
 );

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../../core/networking/api_client.dart';
 import '../../../../core/networking/api_contract_exception.dart';
+import '../../../../core/networking/multipart_file_adapter.dart';
 import '../../../../core/security/token_storage.dart';
 import '../../../pickup/domain/pickup_models.dart';
 import '../../data/delivery_repository.dart';
@@ -15,6 +16,7 @@ part 'delivery_controller_actions.dart';
 part 'delivery_controller_errors.dart';
 part 'delivery_controller_reconciliation.dart';
 part 'delivery_controller_attempts.dart';
+part 'delivery_controller_cod.dart';
 
 typedef DeliveryAuthFailureHandler = Future<void> Function(ApiException error);
 
@@ -82,8 +84,10 @@ class DeliveryController extends ChangeNotifier {
       <String, DeliveryActionStatus>{};
   final Map<String, String?> _actionErrors = <String, String?>{};
   final Map<String, Duration?> _actionRetryAfter = <String, Duration?>{};
-  final Map<String, _PendingIdentifierAttempt> _pendingProofs =
-      <String, _PendingIdentifierAttempt>{};
+  final Map<String, _PendingMovementAttempt> _pendingMovements =
+      <String, _PendingMovementAttempt>{};
+  final Map<String, _PendingPhotoAttempt> _pendingProofs =
+      <String, _PendingPhotoAttempt>{};
   final Map<String, _PendingCompletionAttempt> _pendingCompletions =
       <String, _PendingCompletionAttempt>{};
 
@@ -116,7 +120,9 @@ class DeliveryController extends ChangeNotifier {
   bool isActionBusy(PickupTask task) {
     final status = actionStatus(task);
     return status == DeliveryActionStatus.moving ||
+        status == DeliveryActionStatus.loading ||
         status == DeliveryActionStatus.proofSubmitting ||
+        status == DeliveryActionStatus.completionLoading ||
         status == DeliveryActionStatus.completionSubmitting;
   }
 
@@ -130,7 +136,9 @@ class DeliveryController extends ChangeNotifier {
       DeliveryActionStatus.forbidden ||
       DeliveryActionStatus.consentRequired ||
       DeliveryActionStatus.moving ||
+      DeliveryActionStatus.loading ||
       DeliveryActionStatus.proofSubmitting ||
+      DeliveryActionStatus.completionLoading ||
       DeliveryActionStatus.completionSubmitting => false,
       _ => true,
     };
@@ -138,17 +146,22 @@ class DeliveryController extends ChangeNotifier {
 
   bool hasPendingProof(PickupTask task) => _pendingProofs.containsKey(task.id);
 
+  bool hasPendingMovement(PickupTask task) =>
+      _pendingMovements.containsKey(task.id);
+
   bool hasPendingCompletion(PickupTask task) =>
       _pendingCompletions.containsKey(task.id);
 
   bool isCompletionPending(PickupTask task) {
     final completion = completions[task.id];
+    if (completion?.evidenceStatus == 'rejected' ||
+        completion?.completionStatus == 'rejected') {
+      return false;
+    }
     final proofId = proofs[task.id]?.proofId;
     final completionEvidenceId = completion?.evidenceId;
     final projectionMatchesCurrentProof =
-        proofId == null ||
-        completionEvidenceId == null ||
-        completionEvidenceId == proofId;
+        proofId == null || completionEvidenceId == proofId;
 
     if (actionStatus(task) ==
             DeliveryActionStatus.completionAwaitingValidation &&
@@ -157,6 +170,16 @@ class DeliveryController extends ChangeNotifier {
     }
     return completion?.isAwaitingValidation == true &&
         projectionMatchesCurrentProof;
+  }
+
+  String? evidenceStatusFor(PickupTask task) {
+    final proof = proofs[task.id];
+    final completion = completions[task.id];
+    if (proof == null) return completion?.evidenceStatus;
+    if (completion?.evidenceId == proof.proofId) {
+      return completion?.evidenceStatus ?? proof.evidenceStatus;
+    }
+    return proof.evidenceStatus;
   }
 
   void clear() {
@@ -179,6 +202,7 @@ class DeliveryController extends ChangeNotifier {
     _actionStatuses.clear();
     _actionErrors.clear();
     _actionRetryAfter.clear();
+    _pendingMovements.clear();
     _pendingProofs.clear();
     _pendingCompletions.clear();
     notifyListeners();
@@ -204,12 +228,6 @@ class DeliveryController extends ChangeNotifier {
       PickupTaskStatus.inTransit => 'out_for_delivery',
       _ => null,
     };
-  }
-
-  static bool _validIdentifier(String type, String identifier) {
-    return (type == 'qr' || type == 'tracking_id' || type == 'order_id') &&
-        identifier.trim().isNotEmpty &&
-        identifier.length <= 128;
   }
 
   static String _newUuid() {

@@ -6,8 +6,9 @@ type: Feature Specification
 version: 1.5
 status: Implemented read-only final-mile history API; advanced filters deferred
 implementation_status: Courier-scoped delivered task list/detail APIs are implemented; Flutter list/detail is reported implemented; cursor/date filters remain deferred
-flutter_status: Delivered-history list and detail screens are recorded as implemented in this Flutter project's progress log; cursor/date filters remain deferred
+flutter_status: Delivered-history list/detail screens recorded in Flutter progress; private photo preview not verified/adopted
 canonical: true
+copied_backend_checkout: ca1487c
 role: Courier
 scope: Laravel API and external Flutter application
 backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378
@@ -15,6 +16,12 @@ backend_contract_version: courier-delivery-history-v1
 ---
 
 # Delivery History
+
+**Flutter adoption boundary:** Existing read-only history screens are recorded in the external progress log. Current Laravel history derives only from Logistics-confirmed photo-POD deliveries; the snapshot does not establish a Flutter private-photo preview. Keep the proof ID/status read-only and use an authorized private photo endpoint only after client adoption.
+
+## Photo POD revision (2026-09-20)
+
+Only Logistics-confirmed final-mile deliveries enter history. History retains the opaque proof ID and status, never photo bytes or a raw storage path; authorized photo preview must use the private proof endpoint and recheck current scope. Failed attempts remain on the active task and do not create completed-history rows. Linehaul transfers remain outside Courier delivery history.
 
 ## WHAT
 
@@ -142,6 +149,7 @@ Courier intent + Logistics-validated proof
 ## HOW
 
 ### Implemented API contract (bounded MVP)
+- The development-only Courier API mockup may show the bounded delivered list and detail; current cursor pagination is unavailable.
 
 | Method and path                             | Request                              | Response                              |
 | ------------------------------------------- | ------------------------------------ | ------------------------------------- |

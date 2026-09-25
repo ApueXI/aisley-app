@@ -7,6 +7,8 @@ import '../../account/presentation/controllers/account_controller.dart';
 import '../../account/presentation/account_screen.dart';
 import '../../auth/domain/auth_models.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
+import '../../chat/presentation/chat_inbox_screen.dart';
+import '../../chat/presentation/controllers/chat_controller.dart';
 import '../../delivery/presentation/controllers/delivery_controller.dart';
 import '../../delivery/presentation/delivery_screen.dart';
 import '../../history/presentation/controllers/history_controller.dart';
@@ -17,12 +19,17 @@ import '../../notification/presentation/notification_screen.dart';
 import '../../policy/presentation/controllers/policy_controller.dart';
 import '../../pickup/presentation/controllers/pickup_controller.dart';
 import '../../pickup/presentation/pickup_screen.dart';
+import '../../pickup/domain/pickup_models.dart';
 import '../../vehicle/presentation/controllers/vehicle_controller.dart';
 import '../domain/dashboard_models.dart';
+import '../domain/dashboard_task_preview.dart';
+import 'controllers/dashboard_preview_controller.dart';
 
 part 'components/dashboard_body.dart';
 part 'components/dashboard_cards.dart';
 part 'components/dashboard_status.dart';
+part 'components/dashboard_task_previews.dart';
+part 'components/dashboard_navigation.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
@@ -33,6 +40,8 @@ class DashboardScreen extends StatefulWidget {
     this.deliveryController,
     this.historyController,
     this.notificationController,
+    this.chatController,
+    this.dashboardPreviewController,
     this.vehicleController,
     super.key,
   });
@@ -44,6 +53,8 @@ class DashboardScreen extends StatefulWidget {
   final DeliveryController? deliveryController;
   final HistoryController? historyController;
   final NotificationController? notificationController;
+  final ChatController? chatController;
+  final DashboardPreviewController? dashboardPreviewController;
   final VehicleController? vehicleController;
 
   @override
@@ -51,14 +62,15 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, _DashboardNavigation {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    widget.authController.addListener(_clearPreviewsIfAccessLost);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        widget.authController.loadDashboard();
+        unawaited(_refreshDashboard(refreshNotifications: false));
         widget.notificationController?.startPolling();
         final accountController = widget.accountController;
         if (accountController != null && accountController.account == null) {
@@ -71,175 +83,41 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final notificationController = widget.notificationController;
-    if (notificationController == null) {
-      return;
-    }
     if (state == AppLifecycleState.resumed) {
-      notificationController.startPolling();
+      notificationController?.startPolling();
+      if (widget.authController.status == AuthStatus.authenticated) {
+        unawaited(_refreshDashboard(refreshNotifications: false));
+      }
     } else if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
-      notificationController.stopPolling();
+      notificationController?.stopPolling();
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    widget.authController.removeListener(_clearPreviewsIfAccessLost);
     widget.notificationController?.stopPolling();
     super.dispose();
   }
 
-  Future<void> _confirmSignOut() async {
-    final shouldSignOut = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Sign out?'),
-          content: const Text(
-            'You will need to sign in again to view your Courier dashboard.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Sign out'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (shouldSignOut != true || !mounted) {
-      return;
-    }
-
-    final didSignOut = await widget.authController.signOut();
-    if (!mounted || didSignOut) {
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Sign out could not be completed. Your session remains active.',
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openAccount() async {
-    final accountController = widget.accountController;
-    if (accountController == null || !mounted) {
-      return;
-    }
-
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => AccountScreen(
-          authController: widget.authController,
-          accountController: accountController,
-          policyController: widget.policyController,
-          vehicleController: widget.vehicleController,
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openPickups() async {
-    final pickupController = widget.pickupController;
-    if (pickupController == null || !mounted) {
-      return;
-    }
-
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => PickupScreen(
-          authController: widget.authController,
-          pickupController: pickupController,
-          policyController: widget.policyController,
-          onOpenDelivery: _openDeliveries,
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openDeliveries() async {
-    final deliveryController = widget.deliveryController;
-    if (deliveryController == null || !mounted) {
-      return;
-    }
-
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => DeliveryScreen(
-          authController: widget.authController,
-          deliveryController: deliveryController,
-          policyController: widget.policyController,
-          onOpenPickup: _openPickups,
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openHistory() async {
-    final historyController = widget.historyController;
-    if (historyController == null || !mounted) {
-      return;
-    }
-
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => HistoryScreen(
-          authController: widget.authController,
-          historyController: historyController,
-          policyController: widget.policyController,
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openNotifications() async {
-    final notificationController = widget.notificationController;
-    if (notificationController == null || !mounted) {
-      return;
-    }
-
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => NotificationScreen(
-          controller: notificationController,
-          managePolling: false,
-          onOpenTarget: _openNotificationTarget,
-        ),
-      ),
-    );
-    if (mounted) {
-      notificationController.startPolling();
+  void _clearPreviewsIfAccessLost() {
+    if (widget.authController.status != AuthStatus.authenticated) {
+      widget.dashboardPreviewController?.clear();
     }
   }
 
-  Future<void> _openNotificationTarget(CourierNotification notification) async {
-    switch (notification.resourceType) {
-      case 'pickup_schedule':
-        await _openPickups();
-      case 'delivery_task':
-      case 'final_mile_task':
-        await _openDeliveries();
-      default:
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'The related work type is not available in this app yet.',
-              ),
-            ),
-          );
-        }
-    }
+  Future<void> _refreshDashboard({bool refreshNotifications = true}) async {
+    if (widget.authController.status != AuthStatus.authenticated) return;
+    await Future.wait<void>([
+      widget.authController.loadDashboard(),
+      if (widget.dashboardPreviewController case final controller?)
+        controller.refreshAll(),
+      if (refreshNotifications && widget.notificationController != null)
+        widget.notificationController!.refresh(silent: true),
+    ]);
   }
 
   @override
@@ -366,7 +244,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             ],
           ),
           body: RefreshIndicator(
-            onRefresh: widget.authController.loadDashboard,
+            onRefresh: _refreshDashboard,
             child: widget.accountController == null
                 ? _DashboardBody(
                     authController: widget.authController,
@@ -377,6 +255,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                     historyController: widget.historyController,
                     onOpenDeliveries: _openDeliveries,
                     onOpenHistory: _openHistory,
+                    onOpenNotifications: widget.notificationController == null
+                        ? null
+                        : _openNotifications,
+                    onOpenMessages: widget.chatController == null
+                        ? null
+                        : _openMessages,
+                    previewController: widget.dashboardPreviewController,
                   )
                 : AnimatedBuilder(
                     animation: widget.accountController!,
@@ -389,6 +274,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                       historyController: widget.historyController,
                       onOpenDeliveries: _openDeliveries,
                       onOpenHistory: _openHistory,
+                      onOpenNotifications: widget.notificationController == null
+                          ? null
+                          : _openNotifications,
+                      onOpenMessages: widget.chatController == null
+                          ? null
+                          : _openMessages,
+                      previewController: widget.dashboardPreviewController,
                       profilePhoto: widget.accountController!.profilePhoto,
                     ),
                   ),

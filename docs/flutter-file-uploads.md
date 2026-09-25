@@ -3,7 +3,7 @@
 ## WHAT
 
 - This is Flutter-client implementation guidance for the same Courier app on Android and at `http://localhost:8765` through `flutter run -d web-server --web-hostname localhost --web-port 8765`. It does not authorize a separate web UI or a production browser release.
-- Scope: registration evidence (`government_id`, `vehicle_registration`), account profile photo (`photo`), and independent vehicle documents (`file` for each `{kind}`). Photo/signature delivery proof remains deferred.
+- Scope of the implemented Flutter transport: registration evidence (`government_id`, `vehicle_registration`), account profile photo (`photo`), and independent vehicle documents (`file` for each `{kind}`). Laravel now also requires private multipart `photo` POD for final-mile delivery, but the supplied Flutter progress does **not** document that feature's capture/upload adoption. Signature proof remains deferred.
 - The Laravel upload endpoints and [shared image policy](references/file-upload-requirements.md) are unchanged. The server remains authoritative for ownership, MIME/signature/decode, the strict under-10-MiB limit, persistence, and private delivery.
 - Current client status: `ApiClient.postMultipart` now uses a shared platform-safe adapter. Android/native targets preserve the readable-path `MultipartFile.fromPath` branch, while web-server uses bounded selected bytes with `MultipartFile.fromBytes`. Browser and installed-APK runtime/CORS acceptance has not yet been verified, so build success is not treated as full support.
 

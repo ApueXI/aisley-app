@@ -5,6 +5,9 @@ import 'package:aisley_app/core/networking/api_client.dart';
 import 'package:aisley_app/features/auth/data/auth_repository.dart';
 import 'package:aisley_app/features/auth/domain/auth_models.dart';
 import 'package:aisley_app/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:aisley_app/features/chat/data/chat_repository.dart';
+import 'package:aisley_app/features/chat/domain/chat_models.dart';
+import 'package:aisley_app/features/chat/presentation/controllers/chat_controller.dart';
 import 'package:aisley_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:aisley_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:aisley_app/features/pickup/data/pickup_repository.dart';
@@ -13,6 +16,76 @@ import 'package:aisley_app/features/pickup/presentation/controllers/pickup_contr
 import 'package:aisley_app/features/pickup/presentation/pickup_screen.dart';
 
 void main() {
+  testWidgets(
+    'offers Seller messaging only during an accepted first-mile task',
+    (tester) async {
+      final pickup = PickupController(
+        pickupRepository: _WidgetPickupRepository(),
+      );
+      final chat = ChatController(repository: _WidgetChatRepository());
+      final auth = _authenticatedAuthController();
+
+      Future<void> show(PickupTask task) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: PickupTaskDetailScreen(
+              key: ValueKey(task.rawStatus),
+              authController: auth,
+              pickupController: pickup,
+              task: task,
+              chatController: chat,
+            ),
+          ),
+        );
+        await tester.pump();
+      }
+
+      await show(_firstMileTask);
+      expect(find.text('Message Seller'), findsNothing);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      final acceptedTask = _firstMileTask.copyWith(rawStatus: 'accepted');
+      expect(acceptedTask.status, PickupTaskStatus.accepted);
+      await show(acceptedTask);
+      expect(
+        tester
+            .widget<PickupTaskDetailScreen>(find.byType(PickupTaskDetailScreen))
+            .task
+            .status,
+        PickupTaskStatus.accepted,
+      );
+      await tester.drag(find.byType(ListView), const Offset(0, -600));
+      await tester.pumpAndSettle();
+      expect(find.text('Message Seller'), findsOneWidget);
+      await tester.tap(find.text('Message Seller'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(
+        find.descendant(
+          of: find.byType(AppBar),
+          matching: find.text('Message Seller'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is TextField && widget.decoration?.labelText == 'Message',
+        ),
+        findsOneWidget,
+      );
+      expect(chat.activeTask?.counterpartyRole, 'seller');
+      expect(chat.activeTask?.taskId, 'task-1');
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      pickup.dispose();
+      chat.dispose();
+      auth.dispose();
+    },
+  );
+
   testWidgets('accepts a first-mile task before showing pickup confirmation', (
     tester,
   ) async {
@@ -87,10 +160,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'ORD-100');
-    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    await tester.ensureVisible(find.text('Submit hub handoff'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Submit hub pickup evidence'));
+    await tester.tap(find.text('Submit hub handoff'));
+    await tester.pumpAndSettle();
+    expect(find.text('Submit hub handoff?'), findsOneWidget);
+    await tester.tap(find.text('Submit handoff'));
     await tester.pumpAndSettle();
 
     expect(
@@ -240,8 +315,6 @@ class _WidgetPickupRepository implements PickupRepository {
   @override
   Future<FinalMilePickupSubmission> submitFinalMilePickup({
     required String taskId,
-    required String identifierType,
-    required String identifier,
     required int expectedRevision,
     required String idempotencyKey,
   }) async {
@@ -298,6 +371,19 @@ class _WidgetDashboardRepository implements DashboardRepository {
       freshness: DashboardFreshness(state: DashboardFreshnessState.scaffold),
     );
   }
+}
+
+class _WidgetChatRepository implements ChatRepository {
+  @override
+  Future<ChatPage<ChatThread>> list({
+    String? leg,
+    String? cursor,
+    int limit = 20,
+  }) async =>
+      const ChatPage(items: <ChatThread>[], nextCursor: null, unreadCount: 0);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
 
 final _firstMileTask = PickupTask(

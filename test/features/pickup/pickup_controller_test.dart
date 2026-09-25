@@ -31,6 +31,17 @@ void main() {
     expect(controller.actionStatus(task), PickupTaskActionStatus.accepted);
   });
 
+  test('normal final-mile task cannot be accepted individually', () async {
+    final repository = _FakePickupRepository();
+    final controller = PickupController(pickupRepository: repository);
+    final offered = _finalMileTask.copyWith(rawStatus: 'delivery_assigned');
+
+    final accepted = await controller.acceptTask(offered);
+
+    expect(accepted, isFalse);
+    expect(repository.finalMileAcceptCalled, isFalse);
+  });
+
   test(
     'retries uncertain first-mile pickup with the same idempotency key',
     () async {
@@ -71,11 +82,7 @@ void main() {
     await controller.load();
     final task = controller.finalMileTasks.single;
 
-    final submitted = await controller.submitFinalMilePickup(
-      task,
-      identifierType: 'order_id',
-      identifier: 'ORD-100',
-    );
+    final submitted = await controller.submitFinalMilePickup(task);
 
     expect(submitted, isTrue);
     expect(
@@ -169,6 +176,7 @@ class _FakePickupRepository implements PickupRepository {
   Object? finalMileLoadError;
   Object? firstMilePickupError;
   bool failFirstMilePickupOnce = false;
+  bool finalMileAcceptCalled = false;
   final List<String> firstMileIdempotencyKeys = <String>[];
 
   @override
@@ -237,6 +245,7 @@ class _FakePickupRepository implements PickupRepository {
 
   @override
   Future<PickupTask> acceptFinalMileTask(String taskId) async {
+    finalMileAcceptCalled = true;
     return _finalMileTask.copyWith(rawStatus: 'delivery_accepted');
   }
 
@@ -257,8 +266,6 @@ class _FakePickupRepository implements PickupRepository {
   @override
   Future<FinalMilePickupSubmission> submitFinalMilePickup({
     required String taskId,
-    required String identifierType,
-    required String identifier,
     required int expectedRevision,
     required String idempotencyKey,
   }) async {

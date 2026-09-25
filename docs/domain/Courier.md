@@ -8,6 +8,12 @@ status: Revised — aligned with the approved order/Logistics flow and implement
 
 # Courier Model Context
 
+## Final-mile revision (2026-09-20)
+
+The Courier accepts a destination-hub dispatch schedule as one bulk final-mile offer; its 1–15 parcel tasks still retain separate custody and delivery history. At drop-off, the Courier uploads a private photo POD, then explicitly sends **Delivered** intent to Logistics. Logistics confirms the photo before any Order/Shipment/task becomes `delivered`. A failed attempt records reason and time, leaves `out_for_delivery`, and permits a later retry. The accepted schedule can return advisory Geoapify Matrix/Routing stops and a road `LineString`; the development-only Courier mockup draws it with MapLibre. Linehaul transfers are a separate Logistics workflow. Historical reference-based delivery proof and route-deferred wording below is superseded for final-mile work.
+
+As of 2026-09-21, the accepted final-mile task itself identifies the parcel for hub handoff; the Courier enters no parcel identifier. Logistics still validates hub pickup. The Courier sees the parcel's merchandise price and currency in the task, and the mockup uses `osm-bright` with a visible Logistics start, numbered delivery stops, and route line. Photo POD remains the only Courier-entered delivery proof.
+
 ## Overview
 
 Courier (rider) is Aisley's delivery operator. Courier operations are exposed through Laravel API endpoints and consumed by an external Flutter/mobile application. This repository must not build a Courier web dashboard or other Courier UI under `src/`.
@@ -85,7 +91,7 @@ Courier-performed task actions and transitions are:
 
 `received_at_hub`, `sorted_at_hub`, and `dispatched_from_hub` are Logistics-side milestones. Courier physical actions are submitted for Logistics validation; the shared transition service commits the state after the authoritative event is recorded. First-mile and final-mile assignments are independent: accepting or completing a first-mile pickup does not require or automatically grant the same Courier the final-mile assignment. Logistics may assign the same or a different eligible Courier for final-mile delivery; the second task must be separately offered, accepted, and authorized. Each leg requires its own task, assignment, actor, timestamp, location, and scan/event history. Internal `in_transfer` execution remains deferred in the MVP.
 
-Current COD placement skips `pending_payment` and starts the Order at `placed` with `payment_status = pending`; this payment detail is read-only to Couriers. The Seller-selected Logistics organization owns both task legs, and a Courier may operate only assigned/offered tasks within that organization.
+Current COD placement skips `pending_payment` and starts the Order at `placed` with `payment_status = pending`; payment state remains read-only to Couriers. For COD final-mile completion, the Courier must acknowledge collection and the API records the Order-derived payable amount/currency/time for Logistics review. Logistics alone approves collection and the delivery transaction marks COD paid. The Seller-selected Logistics organization owns both task legs, and a Courier may operate only assigned/offered tasks within that organization.
 
 For the high-level projection, explicit first-mile confirmation advances `ready_for_pickup → picked_up`; later Logistics dispatch scheduling advances `picked_up → assigned` after creating the final-mile offer. Pickup scheduling does not write that final-mile projection.
 

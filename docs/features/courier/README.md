@@ -4,14 +4,16 @@ system: AISLEY
 type: Feature Index
 role: Courier / Rider
 platform: Flutter / Dart
-status: Auth, account, vehicle, policy consent, notification inbox, first/final-mile pickup, delivery, and read-only history implemented; route/location/media extensions deferred
+status: Flutter dashboard previews, inbox, photo-POD/COD intent, and Logistics/Seller chat implemented; support tickets, batch adoption, and live acceptance remain open
 ---
 
 # Courier feature index
 
 ## Implementation rule
 
-`auth/spec.md`, `account-management/specs.md`, `../logistics/vehicle-fleet-management/specs.md` (the shared Courier/Logistics vehicle contract), the policy-consent specification, `notification/specs.md`, `accept-delivery-requests/specs.md`, `pick-up-order/specs.md`, `delivery-order/specs.md`, `proof-of-delivery/specs.md`, `complete-delivery/specs.md`, and `delivery-history/specs.md` describe currently implemented API slices. The remaining Courier specifications are planning drafts copied for future design work. They are not endpoint contracts and must not be used to invent Flutter requests, response fields, statuses, providers, or offline behavior.
+`auth/spec.md`, `account-management/specs.md`, `support-tickets/spec.md`, `../logistics/vehicle-fleet-management/specs.md` (the shared Courier/Logistics vehicle contract), the policy-consent specification, `notification/specs.md`, `accept-delivery-requests/specs.md`, `pick-up-order/specs.md`, `delivery-order/specs.md`, `proof-of-delivery/specs.md`, `complete-delivery/specs.md`, `delivery-history/specs.md`, and `chat-messaging/specs.md` describe implemented API slices; client adoption and live acceptance vary. Flutter has a task-chat inbox with Logistics/Seller sending; Buyer threads remain read-only, and support-ticket screens remain unadopted. Incident Reporting and Profit Dashboard remain planning drafts and cannot authorize invented requests, fields, statuses, providers, or offline behavior.
+
+Every Flutter feature follows [`../../design-courier.md`](../../design-courier.md), including its Jakob's Law/Hick's Law interaction rules and frontend review criteria. Reuse familiar controls and labels, emphasize the current next action, and group optional choices while preserving essential context. Feature-specific workflow and API requirements remain binding; consult [`../../PROGRESS.md`](../../PROGRESS.md) for current Flutter implementation evidence.
 
 Before implementing a remaining draft feature, verify that the backend provides:
 
@@ -20,7 +22,7 @@ Before implementing a remaining draft feature, verify that the backend provides:
 3. any required shared Shipment/Delivery Task schema and transition rules; and
 4. integration/contract-test coverage.
 
-Until then, implement only a truthful scaffold or unavailable state for that missing capability. Do not fabricate task counts, route/location telemetry, proof media, earnings, or notification data; the working task, P0 proof, notification inbox, and read-only history APIs above remain available.
+Until then, implement only a truthful scaffold or unavailable state for that missing capability. Do not fabricate task counts, route/location telemetry, proof media, earnings, or notification data. Flutter implements photo selection/upload and completion intent with COD confirmation; authenticated COD/Logistics validation and installed-device/browser uploads remain unverified. Normal dispatch-batch acceptance remains unavailable in Flutter pending adoption of its complete DTO/retry contract.
 
 ## Current Courier API
 
@@ -36,6 +38,10 @@ Until then, implement only a truthful scaffold or unavailable state for that mis
 - `POST /api/v1/courier/account/profile-photo` (authenticated multipart upload)
 - `GET /api/v1/courier/account/profile-photo` (authenticated private stream)
 - `DELETE /api/v1/courier/account/profile-photo` (authenticated idempotent removal)
+- `GET`/`POST /api/v1/courier/support-tickets` (authenticated own-ticket list/create)
+- `GET /api/v1/courier/support-tickets/{ticket}` (authenticated own-ticket detail/history)
+- `POST /api/v1/courier/support-tickets/{ticket}/replies` (authenticated idempotent reply)
+- `POST /api/v1/courier/support-tickets/{ticket}/read` (authenticated monotonic read marker)
 - `GET /api/v1/courier/vehicle` (authenticated own-vehicle read)
 - `PATCH /api/v1/courier/vehicle` (authenticated revision-checked own-vehicle update)
 - `POST /api/v1/courier/vehicle/documents/{kind}` (authenticated independent OR/CR replacement)
@@ -51,22 +57,31 @@ Until then, implement only a truthful scaffold or unavailable state for that mis
 - `POST /api/v1/courier/first-mile-tasks/{task}/pickup` (authenticated idempotent Seller handoff)
 - `GET /api/v1/courier/pickup-schedules/{schedule}/route-manifest` (authenticated ordered manifest)
 - `GET /api/v1/courier/final-mile-tasks` and `GET /api/v1/courier/final-mile-tasks/{task}` (authenticated final-mile reads)
+- `GET /api/v1/courier/final-mile-batches` and `GET /api/v1/courier/final-mile-batches/{schedule}` (authenticated dispatch-batch reads)
+- `POST /api/v1/courier/final-mile-batches/{schedule}/accept` (authenticated atomic batch acceptance)
 - `POST /api/v1/courier/final-mile-tasks/{task}/accept` (authenticated final-mile acceptance)
 - `POST /api/v1/courier/final-mile-tasks/{task}/reject` (authenticated final-mile rejection with idempotency)
-- `POST /api/v1/courier/final-mile-tasks/{task}/pickup` (authenticated pending hub-handoff evidence)
+- `POST /api/v1/courier/final-mile-tasks/{task}/pickup` (authenticated task-bound pending hub-handoff evidence; no identifier fields)
 - `GET /api/v1/courier/tasks/{task}/delivery` (authenticated accepted-task context)
 - `POST /api/v1/courier/final-mile-tasks/{task}/status` (authenticated movement transition)
-- `POST /api/v1/courier/tasks/{task}/proof-of-delivery` (authenticated QR/reference proof)
+- `GET /api/v1/courier/final-mile-batches/{schedule}/route` (authenticated advisory final-mile route; Flutter adoption not verified)
+- `POST /api/v1/courier/tasks/{task}/proof-of-delivery` (authenticated private multipart `photo` POD; Flutter selected-file upload implemented, live acceptance unverified)
+- `GET /api/v1/courier/delivery-proofs/{proof}/photo` (authenticated private Courier proof read)
 - `GET /api/v1/courier/tasks/{task}/completion` and `POST /api/v1/courier/tasks/{task}/completion` (authenticated completion projection/intent)
+- `POST /api/v1/courier/final-mile-tasks/{task}/failed-attempts` (authenticated nonterminal delivery-attempt record)
 - `GET /api/v1/courier/delivery-history` and `GET /api/v1/courier/delivery-history/{task}` (authenticated delivered history)
 - `GET /api/v1/courier/notifications` (authenticated bounded inbox list)
 - `GET /api/v1/courier/notifications/unread-count` (authenticated unread count)
 - `GET /api/v1/courier/notifications/{notification}` (authenticated notification detail)
 - `POST /api/v1/courier/notifications/{notification}/read` (authenticated idempotent mark-read)
+- `GET /api/v1/courier/operational-conversations` and `POST /api/v1/courier/operational-conversations` (authenticated task-scoped inbox and first message)
+- `GET /api/v1/courier/operational-conversations/{conversation}` and `GET /api/v1/courier/operational-conversations/{conversation}/messages` (private detail/history)
+- `POST /api/v1/courier/operational-conversations/{conversation}/messages` and `POST /api/v1/courier/operational-conversations/{conversation}/read` (idempotent send and monotonic read marker)
+- `GET /api/v1/courier/linehaul-trips` (authenticated assigned company-truck trip read; Flutter trip screen not verified)
 
-All other routes shown in the draft files are conceptual placeholders. They are not implemented merely because they appear in a specification. The backend documents QR, tracking-ID, and Order-reference proof, and the Flutter client exposes all three input types plus Android/web-server camera candidates. The client uses text/area delivery context, revision-checked movement, and read-only completion/history projections; route/location telemetry and proof media remain unavailable in Flutter. Linux remains manual-input only. Logistics-owned Linehaul and Sort plan routes are not Courier API routes.
+All other routes shown in draft files are conceptual placeholders. Flutter implements QR/Code 128 candidates, delivery context/movement, photo upload and COD-aware completion intent, history, notification inbox, dashboard task previews, and task-chat inbox with Logistics/Seller sending. Current delivery proof accepts **photo POD, not QR/reference JSON**; COD completion additionally requires explicit `cod_collected: true`. Buyer chat remains read-only pending client/counterpart adoption and verification. Normal batch acceptance, batch routes, failed-attempt submission, and company-truck trip reads still need client adoption. Linux remains manual-input only for barcodes. Logistics-owned Linehaul mutation and Sort plan routes are not Courier API routes.
 
-Flutter camera work targets the Android release APK and the same Flutter app served at `http://localhost:8765` on a fixed localhost `web-server` port. It covers QR and Code 128 tracking-ID scanning for pickup and delivery proof, with manual fallback and explicit server-confirmed actions. It does not add a Courier webapp or new backend endpoint; physical camera acceptance remains a release verification task.
+Flutter camera work targets the Android release APK and the same Flutter app served at `http://localhost:8765` on a fixed localhost `web-server` port. QR and Code 128 tracking-ID scanning remain relevant to first-mile pickup; the legacy delivery-proof scanner must not be used as current photo POD. It does not add a Courier webapp or new backend endpoint; physical camera acceptance remains a release verification task.
 
 ## Canonical constraints for future features
 
@@ -74,8 +89,8 @@ Flutter camera work targets the Android release APK and the same Flutter app ser
 - Keep first-mile and final-mile assignments independent; a first-mile Courier is not automatically the final-mile Courier.
 - Keep all records scoped to the authenticated Courier, its approved Logistics organization, and that organization's sole hub.
 - Do not use Mapbox or introduce a routing provider without an approved provider contract. Current Courier registration does not require a map pin or coordinates.
-- Do not store or expose private evidence, raw storage paths, bearer tokens, or unnecessary Buyer/Seller data.
+- Display private evidence only through its authorized feature preview; never log, export, or store it in ordinary app storage. Do not expose raw storage paths, bearer tokens, or unnecessary Buyer/Seller data.
 
 ## Draft files
 
-The following files remain backlog material: Chat/Messaging, Dashboard operational aggregation, Incident Reporting, Profit Dashboard, and route/location extensions. Acceptance, Deliver Order movement, P0 Proof of Delivery, Complete Delivery intent, Delivery History, and the Courier notification inbox are implemented through the dedicated Flutter flows and their owning contracts; background push, photo/signature proof, and notification-driven mutations remain deferred.
+The remaining planning drafts are Incident Reporting and Profit Dashboard. Courier support tickets have an implemented API contract but no Flutter screens. Dashboard operational aggregation remains unavailable; separate Flutter task previews and the notification badge are implemented. Courier Chat/Messaging has Flutter Logistics/Seller sending and read-only Buyer threads; use `chat-messaging/api-handoff.md` for exact calls. Task-bound hub handoff, photo upload, and COD-aware completion intent still need authenticated end-to-end Logistics validation and installed-device/browser acceptance. Normal batch acceptance and route presentation are unadopted; background push, signature proof, and notification-driven mutations remain deferred.

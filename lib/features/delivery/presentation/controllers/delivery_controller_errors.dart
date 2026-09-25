@@ -153,13 +153,16 @@ extension DeliveryControllerErrors on DeliveryController {
       return 'Accept the current Terms of Service and Privacy Policy before delivery actions are available.';
     }
     if (error.code == 'PARCEL_NOT_FOUND') {
-      return 'The scanned or entered identifier does not belong to this delivery. Use the public Order reference or the correct delivery QR.';
+      return 'The parcel for this delivery task was not found. Refresh the task before trying again.';
     }
     if (error.code == 'TASK_STATE_CONFLICT') {
       return 'The task state or revision changed. Refresh the task before trying again.';
     }
     if (error.code == 'COMPLETION_STATE_CONFLICT') {
       return 'The completion state changed. Refresh the task before trying again.';
+    }
+    if (error.code == 'COD_COLLECTION_REQUIRED') {
+      return 'Confirm the full Order payable total was collected before submitting Delivered intent.';
     }
     if (error.statusCode == 404) {
       return 'This delivery is no longer available. Refresh to see current work.';

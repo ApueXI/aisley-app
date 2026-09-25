@@ -144,8 +144,6 @@ void main() {
 
     final result = await repository.submitFinalMilePickup(
       taskId: 'delivery-task-1',
-      identifierType: 'order_id',
-      identifier: 'ORD-100',
       expectedRevision: 4,
       idempotencyKey: '22222222-2222-4222-8222-222222222222',
     );
@@ -160,45 +158,44 @@ void main() {
       request.headers['idempotency-key'],
       '22222222-2222-4222-8222-222222222222',
     );
-    expect(jsonDecode(request.body), <String, dynamic>{
-      'identifier_type': 'order_id',
-      'identifier': 'ORD-100',
-      'expected_revision': 4,
-    });
+    expect(jsonDecode(request.body), <String, dynamic>{'expected_revision': 4});
     expect(result.evidenceStatus, 'awaiting_validation');
     expect(result.custodyState, 'delivery_accepted');
   });
 
-  test('rejects a final-mile offer with the documented reason and key', () async {
-    late http.Request request;
-    final repository = _repository((incoming) async {
-      request = incoming;
-      return http.Response(jsonEncode(_finalMileRejectionResponse), 200);
-    });
+  test(
+    'rejects a final-mile offer with the documented reason and key',
+    () async {
+      late http.Request request;
+      final repository = _repository((incoming) async {
+        request = incoming;
+        return http.Response(jsonEncode(_finalMileRejectionResponse), 200);
+      });
 
-    final result = await repository.rejectFinalMileTask(
-      taskId: 'delivery-task-1',
-      reason: ' Unable to take this task today ',
-      idempotencyKey: '33333333-3333-4333-8333-333333333333',
-    );
+      final result = await repository.rejectFinalMileTask(
+        taskId: 'delivery-task-1',
+        reason: ' Unable to take this task today ',
+        idempotencyKey: '33333333-3333-4333-8333-333333333333',
+      );
 
-    expect(request.method, 'POST');
-    expect(
-      request.url.path,
-      '/api/v1/courier/final-mile-tasks/delivery-task-1/reject',
-    );
-    expect(request.headers['authorization'], 'Bearer pickup-token');
-    expect(
-      request.headers['idempotency-key'],
-      '33333333-3333-4333-8333-333333333333',
-    );
-    expect(jsonDecode(request.body), <String, dynamic>{
-      'reason': 'Unable to take this task today',
-    });
-    expect(result.taskId, 'delivery-task-1');
-    expect(result.status, 'rejected');
-    expect(result.rejectionReason, 'Unable to take this task today');
-  });
+      expect(request.method, 'POST');
+      expect(
+        request.url.path,
+        '/api/v1/courier/final-mile-tasks/delivery-task-1/reject',
+      );
+      expect(request.headers['authorization'], 'Bearer pickup-token');
+      expect(
+        request.headers['idempotency-key'],
+        '33333333-3333-4333-8333-333333333333',
+      );
+      expect(jsonDecode(request.body), <String, dynamic>{
+        'reason': 'Unable to take this task today',
+      });
+      expect(result.taskId, 'delivery-task-1');
+      expect(result.status, 'rejected');
+      expect(result.rejectionReason, 'Unable to take this task today');
+    },
+  );
 
   test(
     'loads the schedule-scoped route manifest without map credentials',

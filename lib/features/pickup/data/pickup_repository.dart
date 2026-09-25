@@ -41,8 +41,6 @@ abstract interface class PickupRepository {
 
   Future<FinalMilePickupSubmission> submitFinalMilePickup({
     required String taskId,
-    required String identifierType,
-    required String identifier,
     required int expectedRevision,
     required String idempotencyKey,
   });
@@ -130,15 +128,11 @@ class ApiPickupRepository implements PickupRepository {
   @override
   Future<FinalMilePickupSubmission> submitFinalMilePickup({
     required String taskId,
-    required String identifierType,
-    required String identifier,
     required int expectedRevision,
     required String idempotencyKey,
   }) {
     return _finalMile.submitPickup(
       taskId: taskId,
-      identifierType: identifierType,
-      identifier: identifier,
       expectedRevision: expectedRevision,
       idempotencyKey: idempotencyKey,
     );

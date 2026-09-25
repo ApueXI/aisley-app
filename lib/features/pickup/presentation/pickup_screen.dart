@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/scanning/barcode_scan_candidate.dart';
 import '../../../core/scanning/barcode_scanner_screen.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
+import '../../chat/presentation/controllers/chat_controller.dart';
+import '../../chat/presentation/chat_thread_screen.dart';
 import '../../policy/presentation/controllers/policy_controller.dart';
 import '../../policy/presentation/policy_screen.dart';
 import '../domain/pickup_models.dart';
@@ -11,6 +13,7 @@ import 'controllers/pickup_controller.dart';
 part 'components/pickup_list.dart';
 part 'components/pickup_task_detail.dart';
 part 'components/pickup_task_actions.dart';
+part 'components/pickup_hub_handoff.dart';
 part 'components/pickup_task_interactions.dart';
 part 'components/pickup_task_info.dart';
 part 'components/pickup_route.dart';
@@ -22,6 +25,7 @@ class PickupScreen extends StatefulWidget {
     required this.pickupController,
     this.policyController,
     this.onOpenDelivery,
+    this.chatController,
     super.key,
   });
 
@@ -29,6 +33,7 @@ class PickupScreen extends StatefulWidget {
   final PickupController pickupController;
   final PolicyController? policyController;
   final VoidCallback? onOpenDelivery;
+  final ChatController? chatController;
 
   @override
   State<PickupScreen> createState() => _PickupScreenState();
@@ -77,6 +82,7 @@ class _PickupScreenState extends State<PickupScreen> {
           policyController: widget.policyController,
           task: task,
           onOpenDelivery: widget.onOpenDelivery,
+          chatController: widget.chatController,
         ),
       ),
     );

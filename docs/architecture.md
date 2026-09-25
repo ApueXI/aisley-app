@@ -4,8 +4,8 @@ system: AISLEY
 type: Client Architecture
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active — authentication, account, vehicle, policy, notification, pickup, delivery, and history client; route/location/media extensions deferred
-backend_contract_commit: feature/courier-notifications
+status: Flutter inbox, dashboard previews, photo-POD/COD intent, and Logistics/Seller chat implemented; support tickets, live acceptance, and batch adoption remain open
+backend_contract_commit: ca1487c (copied Laravel documentation baseline; Flutter adoption varies by feature)
 ---
 
 # Scope
@@ -13,6 +13,8 @@ backend_contract_commit: feature/courier-notifications
 This document describes the external Flutter application used by Couriers. Android APK is its mobile delivery target; a local Flutter `web-server` browser run of the same codebase is the camera and file-upload testing target. It is not the architecture of the Laravel monorepo and it does not authorize changes to the backend, the Customer/Seller/Admin/Logistics web applications, or the database.
 
 The Laravel API remains the source of truth for identity, approval, role access, organization and hub ownership, order status, task assignment, and delivery state. The Flutter app renders server responses and submits only fields allowed by the versioned API contract.
+
+Flutter implements the notification inbox, separate read-only dashboard task previews, photo selection/upload and completion intent with COD cash confirmation, and a task-chat inbox with Logistics/Seller messaging. Buyer threads remain read-only. Courier support-ticket API routes are available but their Flutter UI is not adopted. Installed-device/browser acceptance, authenticated COD/Logistics validation, and live chat exchange remain unverified. Normal dispatch-batch acceptance, batch-route rendering, failed-attempt submission, and linehaul trip screens remain unadopted. See `docs/PROGRESS.md` for dated implementation evidence; Laravel remains authoritative for operational state.
 
 ## Current implementation boundary
 
@@ -30,6 +32,10 @@ The backend currently exposes Courier authentication, account and vehicle manage
 - `POST /api/v1/courier/account/profile-photo` (authenticated multipart upload)
 - `GET /api/v1/courier/account/profile-photo` (authenticated private stream)
 - `DELETE /api/v1/courier/account/profile-photo` (authenticated idempotent removal)
+- `GET`/`POST /api/v1/courier/support-tickets` (authenticated own-ticket list/create)
+- `GET /api/v1/courier/support-tickets/{ticket}` (authenticated own-ticket detail/history)
+- `POST /api/v1/courier/support-tickets/{ticket}/replies` (authenticated idempotent own-ticket reply)
+- `POST /api/v1/courier/support-tickets/{ticket}/read` (authenticated monotonic read marker)
 - `GET /api/v1/courier/vehicle` (authenticated own-vehicle read)
 - `PATCH /api/v1/courier/vehicle` (authenticated revision-checked field update)
 - `POST /api/v1/courier/vehicle/documents/{kind}` (authenticated independent OR/CR replacement)
@@ -42,33 +48,40 @@ The backend currently exposes Courier authentication, account and vehicle manage
 - `POST /api/v1/courier/first-mile-tasks/{task}/pickup` (authenticated idempotent Seller handoff)
 - `GET /api/v1/courier/pickup-schedules/{schedule}/route-manifest` (authenticated ordered manifest)
 - `GET /api/v1/courier/final-mile-tasks` and `GET /api/v1/courier/final-mile-tasks/{task}` (authenticated)
+- `GET /api/v1/courier/final-mile-batches` and `GET /api/v1/courier/final-mile-batches/{schedule}` (authenticated dispatch-batch reads)
+- `POST /api/v1/courier/final-mile-batches/{schedule}/accept` (authenticated atomic batch acceptance)
 - `POST /api/v1/courier/final-mile-tasks/{task}/accept` (authenticated task acceptance)
 - `POST /api/v1/courier/final-mile-tasks/{task}/reject` (authenticated final-mile offer rejection)
-- `POST /api/v1/courier/final-mile-tasks/{task}/pickup` (authenticated pending hub-handoff evidence)
+- `POST /api/v1/courier/final-mile-tasks/{task}/pickup` (authenticated task-bound pending hub-handoff evidence; no identifier fields)
 - `GET /api/v1/courier/tasks/{task}/delivery` (authenticated accepted-task delivery context)
 - `POST /api/v1/courier/final-mile-tasks/{task}/status` (authenticated revision-checked movement)
-- `POST /api/v1/courier/tasks/{task}/proof-of-delivery` (authenticated P0 QR/reference proof submission)
+- `GET /api/v1/courier/final-mile-batches/{schedule}/route` (authenticated advisory delivery route)
+- `POST /api/v1/courier/tasks/{task}/proof-of-delivery` (authenticated private multipart photo POD; selected-file upload implemented in Flutter)
+- `GET /api/v1/courier/delivery-proofs/{proof}/photo` (authenticated private proof read)
+- `POST /api/v1/courier/final-mile-tasks/{task}/failed-attempts` (authenticated nonterminal attempt record)
 - `GET /api/v1/courier/tasks/{task}/completion` and `POST /api/v1/courier/tasks/{task}/completion` (authenticated completion projection/intent)
 - `GET /api/v1/courier/delivery-history` and `GET /api/v1/courier/delivery-history/{task}` (authenticated read-only delivered history)
 - `GET /api/v1/courier/notifications` (authenticated bounded inbox list)
 - `GET /api/v1/courier/notifications/unread-count` (authenticated unread count)
 - `GET /api/v1/courier/notifications/{notification}` (authenticated notification detail)
 - `POST /api/v1/courier/notifications/{notification}/read` (authenticated idempotent mark-read)
+- `/api/v1/courier/operational-conversations` with authenticated list/start, detail, paginated messages, send, and read actions for task-scoped Logistics, Seller, and Buyer threads (Flutter Logistics/Seller sending implemented; Buyer read-only)
+- `GET /api/v1/courier/linehaul-trips` (authenticated assigned company-truck trips; client screen not verified)
 
-The dashboard aggregation remains a read-only scaffold. Tracking IDs may resolve through the documented QR/reference flows, and the shared scanner supplies QR/Code 128 candidates on Android and the local web-server target. Background push/WebSockets, route/location telemetry, photo/signature proof media, chat, earnings, and offline synchronization endpoints are not currently available. The app renders explicit unavailable states for those capabilities and must not fabricate jobs or call conceptual routes from draft specifications. Logistics Linehaul and Sort plan operations do not create Courier endpoints.
+The dashboard aggregate remains a read-only scaffold. Flutter separately reads the task-list APIs for bounded first-/final-mile previews and the notification API for its inbox badge; opening a preview navigates without mutating a task. QR/Code 128 candidates serve first-mile pickup, final-mile hub handoff is task-bound, and delivery proof is photo-only. Photo/intent and COD confirmation have local implementation and test coverage, while authenticated Logistics validation remains unverified. Backend API availability does not establish Flutter adoption or live acceptance. Background push/WebSockets, live route telemetry, signature proof, earnings, and offline synchronization remain unavailable. Logistics Linehaul/Sort plan mutations are not Courier endpoints; the separate Courier trip read is real.
 
 ## Camera targets
 
 - The shared Flutter camera-scanning workflow is available in the Android release APK and the same Flutter app at `http://localhost:8765` via `flutter run -d web-server --web-hostname localhost --web-port 8765`. This is a local browser test target, not a separate Courier web UI or a production web deployment.
-- `mobile_scanner` decodes QR payloads and Code 128 waybill tracking IDs on the supported targets, then passes an untrusted candidate to the existing first-mile, hub-pickup, or delivery-proof controller. The owning feature selects `qr` or `tracking_id`; the server remains authoritative. Manual Order-reference entry and explicit mutation confirmation remain available.
+- `mobile_scanner` decodes QR payloads and Code 128 waybill tracking IDs on the supported targets, then passes an untrusted candidate to the **first-mile pickup** controller. The server remains authoritative, with manual Order-reference fallback. Final-mile hub handoff requires no identifier. Photo POD currently uses a separate selected-file picker/upload; dedicated camera capture and physical acceptance are not established by scanner support.
 - Scanner lifecycle and permission feedback stay in Flutter presentation code; repositories continue to use the documented bearer-token endpoints. Linux and other unsupported platforms hide the camera action and retain manual input.
 - The direct `dart:io` socket handling in `lib/core/networking/api_client.dart` is isolated behind a conditional adapter for web compilation. Browser authentication continues to use the existing `flutter_secure_storage` WebCrypto/LocalStorage implementation without a plaintext fallback; that browser token is same-origin and intended only for the reviewed localhost test boundary. API CORS must allow the exact fixed origin, and non-local browser camera tests need HTTPS.
 - Web and Android release builds are verified. Physical QR/Code 128 capture, permission denial, and browser camera acceptance still require an installed release APK and a browser with an available camera.
 
 ## File-upload targets
 
-- The existing Android/native registration evidence, account photo, and vehicle OR/CR uploads use `file_selector` and the shared multipart API client. Browser file selection is available, but the current `MultipartFile.fromPath` transport requires `dart:io`; a compiling web build is not evidence that uploads work in `web-server`.
-- Follow [`flutter-file-uploads.md`](flutter-file-uploads.md) for the web-safe selected-file/byte transport and Android regression boundary. Keep exact Laravel multipart parts and server-side validation; do not create web-only endpoints, a second Flutter codebase, or a React upload page. Photo/signature delivery proof media remains deferred.
+- The supplied Flutter progress records platform-safe multipart transport for registration evidence, account photo, and vehicle OR/CR: selected bytes on web and readable paths on Android/native. Analyzer, tests, web build, and APK build pass; live browser CORS/private-read and installed-device upload acceptance remain unverified.
+- Follow [`flutter-file-uploads.md`](flutter-file-uploads.md) for the transport and Android regression boundary. Keep exact Laravel multipart parts and server-side validation; do not create web-only endpoints, a second Flutter codebase, or a React upload page. The recorded Flutter client partially adopted delivery photo POD, but authenticated Logistics validation and installed-device upload acceptance remain unverified; signature remains deferred.
 - The fixed `http://localhost:8765` origin needs backend CORS for upload `POST`, private-image `GET`, and applicable `OPTIONS` preflight with bearer/idempotency headers. The same secure session and authenticated private-read rules apply on web; browser upload acceptance and installed-APK regression remain verification tasks.
 
 ## Client structure
@@ -82,7 +95,7 @@ lib/
 │   ├── config/           # API base URL and environment configuration
 │   ├── networking/      # One authenticated HTTP client and error mapping
 │   ├── security/        # Secure token storage and redaction helpers
-│   └── widgets/         # Small approved shared UI primitives
+│   └── scanning/        # Shared QR/Code 128 candidate capture
 ├── features/
 │   ├── auth/
 │       ├── data/         # DTOs, multipart requests, repository
@@ -96,6 +109,10 @@ lib/
 │       ├── data/         # Own-vehicle and private OR/CR transport
 │       ├── domain/       # Revision, document state, and validation models
 │       └── presentation/ # Vehicle fields and independent document controls
+│   ├── dashboard/       # Scaffold plus independent read-only task previews
+│   ├── notification/    # Authorized inbox, unread count, and mark-read
+│   ├── policy/          # Published policies and explicit consent
+│   ├── chat/            # Task inbox/history and Logistics message sending
 │   ├── pickup/
 │   │   ├── data/         # Pickup task, manifest, and handoff repositories
 │   │   ├── domain/       # Server status, task, manifest, and handoff models
@@ -110,12 +127,14 @@ lib/
 │       └── presentation/ # History list and detail screens
 └── main.dart
 test/
-├── unit/
-├── widget/
-└── contract/
+├── core/               # Networking and scanner tests
+├── features/           # Repository, controller, and widget tests by feature
+└── widget_test.dart
 ```
 
 The exact state-management, routing, networking, and secure-storage packages are project decisions. Inspect `pubspec.yaml` and reuse existing choices before adding a dependency.
+
+Operational chat is implemented in `lib/features/chat/` using the existing bearer client and the versioned Courier conversation actions in `features/courier/chat-messaging/api-handoff.md`. Logistics/Seller sending is enabled; Buyer threads remain read-only pending counterpart adoption and verification. Keep message bodies in session-bound memory and recheck task eligibility on the server.
 
 ## API integration
 
@@ -161,7 +180,9 @@ Pending Couriers cannot use `/me`; the current API does not provide a cross-devi
 
 ## UI and accessibility
 
-Follow [`design-courier.md`](design-courier.md). Use mobile-first layouts, system text scaling, semantic labels, visible focus/pressed states, sufficient contrast, keyboard-safe forms, and touch targets of at least 44 logical pixels. Every network-backed screen needs appropriate loading, empty, validation, forbidden, offline/retry, and success states.
+[`design-courier.md`](design-courier.md) owns all shared Flutter visual and interaction rules, including Jakob's Law and Hick's Law. Feature specs define authorized workflow steps; presentation groups those steps into familiar controls and focused decisions without changing permissions or skipping confirmation. Apply the same rules on Android and local web-server, adapting to available input and viewport size.
+
+Reuse the app-wide Material theme in `lib/app/courier_app.dart`, feature-owned presentation components, and existing navigation. Put requests in repositories, parsing in models, and action/state handling in controllers; widgets must not invent eligibility or directly call HTTP. Share a domain-independent widget only when reuse is demonstrated. Review changed screens against the design guide's accessibility and decision-flow criteria before claiming compliance.
 
 ## Testing and contract synchronization
 

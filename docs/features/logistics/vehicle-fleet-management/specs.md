@@ -12,6 +12,14 @@ source_coverage: requirements.md, workspace.md, schema.md, Logistics.md, Courier
 
 # Courier Vehicle Registry
 
+## Unloading availability — 2026-09-23
+
+Company trucks now have string-backed `unloading` availability. Starting receipt records the confirmed destination hub but keeps the truck and driver reserved through trip status `receiving`. Fleet edits, truck-driver capability changes, pickup scheduling, final-mile scheduling, and linehaul resource checks include that state. Unloading closure releases the visitor for its normal cargo/empty home return even with documented shortages. A late expected receipt changes parcel custody only and cannot move or re-reserve a truck that has already returned. Historical completed truck receipts remain historical; no scan evidence is backfilled.
+
+## Company-truck extension — 2026-09-23
+
+The Courier-owned one-vehicle registry below remains implemented and separate. [Company Truck Linehaul Dispatch](../company-truck-linehaul-dispatch/spec.md) adds Logistics-owned `company_trucks`, the `/fleet` management page, truck-driver capability on approved affiliations, and trip/capacity monitoring. It does not weaken the one-personal-vehicle-per-Courier rule or reinterpret the legacy decimal `vehicles.capacity`. `truck` is now a supported personal vehicle type, but only a `company_trucks` record can satisfy a linehaul assignment.
+
 ## WHAT
 
 - Maintain vehicle information for Couriers affiliated with the authenticated Logistics organization.
@@ -37,7 +45,7 @@ source_coverage: requirements.md, workspace.md, schema.md, Logistics.md, Courier
 ### Required information
 
 - Require vehicle type and plate number for the Courier's single vehicle.
-- Preserve current type values: `motorcycle`, `car`, and `van`.
+- Preserve supported type values: `motorcycle`, `car`, `van`, and `truck`.
 - Preserve the current plate input maximum of 64 characters and database-wide plate uniqueness.
 - Do not invent jurisdiction-specific plate patterns or new required make/model fields.
 - Type, plate, make, model, OR, and CR are editable vehicle information. Make/model are optional nullable strings, maximum 255 characters; type/plate remain required. These edits are implemented by the Courier vehicle API after approval.
@@ -121,6 +129,7 @@ source_coverage: requirements.md, workspace.md, schema.md, Logistics.md, Courier
 - These routes are separate from account/profile endpoints; those endpoints do not accept vehicle fields.
 
 ### Implemented Courier API and notifications
+- The development-only Courier API mockup may exercise owner-only vehicle read/edit and independent OR/CR replacement/preview with revision and idempotency controls.
 
 - All routes below require Sanctum bearer auth, active Courier/approved affiliation/active Logistics/sole hub, and applicable policy consent. Derive the sole vehicle from the caller; no client owner IDs. Return private, no-store responses.
 - `GET /api/v1/courier/vehicle`: no body; `200 {data: {id, vehicle_type, plate_number, make, model, revision, official_receipt, certificate_of_registration}}`. Document entries are null or `{id, url}` for authorized delivery; no paths or approval claims.
@@ -134,7 +143,6 @@ source_coverage: requirements.md, workspace.md, schema.md, Logistics.md, Courier
 - Alert data contains Courier/vehicle references, changed field names and server time, not documents, full plates or old/new private values. Logistics reads current details through an authorized registry view, never Courier-owner routes; unavailable destinations remain null.
 - Implemented Logistics read routes: `GET /api/v1/logistics/vehicles?page=&per_page=&search=` (bounded list), `GET /api/v1/logistics/couriers/{courier}/vehicle` (same safe projection), and `GET /api/v1/logistics/couriers/{courier}/vehicle/documents/{kind}` (private stream). Require active Logistics/consent and current affiliation/sole-hub scope; foreign records return `404`. No Logistics edit/reapproval action.
 - Flutter provides independently dirty vehicle fields and separate OR/CR pickers/previews, upload progress and retry. Refetch after uncertain saves; refresh on conflicts without discarding unsent edits. Never queue mutations offline or display planned routes as live.
-- In the same Flutter app's local web-server run, each selected OR/CR image needs browser-readable multipart transport; preserve Android's current upload behavior, the `file` part, revision/idempotency, and private bearer reads. Follow the Flutter-owned `docs/flutter-file-uploads.md`; browser upload acceptance is pending verification.
 - [ ] Each editable field saves without reapproval; unrelated fields, the other document, and registration/operational history remain unchanged.
 - [ ] Independent upload, failed replacement, stale/concurrent writes, duplicate retry, tenant isolation, and after-commit notification failure are verified before release.
 

@@ -7,6 +7,7 @@ class DeliveryTaskScreen extends StatefulWidget {
     required this.task,
     this.policyController,
     this.onOpenPickup,
+    this.chatController,
     super.key,
   });
 
@@ -15,15 +16,14 @@ class DeliveryTaskScreen extends StatefulWidget {
   final PickupTask task;
   final PolicyController? policyController;
   final VoidCallback? onOpenPickup;
+  final ChatController? chatController;
 
   @override
   State<DeliveryTaskScreen> createState() => _DeliveryTaskScreenState();
 }
 
-class _DeliveryTaskScreenState extends State<DeliveryTaskScreen> {
-  final _proofIdentifierController = TextEditingController();
-  String _proofIdentifierType = 'qr';
-
+class _DeliveryTaskScreenState extends State<DeliveryTaskScreen>
+    with _DeliveryPhotoSelection {
   @override
   void initState() {
     super.initState();
@@ -36,7 +36,7 @@ class _DeliveryTaskScreenState extends State<DeliveryTaskScreen> {
 
   @override
   void dispose() {
-    _proofIdentifierController.dispose();
+    _selectedPhoto = null;
     super.dispose();
   }
 
@@ -58,6 +58,18 @@ class _DeliveryTaskScreenState extends State<DeliveryTaskScreen> {
               children: [
                 _DeliveryIdentity(task: task),
                 const SizedBox(height: 16),
+                if (widget.chatController != null &&
+                    task.isFinalMile &&
+                    (task.status == PickupTaskStatus.deliveryAssigned ||
+                        task.status == PickupTaskStatus.deliveryAccepted ||
+                        task.status == PickupTaskStatus.pickedUpFromHub ||
+                        task.status == PickupTaskStatus.inTransit ||
+                        task.status == PickupTaskStatus.outForDelivery))
+                  OutlinedButton.icon(
+                    onPressed: () => _openLogisticsChat(task),
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    label: const Text('Message Logistics'),
+                  ),
                 _DeliveryContextCard(
                   contextData: deliveryContext,
                   status:
@@ -73,6 +85,24 @@ class _DeliveryTaskScreenState extends State<DeliveryTaskScreen> {
           ),
         );
       },
+    );
+  }
+
+  Future<void> _openLogisticsChat(PickupTask task) async {
+    final controller = widget.chatController;
+    if (controller == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ChatThreadScreen(
+          controller: controller,
+          authController: widget.authController,
+          task: ChatTaskContext(
+            leg: 'final_mile',
+            taskId: task.id,
+            reference: task.order?.reference,
+          ),
+        ),
+      ),
     );
   }
 
@@ -101,34 +131,22 @@ class _DeliveryTaskScreenState extends State<DeliveryTaskScreen> {
       return _ProofAndCompletionCard(
         task: task,
         controller: widget.deliveryController,
-        identifierController: _proofIdentifierController,
-        identifierType: _proofIdentifierType,
-        onIdentifierTypeChanged: (value) {
-          setState(() {
-            _proofIdentifierType = value;
-          });
-        },
-        onScan: _openProofScanner,
+        selectedPhoto: _selectedPhoto,
+        selectionError: _photoSelectionError,
+        isPicking: _isPickingPhoto,
+        canCancelUpload: _cancelPhotoUpload != null,
+        onChoosePhoto: _pickPhoto,
+        onDiscardPhoto: () => setState(() {
+          _selectedPhoto = null;
+          _photoSelectionError = null;
+        }),
+        onSubmitPhoto: () => _submitPhoto(task),
+        onCancelUpload: () => _cancelPhotoUpload?.call(),
         onOpenPolicies: _openPolicies,
         showPolicyAction: widget.policyController != null,
       );
     }
     return const _DeliveryUnavailableActionCard();
-  }
-
-  Future<void> _openProofScanner() async {
-    final candidate = await Navigator.of(context).push<BarcodeScanCandidate>(
-      MaterialPageRoute<BarcodeScanCandidate>(
-        builder: (_) => const BarcodeScannerScreen(title: 'Scan delivery code'),
-      ),
-    );
-    if (candidate == null || !mounted) {
-      return;
-    }
-    _proofIdentifierController.text = candidate.value;
-    setState(() {
-      _proofIdentifierType = candidate.identifierType;
-    });
   }
 
   Future<void> _openPolicies() async {

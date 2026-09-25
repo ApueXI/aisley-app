@@ -10,6 +10,9 @@ class _DashboardBody extends StatelessWidget {
     this.historyController,
     required this.onOpenDeliveries,
     required this.onOpenHistory,
+    this.onOpenNotifications,
+    this.onOpenMessages,
+    this.previewController,
     this.profilePhoto,
   });
 
@@ -21,6 +24,9 @@ class _DashboardBody extends StatelessWidget {
   final HistoryController? historyController;
   final VoidCallback onOpenDeliveries;
   final VoidCallback onOpenHistory;
+  final VoidCallback? onOpenNotifications;
+  final VoidCallback? onOpenMessages;
+  final DashboardPreviewController? previewController;
   final ProfilePhotoData? profilePhoto;
 
   @override
@@ -36,14 +42,24 @@ class _DashboardBody extends StatelessWidget {
       children: [
         _WelcomeCard(courier: courier, profilePhoto: profilePhoto),
         const SizedBox(height: 24),
+        if (previewController case final controller?) ...[
+          _DashboardTaskPreviews(
+            controller: controller,
+            onOpenFirstMile: onOpenPickups,
+            onOpenFinalMile: onOpenDeliveries,
+          ),
+          const SizedBox(height: 24),
+        ],
         Text(
-          'Your work',
+          'Dashboard summaries',
           style: Theme.of(context).textTheme.titleLarge
               ?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 6),
         Text(
-          'Operational delivery data will appear here when it is available.',
+          previewController == null
+              ? 'Dashboard summaries are not available yet. Open the work screens for current tasks.'
+              : 'The aggregate is unavailable. Task previews above come from separate task lists.',
           style: Theme.of(context).textTheme.bodyMedium
               ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
@@ -51,7 +67,9 @@ class _DashboardBody extends StatelessWidget {
         if (authController.dashboardErrorMessage != null)
           _DashboardErrorBanner(
             message: authController.dashboardErrorMessage!,
-            onRetry: authController.loadDashboard,
+            onRetry: authController.canRetryDashboard
+                ? authController.loadDashboard
+                : null,
           ),
         if (authController.dashboardErrorMessage != null)
           const SizedBox(height: 16),
@@ -63,8 +81,8 @@ class _DashboardBody extends StatelessWidget {
           const _SkeletonSectionCard(),
         ] else ...[
           _DashboardSectionCard(
-            title: 'Notifications',
-            subtitle: 'Updates about your Courier work',
+            title: 'Notification summary',
+            subtitle: 'This dashboard summary is not live',
             icon: Icons.notifications_none_rounded,
             section: snapshot?.section('notifications'),
           ),
@@ -87,8 +105,26 @@ class _DashboardBody extends StatelessWidget {
         _UnavailableNotice(
           freshness: snapshot?.freshness,
           isLoading: isLoading,
+          hasRefreshError:
+              authController.dashboardErrorMessage != null && snapshot != null,
         ),
         const SizedBox(height: 20),
+        if (onOpenNotifications != null) ...[
+          OutlinedButton.icon(
+            onPressed: onOpenNotifications,
+            icon: const Icon(Icons.notifications_none_rounded),
+            label: const Text('Open notifications'),
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (onOpenMessages != null) ...[
+          OutlinedButton.icon(
+            onPressed: onOpenMessages,
+            icon: const Icon(Icons.chat_bubble_outline),
+            label: const Text('Task messages'),
+          ),
+          const SizedBox(height: 12),
+        ],
         if (pickupController != null) ...[
           OutlinedButton.icon(
             onPressed: onOpenPickups,
@@ -114,7 +150,9 @@ class _DashboardBody extends StatelessWidget {
           const SizedBox(height: 12),
         ],
         OutlinedButton.icon(
-          onPressed: isLoading ? null : authController.loadDashboard,
+          onPressed: isLoading || !authController.canRetryDashboard
+              ? null
+              : authController.loadDashboard,
           icon: const Icon(Icons.refresh),
           label: const Text('Refresh dashboard'),
         ),

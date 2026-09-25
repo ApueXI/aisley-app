@@ -1,8 +1,12 @@
-import 'package:flutter/material.dart';
+import 'dart:typed_data';
 
-import '../../../core/scanning/barcode_scan_candidate.dart';
-import '../../../core/scanning/barcode_scanner_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:file_selector/file_selector.dart';
+
+import '../../../core/networking/multipart_file_adapter.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
+import '../../chat/presentation/controllers/chat_controller.dart';
+import '../../chat/presentation/chat_thread_screen.dart';
 import '../../policy/presentation/controllers/policy_controller.dart';
 import '../../policy/presentation/policy_screen.dart';
 import '../../pickup/domain/pickup_models.dart';
@@ -11,10 +15,16 @@ import 'controllers/delivery_controller.dart';
 
 part 'components/delivery_list.dart';
 part 'components/delivery_task.dart';
+part 'components/delivery_photo_selection.dart';
 part 'components/delivery_context.dart';
 part 'components/delivery_movement.dart';
 part 'components/delivery_proof_completion.dart';
 part 'components/delivery_status.dart';
+
+const _deliveryPhotoTypeGroup = XTypeGroup(
+  label: 'POD photos',
+  extensions: <String>['jpg', 'jpeg', 'png', 'webp'],
+);
 
 class DeliveryScreen extends StatefulWidget {
   const DeliveryScreen({
@@ -22,6 +32,7 @@ class DeliveryScreen extends StatefulWidget {
     required this.deliveryController,
     this.policyController,
     this.onOpenPickup,
+    this.chatController,
     super.key,
   });
 
@@ -29,6 +40,7 @@ class DeliveryScreen extends StatefulWidget {
   final DeliveryController deliveryController;
   final PolicyController? policyController;
   final VoidCallback? onOpenPickup;
+  final ChatController? chatController;
 
   @override
   State<DeliveryScreen> createState() => _DeliveryScreenState();
@@ -77,6 +89,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
           policyController: widget.policyController,
           task: task,
           onOpenPickup: widget.onOpenPickup,
+          chatController: widget.chatController,
         ),
       ),
     );

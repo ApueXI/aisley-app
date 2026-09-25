@@ -5,6 +5,8 @@ import '../features/auth/presentation/controllers/auth_controller.dart';
 import '../features/auth/presentation/blocked_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/registration_screen.dart';
+import '../features/chat/presentation/controllers/chat_controller.dart';
+import '../features/dashboard/presentation/controllers/dashboard_preview_controller.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
 import '../features/delivery/presentation/controllers/delivery_controller.dart';
 import '../features/history/presentation/controllers/history_controller.dart';
@@ -23,6 +25,8 @@ class CourierApp extends StatelessWidget {
     this.deliveryController,
     this.historyController,
     this.notificationController,
+    this.chatController,
+    this.dashboardPreviewController,
     this.vehicleController,
     super.key,
   });
@@ -34,6 +38,8 @@ class CourierApp extends StatelessWidget {
   final DeliveryController? deliveryController;
   final HistoryController? historyController;
   final NotificationController? notificationController;
+  final ChatController? chatController;
+  final DashboardPreviewController? dashboardPreviewController;
   final VehicleController? vehicleController;
 
   @override
@@ -51,6 +57,8 @@ class CourierApp extends StatelessWidget {
         deliveryController: deliveryController,
         historyController: historyController,
         notificationController: notificationController,
+        chatController: chatController,
+        dashboardPreviewController: dashboardPreviewController,
         vehicleController: vehicleController,
       ),
     );
@@ -66,6 +74,8 @@ class AuthGate extends StatefulWidget {
     this.deliveryController,
     this.historyController,
     this.notificationController,
+    this.chatController,
+    this.dashboardPreviewController,
     this.vehicleController,
     super.key,
   });
@@ -77,6 +87,8 @@ class AuthGate extends StatefulWidget {
   final DeliveryController? deliveryController;
   final HistoryController? historyController;
   final NotificationController? notificationController;
+  final ChatController? chatController;
+  final DashboardPreviewController? dashboardPreviewController;
   final VehicleController? vehicleController;
 
   @override
@@ -117,6 +129,8 @@ class _AuthGateState extends State<AuthGate> {
             deliveryController: widget.deliveryController,
             historyController: widget.historyController,
             notificationController: widget.notificationController,
+            chatController: widget.chatController,
+            dashboardPreviewController: widget.dashboardPreviewController,
             vehicleController: widget.vehicleController,
           ),
           AuthStatus.pendingApproval => BlockedAccessScreen.pending(

@@ -4,13 +4,81 @@ extension DeliveryControllerActions on DeliveryController {
   Future<bool> advanceStatus(PickupTask task) async {
     final nextStatus = DeliveryController.nextStatusFor(task.status);
     final revision = task.revision;
-    if (!task.isFinalMile || nextStatus == null || revision == null) {
+    if (!task.isFinalMile ||
+        nextStatus == null ||
+        revision == null ||
+        !canStartAction(task)) {
       return false;
     }
+    final pending = _pendingMovements[task.id];
+    if (pending != null &&
+        (pending.targetStatus != nextStatus ||
+            pending.expectedRevision != revision)) {
+      _pendingMovements.remove(task.id);
+    }
+    final attempt =
+        _pendingMovements[task.id] ??
+        _PendingMovementAttempt(
+          targetStatus: nextStatus,
+          expectedRevision: revision,
+          idempotencyKey: DeliveryController._newUuid(),
+        );
+    _pendingMovements[task.id] = attempt;
+    return _performMovement(task, attempt);
+  }
+
+  Future<bool> retryMovement(PickupTask task) async {
+    final attempt = _pendingMovements[task.id];
+    if (attempt == null || !canStartAction(task)) {
+      return false;
+    }
+    try {
+      final tasks = await deliveryRepository.fetchFinalMileTasks();
+      PickupTask? fresh;
+      for (final candidate in tasks) {
+        if (candidate.id == task.id) {
+          fresh = candidate;
+          break;
+        }
+      }
+      if (fresh == null) {
+        _actionStatuses[task.id] = DeliveryActionStatus.failed;
+        _actionErrors[task.id] = 'This task is no longer in your active delivery list. Refresh your work.';
+        _notifyDeliveryListeners();
+        return false;
+      }
+      _replaceTask(fresh);
+      if (fresh.rawStatus == attempt.targetStatus) {
+        _pendingMovements.remove(task.id);
+        _actionStatuses[task.id] = DeliveryActionStatus.moved;
+        _actionErrors[task.id] = null;
+        _notifyDeliveryListeners();
+        return true;
+      }
+      if (fresh.rawStatus != task.rawStatus ||
+          fresh.revision != attempt.expectedRevision) {
+        _pendingMovements.remove(task.id);
+        _actionStatuses[task.id] = DeliveryActionStatus.conflict;
+        _actionErrors[task.id] = 'This delivery state changed. Review the refreshed task before acting.';
+        _notifyDeliveryListeners();
+        return false;
+      }
+      return await _performMovement(fresh, attempt);
+    } on ApiException catch (error) {
+      await _setActionError(task, error);
+    } on TokenStorageException {
+      _setStorageActionError(task);
+    } on ApiContractException catch (error) {
+      _setContractActionError(task, error);
+    }
+    return false;
+  }
+
+  Future<bool> _performMovement(
+    PickupTask task,
+    _PendingMovementAttempt attempt,
+  ) async {
     final taskId = task.id;
-    if (!canStartAction(task)) {
-      return false;
-    }
     _actionStatuses[taskId] = DeliveryActionStatus.moving;
     _actionErrors[taskId] = null;
     _actionRetryAfter[taskId] = null;
@@ -18,13 +86,18 @@ extension DeliveryControllerActions on DeliveryController {
     try {
       final update = await deliveryRepository.advanceStatus(
         taskId: taskId,
-        status: nextStatus,
-        expectedRevision: revision,
+        status: attempt.targetStatus,
+        expectedRevision: attempt.expectedRevision,
+        idempotencyKey: attempt.idempotencyKey,
       );
+      if (update.taskId != taskId || update.status != attempt.targetStatus) {
+        throw const ApiContractException('delivery.status.task_projection');
+      }
       final updated = task.copyWith(
         rawStatus: update.status,
         revision: update.revision,
       );
+      _pendingMovements.remove(taskId);
       _replaceTask(updated);
       final context = contexts[taskId];
       if (context != null) {
@@ -37,6 +110,9 @@ extension DeliveryControllerActions on DeliveryController {
       _notifyDeliveryListeners();
       return true;
     } on ApiException catch (error) {
+      if (DeliveryController._isDefinitiveMutationError(error)) {
+        _pendingMovements.remove(taskId);
+      }
       await _setActionError(task, error);
     } on TokenStorageException {
       _setStorageActionError(task);
@@ -48,8 +124,8 @@ extension DeliveryControllerActions on DeliveryController {
 
   Future<bool> submitProof(
     PickupTask task, {
-    required String identifierType,
-    required String identifier,
+    required DeliveryPhotoSelection photo,
+    void Function(void Function() cancel)? onCancel,
   }) async {
     if (!task.isFinalMile ||
         task.status != PickupTaskStatus.outForDelivery ||
@@ -57,62 +133,61 @@ extension DeliveryControllerActions on DeliveryController {
         !canStartAction(task)) {
       return false;
     }
-    final normalizedIdentifier = identifierType == 'qr'
-        ? identifier
-        : identifier.trim();
-    if (task.revision == null) {
+    final priorProof = proofs[task.id];
+    if (priorProof != null && evidenceStatusFor(task) != 'rejected') {
       _setLocalValidationError(
         task,
-        'The task revision is unavailable. Refresh the task before submitting proof.',
+        'This task already has photo proof. Refresh its validation status before submitting another.',
       );
       return false;
     }
-    if (!DeliveryController._validIdentifier(
-      identifierType,
-      normalizedIdentifier,
-    )) {
+    if (photo.bytes.isEmpty ||
+        photo.bytes.length >= maxImageUploadBytes ||
+        photo.fileName.trim().isEmpty) {
       _setLocalValidationError(
         task,
-        'Choose QR, tracking ID, or enter a public Order reference up to 128 characters.',
+        'Choose a non-empty JPEG, PNG, or WebP photo under 10 MiB.',
       );
       return false;
     }
-    if (identifierType == 'order_id') {
-      final publicOrderReference = task.order?.reference?.trim();
-      if (publicOrderReference == null || publicOrderReference.isEmpty) {
-        _setLocalValidationError(
-          task,
-          'The public Order reference is unavailable. Use the delivery QR instead.',
-        );
-        return false;
-      }
-      final orderDatabaseId = task.order?.id?.trim();
-      final waybillReference = task.waybill?.reference?.trim();
-      final waybillDatabaseId = task.waybill?.id?.trim();
-      if (normalizedIdentifier == orderDatabaseId ||
-          normalizedIdentifier == waybillReference ||
-          normalizedIdentifier == waybillDatabaseId) {
-        _setLocalValidationError(
-          task,
-          'Enter the public Order reference shown above. Database IDs and waybill references are not accepted here.',
-        );
-        return false;
-      }
+    if (_pendingProofs.containsKey(task.id)) {
+      return false;
     }
-    final existing = _pendingProofs[task.id];
-    final attempt =
-        existing != null &&
-            existing.identifierType == identifierType &&
-            existing.identifier == normalizedIdentifier
-        ? existing
-        : _PendingIdentifierAttempt(
-            identifierType: identifierType,
-            identifier: normalizedIdentifier,
-            expectedRevision: task.revision!,
-            idempotencyKey: DeliveryController._newUuid(),
-          );
+    _actionStatuses[task.id] = DeliveryActionStatus.loading;
+    _actionErrors[task.id] = null;
+    _notifyDeliveryListeners();
+    PickupTask current;
+    try {
+      current = await deliveryRepository.fetchFinalMileTask(task.id);
+      if (current.id != task.id || !current.isFinalMile) {
+        throw const ApiContractException('delivery.task.identity');
+      }
+      _replaceTask(current);
+      if (current.status != PickupTaskStatus.outForDelivery ||
+          current.revision == null) {
+        _actionStatuses[task.id] = DeliveryActionStatus.conflict;
+        _actionErrors[task.id] = 'This delivery task or its revision changed. Refresh before submitting photo proof.';
+        _notifyDeliveryListeners();
+        return false;
+      }
+    } on ApiException catch (error) {
+      await _setActionError(task, error);
+      return false;
+    } on TokenStorageException {
+      _setStorageActionError(task);
+      return false;
+    } on ApiContractException catch (error) {
+      _setContractActionError(task, error);
+      return false;
+    }
+    final attempt = _PendingPhotoAttempt(
+      photo: photo,
+      expectedRevision: current.revision!,
+      idempotencyKey: DeliveryController._newUuid(),
+    );
     _pendingProofs[task.id] = attempt;
-    return _performProof(task, attempt);
+    _actionStatuses[task.id] = DeliveryActionStatus.idle;
+    return _performProof(current, attempt, onCancel: onCancel);
   }
 
   Future<bool> retryProof(PickupTask task) async {
@@ -125,8 +200,9 @@ extension DeliveryControllerActions on DeliveryController {
 
   Future<bool> _performProof(
     PickupTask task,
-    _PendingIdentifierAttempt attempt,
-  ) async {
+    _PendingPhotoAttempt attempt, {
+    void Function(void Function() cancel)? onCancel,
+  }) async {
     if (!task.isFinalMile ||
         task.status != PickupTaskStatus.outForDelivery ||
         isCompletionPending(task) ||
@@ -140,14 +216,19 @@ extension DeliveryControllerActions on DeliveryController {
     try {
       final proof = await deliveryRepository.submitProof(
         taskId: task.id,
-        identifierType: attempt.identifierType,
-        identifier: attempt.identifier,
+        photo: attempt.photo,
         expectedRevision: attempt.expectedRevision,
         idempotencyKey: attempt.idempotencyKey,
+        onCancel: onCancel,
       );
+      if (proof.taskId != task.id) {
+        throw const ApiContractException('delivery.proof.task_id');
+      }
       proofs[task.id] = proof;
       _pendingProofs.remove(task.id);
-      _actionStatuses[task.id] = DeliveryActionStatus.proofAwaitingValidation;
+      _actionStatuses[task.id] = proof.evidenceStatus == 'rejected'
+          ? DeliveryActionStatus.validationError
+          : DeliveryActionStatus.proofAwaitingValidation;
       _notifyDeliveryListeners();
       return true;
     } on ApiException catch (error) {
@@ -166,12 +247,11 @@ extension DeliveryControllerActions on DeliveryController {
   Future<bool> submitCompletion(
     PickupTask task, {
     required String evidenceId,
+    required DeliveryCodCollection confirmedCollection,
   }) async {
     final normalizedEvidenceId = evidenceId.trim();
-    final latestRevision = _latestRevision(task);
     if (!task.isFinalMile ||
         task.status != PickupTaskStatus.outForDelivery ||
-        latestRevision == null ||
         normalizedEvidenceId.isEmpty ||
         isCompletionPending(task) ||
         completions[task.id]?.isDelivered == true ||
@@ -187,16 +267,78 @@ extension DeliveryControllerActions on DeliveryController {
       );
       return false;
     }
+    if (completions[task.id]?.evidenceId == normalizedEvidenceId &&
+        completions[task.id]?.evidenceStatus == 'rejected') {
+      _setLocalValidationError(
+        task,
+        'Logistics rejected this photo. Select and submit a new photo POD.',
+      );
+      return false;
+    }
     final existing = _pendingCompletions[task.id];
-    final attempt =
-        existing != null && existing.evidenceId == normalizedEvidenceId
-        ? existing
-        : _PendingCompletionAttempt(
-            evidenceId: normalizedEvidenceId,
-            expectedRevision: latestRevision,
-            idempotencyKey: DeliveryController._newUuid(),
-          );
+    if (existing != null && existing.evidenceId == normalizedEvidenceId) {
+      return _performCompletion(task, existing);
+    }
+    final currentCollection = await _readCodCollection(task);
+    if (currentCollection == null) return false;
+    if (!currentCollection.matches(confirmedCollection)) {
+      _setLocalValidationError(
+        task,
+        'The COD amount changed. Review the current payable total and confirm collection again.',
+      );
+      return false;
+    }
+    _actionStatuses[task.id] = DeliveryActionStatus.completionLoading;
+    _actionErrors[task.id] = null;
+    _notifyDeliveryListeners();
+    CompletionProjection current;
+    try {
+      current = await deliveryRepository.fetchCompletion(task.id);
+      if (current.taskId != task.id) {
+        throw const ApiContractException('delivery.completion.task_id');
+      }
+      completions[task.id] = current;
+      if (current.evidenceId == normalizedEvidenceId &&
+          (current.evidenceStatus == 'rejected' ||
+              current.completionStatus == 'rejected')) {
+        _actionStatuses[task.id] = DeliveryActionStatus.validationError;
+        _actionErrors[task.id] = 'Logistics rejected this photo or intent. Submit a new photo proof.';
+        _notifyDeliveryListeners();
+        return false;
+      }
+      if (current.isDelivered ||
+          (current.isAwaitingValidation &&
+              _completionMatchesCurrentProof(task.id, current))) {
+        _syncTaskFromCompletion(task, current);
+        _reconcileActionWithCompletion(task.id, current);
+        _notifyDeliveryListeners();
+        return false;
+      }
+      if (current.revision == null ||
+          current.taskStatus != 'out_for_delivery') {
+        _actionStatuses[task.id] = DeliveryActionStatus.conflict;
+        _actionErrors[task.id] = 'The task revision or state changed. Refresh before submitting completion.';
+        _notifyDeliveryListeners();
+        return false;
+      }
+    } on ApiException catch (error) {
+      await _setActionError(task, error);
+      return false;
+    } on TokenStorageException {
+      _setStorageActionError(task);
+      return false;
+    } on ApiContractException catch (error) {
+      _setContractActionError(task, error);
+      return false;
+    }
+    final attempt = _PendingCompletionAttempt(
+      evidenceId: normalizedEvidenceId,
+      expectedRevision: current.revision!,
+      idempotencyKey: DeliveryController._newUuid(),
+      codCollected: true,
+    );
     _pendingCompletions[task.id] = attempt;
+    _actionStatuses[task.id] = DeliveryActionStatus.idle;
     return _performCompletion(task, attempt);
   }
 
@@ -229,7 +371,13 @@ extension DeliveryControllerActions on DeliveryController {
         expectedRevision: attempt.expectedRevision,
         evidenceId: attempt.evidenceId,
         idempotencyKey: attempt.idempotencyKey,
+        codCollected: attempt.codCollected,
       );
+      if (completion.taskId != task.id ||
+          completion.evidenceId != attempt.evidenceId ||
+          !completion.isAwaitingValidation) {
+        throw const ApiContractException('delivery.completion.intent');
+      }
       completions[task.id] = completion;
       _pendingCompletions.remove(task.id);
       _syncTaskFromCompletion(task, completion, allowDelivered: false);

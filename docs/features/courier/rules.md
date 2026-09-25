@@ -13,6 +13,8 @@ This file governs how Courier feature specifications are added, updated, or revi
 Courier UI is implemented in the separate Flutter project; this repository documents and implements the Laravel API consumed by that app.
 The rules keep the backend contract, the copied Flutter documentation, and the external client aligned.
 
+> In the copied Flutter project, this is a reference for backend-owned spec authoring, not permission to edit Laravel source. Use the Flutter project's own `AGENTS.md`, `docs/architecture.md`, and `docs/design-courier.md` for client work. The copied domain files are at `docs/domain/`; upstream `docs/domains/` references point to the backend repository.
+
 ## Authority and scope
 
 - Treat `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, and every applicable file under `docs/domains/` as the canonical cross-feature contract for role boundaries, ownership, approval, hubs, statuses, data, and invariants.
@@ -21,8 +23,9 @@ The rules keep the backend contract, the copied Flutter documentation, and the e
 - Treat `docs/order-logistics-flow-decisions.md` as background decision history only. Accepted decisions must be copied into the applicable canonical documents; the worksheet cannot authorize an endpoint, migration, status, or client behavior and must not be treated as an implementation prerequisite.
 - A copied spec in the Flutter project must retain the same behavior and endpoint contract as this source document.
 - A Flutter copy may add client implementation notes, but it must not change server authority, permissions, fields, or state transitions.
-- Do not make a separate Courier web page, React component, or browser-cookie client in `src/`. The external Flutter project's local `web-server` test target uses the same Courier Flutter UI and existing bearer-token API; it does not authorize a new Laravel/webapp Courier client.
+- Do not make a separate Courier web page, React component, or browser-cookie client in `src/`. The external Flutter project's local `web-server` test target uses the same Flutter UI and bearer-token API; it does not authorize a new Laravel/webapp Courier client.
 - Courier screens, secure token storage, mobile networking, and mobile accessibility belong in the external Flutter project.
+- `docs/design-courier.md` owns shared Flutter visual and interaction conventions, including Jakob's Law and Hick's Law. Each feature inherits familiar controls, consistent terminology/navigation, focused next actions, and accessible secondary choices. Specs add workflow requirements without silently overriding this guide or reducing required consent, evidence, or server validation.
 
 ## Before adding or revising a spec
 
@@ -33,7 +36,7 @@ The rules keep the backend contract, the copied Flutter documentation, and the e
 - Read `docs/architecture.md` for backend/API boundaries and the external mobile-app boundary.
 - Read `docs/references/user-registration-requirements.md` for registration or approval work.
 - Read `docs/references/file-upload-requirements.md` for evidence, image, proof, or other upload work.
-- Read `docs/design.md` only for shared web design context; do not copy React layout rules into Flutter requirements.
+- Read `docs/design-courier.md` for Flutter design and the frontend review criteria. Upstream `docs/design.md`, when available in the Laravel project, is web context only; it is not a missing Flutter design dependency or permission to copy React layouts.
 - Inspect `src/api/routes/api.php`, the relevant controller, Form Request, resource, service, model, migration, and tests.
 - Use `rg --files` and targeted `rg` searches to find existing names, routes, enums, and relationship constraints.
 - Record whether the feature is implemented, scaffolded, partially implemented, deferred, or absent.
@@ -102,7 +105,7 @@ Do not leave the client to infer request names, status values, ownership, or err
 - Use transactional writes, row locks or compare-and-update guards, stable idempotency keys, and append-only history for state changes.
 - Keep one immutable shared waybill created by the Seller pickup transaction; Seller and selected Logistics have role-scoped access, and assigned Courier QR resolution remains task-authorized.
 - Do not put detailed physical shipment milestones directly in `orders.status` without an approved shared migration.
-- Do not invent Shipment, Parcel, Scan, Delivery Task, assignment, or proof records while the shared operational schema is deferred.
+- Reuse the deployed Shipment, Parcel, Delivery Task, offer, evidence, custody, and proof records exposed by approved endpoints. Do not invent parallel client records, statuses, or unapproved backend extensions.
 
 ## External Flutter handoff
 
@@ -111,10 +114,11 @@ Do not leave the client to infer request names, status values, ownership, or err
 - Include Dart-friendly field names or an explicit JSON-to-Dart mapping when the API uses different naming conventions.
 - Identify multipart fields and nested keys exactly; document file MIME, size, progress, cancellation, and retry behavior.
 - Describe auth states such as checking session, signed out, pending approval, authenticated, rejected, suspended, invalid affiliation, and recoverable network failure.
-- State that tokens are returned once at login and sent as `Authorization: Bearer`. Android uses OS secure storage; authenticated Flutter web-server testing requires reviewed browser storage and must not fall back to plaintext token persistence.
+- State that tokens are returned once at login and sent as `Authorization: Bearer`. Android uses OS secure storage; localhost Flutter `web-server` testing requires reviewed browser storage and must not fall back to plaintext token persistence.
 - State that `/me` is an identity endpoint, not a pending-approval status endpoint, unless the backend explicitly provides that behavior.
 - Provide example `401`, `403`, `409`, `422`, `429`, timeout, and offline handling where relevant.
 - Describe loading, empty, forbidden, unavailable, retry, success, and stale-data UI states without fabricating data.
+- Identify the current step's primary action, secondary alternatives, essential decision context, and later steps revealed after their prerequisites. Keep visible labels and Back/Cancel behavior consistent with the shared design guide; document justified exceptions in both the guide and the feature spec.
 - Explain which fields are safe to show to a Courier and which Buyer/Seller/address/evidence fields must be redacted.
 - Identify whether the client may cache a response, for how long, and how it must invalidate stale authorization or task data.
 - State whether a mutation is safe to retry and how the client should handle an uncertain response.
@@ -153,6 +157,7 @@ Do not leave the client to infer request names, status values, ownership, or err
 - Add DTO privacy tests proving that secrets, raw paths, private evidence, and unnecessary PII are absent.
 - Add Flutter contract tests or fixtures for JSON parsing, multipart names, auth-state mapping, token storage failures, and server errors.
 - Mocks may support deterministic unit/widget tests, but they cannot replace API contract verification against the Laravel backend.
+- For frontend changes, review the affected screens against `docs/design-courier.md`; record implementation and live acceptance separately. Updating a rule or copying a web mockup does not prove Flutter compliance.
 - Run the relevant Laravel tests and Flutter analyzer/test commands before marking a spec implementation-ready.
 - Verify the spec line count, links, endpoint examples, and backend commit metadata before review.
 - Ask whether every acceptance criterion can be demonstrated by an API or UI test; unresolved criteria remain open.

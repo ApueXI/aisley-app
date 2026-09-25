@@ -140,8 +140,6 @@ class _DashboardSectionCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Icon(Icons.chevron_right, color: scheme.outline),
             ],
           ),
         ),
@@ -180,7 +178,7 @@ String _stateLabel(DashboardSection section) {
     DashboardSectionState.available =>
       section.items.isEmpty ? 'No items available' : 'Available',
     DashboardSectionState.empty => 'Nothing to show',
-    DashboardSectionState.unavailable => 'Unavailable in this build',
+    DashboardSectionState.unavailable => 'Summary unavailable',
     DashboardSectionState.stale => 'Needs refresh',
     DashboardSectionState.failed => 'Could not load',
     DashboardSectionState.unknown => 'Unavailable',

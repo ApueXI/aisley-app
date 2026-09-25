@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/networking/api_client.dart';
@@ -50,11 +52,29 @@ class AuthController extends ChangeNotifier {
   String? errorMessage;
   String? dashboardErrorMessage;
   Duration? retryAfter;
+  Duration? dashboardRetryAfter;
   bool isSigningOut = false;
+  int _dashboardRequestEpoch = 0;
+  Timer? _dashboardRetryTimer;
+
+  bool get canRetryDashboard => _dashboardRetryTimer == null;
 
   static const _deviceName = 'Courier Flutter';
 
   void _notify() {
     notifyListeners();
+  }
+
+  void _invalidateDashboardRequest() {
+    _dashboardRequestEpoch++;
+    _dashboardRetryTimer?.cancel();
+    _dashboardRetryTimer = null;
+    dashboardRetryAfter = null;
+  }
+
+  @override
+  void dispose() {
+    _dashboardRetryTimer?.cancel();
+    super.dispose();
   }
 }

@@ -4,11 +4,12 @@ feature: courier-delivery-order
 title: Deliver Order
 system: AISLEY
 type: Feature Specification
-version: 1.4
-status: Implemented final-mile task, movement, and delivery-context API; route/location extensions deferred
-implementation_status: Final-mile task reads, acceptance, hub pickup evidence, movement transitions, and delivery-context read are implemented; location/route metrics remain unavailable
-flutter_status: Both-leg client slices reported implemented in the supplied 2026-09-13 Flutter handoff; source/runtime and full test verification not performed here
+version: 1.6
+status: Implemented final-mile task, batch route, movement, and delivery-context API
+implementation_status: Final-mile tasks, batch acceptance, hub pickup evidence, movement, delivery context, and advisory Geoapify route are implemented
+flutter_status: Legacy delivery context/movement UI recorded in Flutter progress; 1–15 stop batch route, map, and parcel-price projection not verified/adopted
 canonical: true
+copied_backend_checkout: ca1487c
 scope: External Flutter mobile client and Laravel Courier API
 backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378
 backend_contract_version: courier-delivery-v1-final-mile-task
@@ -17,14 +18,32 @@ source_coverage: docs/requirements.md, docs/workspace.md, docs/schema.md, docs/d
 
 # Deliver Order
 
+**Flutter adoption boundary:** The Flutter snapshot documents older text/area delivery screens. Laravel now offers a schedule-scoped batch route and advisory Geoapify distance/ETA/geometry. This copied backend contract does not prove the external Flutter app renders that route or parses every newer field. Keep server-returned stop order and map availability authoritative; do not fabricate geometry or treat an absent Flutter map as an absent API.
+
+## Map and parcel-price revision (2026-09-21)
+
+The accepted final-mile batch route must display the Logistics hub as a labelled start marker, every delivery stop with known coordinates as a numbered circle, and a visible line in sequence when at least two coordinates exist. The API uses Geoapify Matrix for stop order and Geoapify Routing for the road `LineString`; the development Courier mockup renders these GeoJSON coordinates over authenticated Geoapify `osm-bright` raster tiles with MapLibre GL JS. A Routing or Matrix failure keeps a labelled straight-line fallback through known stops; missing coordinates are reported as unavailable and never fabricated. The Courier task projection includes `parcel.price` from the Order merchandise subtotal and `parcel.currency`, so the Courier can see the parcel's merchandise price without payment credentials. The Courier screen need not display parcel/waybill/Order identifiers for delivery actions. Older optional-map and route-deferred statements below describe the former baseline.
+
+## Authorized COD amount read (verified against Laravel checkout `ca1487c`, 2026-09-25)
+
+After acceptance, `GET /api/v1/courier/tasks/{task}/delivery` returns `data.order.payment_method`, `data.order.payment_status`, `data.order.payable_total`, and `data.order.currency` inside the private, no-store task projection. The final-mile task detail read has the same `order` fields; use the accepted-task delivery read for the cash-collection screen. Redacted JSON excerpt (other task and address fields omitted):
+```json
+{"data":{"task_id":"<authorized-task-uuid>","revision":4,"order":{"payment_method":"cod","payment_status":"pending","payable_total":"115.00","currency":"PHP"},"parcel":{"price":"100.00","currency":"PHP"}}}
+```
+`order.payable_total` is the amount to collect; `parcel.price` is only the merchandise subtotal. Do not use the parcel price as COD due, infer a missing total, or treat the example values as a live Order. The current backend payment-method enum contains only `cod`; future methods need their own approved contract.
+
+## Final-mile batch route revision (2026-09-20)
+
+An accepted Courier dispatch schedule offers `GET /api/v1/courier/final-mile-batches/{schedule}/route`. Laravel verifies the current Courier, approved affiliation, destination hub, and every accepted final-mile member. It sends only coordinate pairs to Geoapify Matrix to order at most 15 delivery stops from the hub, then uses Geoapify Routing for road-following geometry. The response provides advisory distance/time, ordered stops, and a GeoJSON `LineString`; the development Courier mockup draws that line over private Geoapify tiles with MapLibre GL JS. If coordinates, quota, or provider data are unavailable, the route says unavailable and the address list remains usable. A road-geometry failure yields a labelled straight stop-sequence line. No linehaul manifest or transfer parcel is included. The older route-deferred wording below records the prior baseline.
+
 ## WHAT
 
 - **Purpose:** Help an accepted final-mile Courier task travel from the sole Logistics hub to the authoritative Customer destination.
 - **Actor boundary:** Courier views task and route context in Flutter. Aisley validates task ownership and state; Logistics remains assignment/state authority; Complete Delivery owns finalization.
-- **Current implementation:** The API creates a final-mile task when Logistics dispatches a Shipment from its sole hub, supports Courier-scoped task listing/detail/accept/reject, QR hub-pickup evidence submission, `in_transit`/`out_for_delivery` movement, and an accepted-task delivery-context read with the immutable destination address/contact and hub context. Route/ETA and location APIs remain deferred and return no fabricated metrics.
+- **Current implementation:** The API creates a final-mile task when Logistics dispatches a Shipment from its sole hub, supports Courier-scoped task listing/detail/accept/reject, QR hub-pickup evidence submission, `in_transit`/`out_for_delivery` movement, and an accepted-task delivery-context read with the immutable destination address/contact and hub context. An accepted dispatch schedule has an advisory Geoapify Matrix/Routing route; live Courier location telemetry remains deferred.
 - **Flow:** Logistics dispatches → final-mile task is offered → Courier accepts → Courier picks up from hub → `in_transit` → `out_for_delivery` → proof/Complete Delivery.
 - **Task boundary:** One Delivery Task represents one Order/Parcel and one leg. First-mile and final-mile assignments are independent and may use the same or a different Courier.
-- **Non-goals:** assignment, acceptance, pickup, scan/evidence recording, proof storage, completion, route-provider credentials, returns/refunds, multi-stop batching, or Courier web UI.
+- **Non-goals:** assignment, acceptance, pickup, scan/evidence recording, proof storage, completion, route-provider credentials, returns/refunds, or a production Courier web UI.
 
 ```text
 accepted final-mile task
@@ -87,6 +106,7 @@ accepted final-mile task
 ## HOW
 
 ### Implemented endpoint contract and deferred extensions
+- The development-only Courier API mockup may show authorized delivery context and submit the implemented revision-checked movement transitions.
 
 - `GET /api/v1/courier/final-mile-tasks` — implemented; active final-mile tasks offered to or accepted by the authenticated Courier.
 - `GET /api/v1/courier/final-mile-tasks/{task}` — implemented; Courier-scoped task detail, including an unaccepted offer for review.
@@ -162,7 +182,7 @@ accepted final-mile task
 
 ### Backend implementation boundary
 
-- The additive fulfillment migration already defines final-mile task, offer, evidence, revision and history records. Location and route-cache extensions remain deferred.
+- The additive fulfillment migration already defines final-mile task, offer, evidence, revision and history records. Live location telemetry remains deferred; final-mile route results use a bounded 24-hour coordinate-fingerprint cache.
 - Use one transition/location service for task ownership, state checks, idempotency, rate limits, and append-only event history.
 - Deploy Rider owns assignment; Pick Up Order and Logistics Update Status own hub pickup validation/recording; Proof of Delivery and Complete Delivery own drop-off.
 - Route adapters must hide provider credentials and normalize results to the provider-neutral fields above. They cannot write task state.
@@ -186,7 +206,7 @@ accepted final-mile task
 - Verify missing metrics remain `null`/unavailable and never become `0` or a fabricated ETA.
 - Verify route cache keys include task scope and revision and cannot leak across organizations.
 - Verify communication failure never changes a committed task state.
-- Keep route/location capabilities explicitly unavailable until their backend contracts are live. Record the implemented task/movement contract separately from the deferred `courier-delivery-v1` route/location extensions in Flutter progress.
+- Use the implemented final-mile batch route for advisory stop order, distance/time, and road geometry. Keep live Courier location telemetry unavailable until its own contract is implemented; record the newer batch-route contract separately in Flutter progress.
 - Roll out task reads before location writes and route rendering; each capability remains explicitly unavailable until its backend contract is live.
 - Reconcile a lost response with a GET before allowing another location or navigation action.
 - Do not use a client-generated ETA, route, or coordinate to populate an authoritative Order or Delivery Task field.
@@ -200,7 +220,7 @@ accepted final-mile task
 ### Acceptance criteria
 
 - [x] Only an accepted final-mile task can return delivery context; location updates remain unavailable until separately implemented.
-- [ ] Implement and verify final-mile route metrics/fallback under the deferred route contract; first-mile schedule metrics do not satisfy this criterion.
+- [x] Implement final-mile batch route metrics and explicit missing-coordinate/provider fallback independently of first-mile pickup routing. External Flutter route rendering remains unverified.
 - [x] Destination comes from the immutable checkout snapshot and cannot be changed by the Courier.
 - [x] Route/location capabilities cannot fabricate progress or mutate custody; stale revisions and reassignment are rejected by the implemented task transitions.
 - [x] First-mile and final-mile assignments remain independent and `delivered` remains owned by Complete Delivery.
