@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import '../../../core/networking/api_contract_exception.dart';
 import '../../pickup/domain/pickup_models.dart';
 
+part 'models/delivery_context.dart';
+
 class DeliveryPhotoSelection {
   const DeliveryPhotoSelection({
     required this.path,
@@ -13,102 +15,6 @@ class DeliveryPhotoSelection {
   final String? path;
   final String fileName;
   final Uint8List bytes;
-}
-
-class DeliveryContext {
-  const DeliveryContext({
-    required this.taskId,
-    required this.status,
-    this.revision,
-    this.hub,
-    this.destination,
-    this.recipientName,
-    this.recipientPhone,
-    this.deliveryInstructions,
-    this.distanceKm,
-    this.estimatedDurationMinutes,
-    this.routeStatus,
-    this.calculatedAt,
-  });
-
-  final String taskId;
-  final String status;
-  final int? revision;
-  final PickupLocation? hub;
-  final PickupLocation? destination;
-  final String? recipientName;
-  final String? recipientPhone;
-  final String? deliveryInstructions;
-  final double? distanceKm;
-  final int? estimatedDurationMinutes;
-  final String? routeStatus;
-  final DateTime? calculatedAt;
-
-  factory DeliveryContext.fromResponse(Map<String, dynamic> json) {
-    final data = _requiredMap(json['data'], 'delivery.context.data');
-    final rawTask = data['task'];
-    final task = rawTask is Map
-        ? Map<String, dynamic>.from(rawTask)
-        : const <String, dynamic>{};
-    final source = <String, dynamic>{...task, ...data};
-
-    final taskId = _requiredString(
-      source['task_id'] ?? source['id'],
-      'delivery.context.task_id',
-    );
-    final rawStatus = source['status'] ?? source['state'];
-    final status = _requiredString(rawStatus, 'delivery.context.status');
-    parsePickupTaskStatus(status);
-
-    return DeliveryContext(
-      taskId: taskId,
-      status: status,
-      revision: _nullableInt(source['revision']),
-      hub: _locationFrom(
-        source['hub'] ?? source['pickup_hub'] ?? source['pickup'],
-      ),
-      destination: _locationFrom(
-        source['destination'] ?? source['delivery_address'],
-      ),
-      recipientName: _contactString(
-        source,
-        keys: const <String>['recipient_name', 'buyer_name'],
-        nestedKeys: const <String>['name', 'full_name'],
-      ),
-      recipientPhone: _contactString(
-        source,
-        keys: const <String>['recipient_phone', 'buyer_phone'],
-        nestedKeys: const <String>['phone', 'contact_number'],
-      ),
-      deliveryInstructions: _firstString(source, const <String>[
-        'delivery_instructions',
-        'instructions',
-      ]),
-      distanceKm: _nullableDouble(source['distance_km']),
-      estimatedDurationMinutes: _nullableInt(
-        source['estimated_duration_minutes'],
-      ),
-      routeStatus: _firstString(source, const <String>['route_status']),
-      calculatedAt: _nullableDateTime(source['calculated_at']),
-    );
-  }
-
-  DeliveryContext copyWith({String? status, int? revision}) {
-    return DeliveryContext(
-      taskId: taskId,
-      status: status ?? this.status,
-      revision: revision ?? this.revision,
-      hub: hub,
-      destination: destination,
-      recipientName: recipientName,
-      recipientPhone: recipientPhone,
-      deliveryInstructions: deliveryInstructions,
-      distanceKm: distanceKm,
-      estimatedDurationMinutes: estimatedDurationMinutes,
-      routeStatus: routeStatus,
-      calculatedAt: calculatedAt,
-    );
-  }
 }
 
 class DeliveryStatusUpdate {

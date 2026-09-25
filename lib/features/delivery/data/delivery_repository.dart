@@ -35,6 +35,7 @@ abstract interface class DeliveryRepository {
     required int expectedRevision,
     required String evidenceId,
     required String idempotencyKey,
+    required bool codCollected,
   });
 }
 
@@ -160,6 +161,7 @@ class ApiDeliveryRepository implements DeliveryRepository {
     required int expectedRevision,
     required String evidenceId,
     required String idempotencyKey,
+    required bool codCollected,
   }) async {
     final response = await _client.postJson(
       '/courier/tasks/${_pathSegment(taskId)}/completion',
@@ -169,6 +171,7 @@ class ApiDeliveryRepository implements DeliveryRepository {
         'expected_revision': expectedRevision,
         'evidence_id': evidenceId,
         'confirmed': true,
+        if (codCollected) 'cod_collected': true,
       },
     );
     try {

@@ -16,6 +16,7 @@ part 'delivery_controller_actions.dart';
 part 'delivery_controller_errors.dart';
 part 'delivery_controller_reconciliation.dart';
 part 'delivery_controller_attempts.dart';
+part 'delivery_controller_cod.dart';
 
 typedef DeliveryAuthFailureHandler = Future<void> Function(ApiException error);
 

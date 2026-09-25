@@ -65,6 +65,7 @@ void main() {
       expect(context.destination?.cityMunicipality, 'Pasig');
       expect(context.distanceKm, isNull);
       expect(context.routeStatus, 'unavailable');
+      expect(context.codCollection?.displayAmount, 'PHP 115.00');
     },
   );
 
@@ -153,6 +154,7 @@ void main() {
         expectedRevision: 7,
         evidenceId: 'proof-1',
         idempotencyKey: '22222222-2222-4222-8222-222222222222',
+        codCollected: true,
       );
 
       expect(request.method, 'POST');
@@ -164,6 +166,7 @@ void main() {
         'expected_revision': 7,
         'evidence_id': 'proof-1',
         'confirmed': true,
+        'cod_collected': true,
       });
       expect(completion.isDelivered, isFalse);
       expect(completion.completionStatus, 'awaiting_validation');
@@ -182,6 +185,7 @@ void main() {
         expectedRevision: 7,
         evidenceId: 'proof-1',
         idempotencyKey: '44444444-4444-4444-8444-444444444444',
+        codCollected: true,
       );
 
       expect(completion.taskId, 'delivery-task-1');
@@ -208,6 +212,7 @@ void main() {
         expectedRevision: 7,
         evidenceId: 'proof-1',
         idempotencyKey: '55555555-5555-4555-8555-555555555555',
+        codCollected: true,
       );
 
       expect(requests.map((request) => request.method), <String>[
@@ -236,6 +241,56 @@ void main() {
     expect(completion.taskStatus, 'out_for_delivery');
     expect(completion.isAwaitingValidation, isFalse);
     expect(completion.isDelivered, isFalse);
+  });
+
+  test(
+    'missing COD total never falls back to parcel merchandise price',
+    () async {
+      final response = <String, dynamic>{
+        'data': <String, dynamic>{
+          'task_id': 'delivery-task-1',
+          'status': 'out_for_delivery',
+          'revision': 7,
+          'order': <String, dynamic>{
+            'payment_method': 'cod',
+            'payment_status': 'pending',
+            'currency': 'PHP',
+          },
+          'parcel': <String, dynamic>{'price': '100.00', 'currency': 'PHP'},
+        },
+      };
+      final repository = _repository(
+        (_) async => http.Response(jsonEncode(response), 200),
+      );
+
+      final context = await repository.fetchDeliveryContext('delivery-task-1');
+
+      expect(context.payableTotal, isNull);
+      expect(context.codCollection, isNull);
+    },
+  );
+
+  test('non-COD payload omits the collection declaration', () async {
+    late http.Request request;
+    final repository = _repository((incoming) async {
+      request = incoming;
+      return http.Response(jsonEncode(_completionResponse), 202);
+    });
+
+    await repository.submitCompletion(
+      taskId: 'delivery-task-1',
+      expectedRevision: 7,
+      evidenceId: 'proof-1',
+      idempotencyKey: '77777777-7777-4777-8777-777777777777',
+      codCollected: false,
+    );
+
+    expect(
+      (jsonDecode(request.body) as Map<String, dynamic>).containsKey(
+        'cod_collected',
+      ),
+      isFalse,
+    );
   });
 
   test(
@@ -302,6 +357,13 @@ const _deliveryContextResponse = <String, dynamic>{
     },
     'recipient_name': 'Ana Santos',
     'recipient_phone': '+63 900 000 0000',
+    'order': <String, dynamic>{
+      'payment_method': 'cod',
+      'payment_status': 'pending',
+      'payable_total': '115.00',
+      'currency': 'PHP',
+    },
+    'parcel': <String, dynamic>{'price': '100.00', 'currency': 'PHP'},
     'route_status': 'unavailable',
     'distance_km': null,
     'estimated_duration_minutes': null,

@@ -55,12 +55,26 @@ void main() {
 
       await tester.tap(submitIntent);
       await tester.pumpAndSettle();
-      expect(find.text('Submit Delivered intent?'), findsOneWidget);
+      expect(find.text('Confirm COD collection'), findsOneWidget);
+      expect(find.text('Amount to collect: PHP 115.00'), findsOneWidget);
+      expect(find.text('I collected PHP 115.00 in full.'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Submit intent'),
+            )
+            .onPressed,
+        isNull,
+      );
+
+      await tester.tap(find.text('I collected PHP 115.00 in full.'));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('Submit intent'));
       await tester.pumpAndSettle();
 
       expect(repository.completionEvidenceId, 'proof-1');
+      expect(repository.codCollected, isTrue);
       expect(
         find.textContaining('Completion intent accepted by the server.'),
         findsOneWidget,
@@ -105,6 +119,51 @@ void main() {
     expect(find.textContaining('Photo proof received.'), findsNothing);
     expect(find.text('Submit Delivered intent'), findsNothing);
   });
+
+  testWidgets(
+    'missing COD total blocks the intent without using parcel price',
+    (tester) async {
+      final repository = _WidgetDeliveryRepository()
+        ..deliveryContext = const DeliveryContext(
+          taskId: 'delivery-task-1',
+          status: 'out_for_delivery',
+          revision: 7,
+          paymentMethod: 'cod',
+          paymentStatus: 'pending',
+          currency: 'PHP',
+        );
+      final controller = DeliveryController(deliveryRepository: repository)
+        ..tasks = <PickupTask>[_outForDeliveryTask];
+      await controller.submitProof(
+        _outForDeliveryTask,
+        photo: DeliveryPhotoSelection(
+          path: null,
+          fileName: 'proof.jpg',
+          bytes: Uint8List.fromList(<int>[0xff, 0xd8, 0xff, 0xd9]),
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DeliveryTaskScreen(
+            authController: _authenticatedAuthController(),
+            deliveryController: controller,
+            task: _outForDeliveryTask,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final submitIntent = find.text('Submit Delivered intent');
+      await tester.ensureVisible(submitIntent);
+      await tester.pumpAndSettle();
+      await tester.tap(submitIntent);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Confirm COD collection'), findsNothing);
+      expect(find.textContaining('payable total'), findsWidgets);
+      expect(repository.completionEvidenceId, isNull);
+    },
+  );
 }
 
 AuthController _authenticatedAuthController() {
@@ -130,7 +189,22 @@ AuthController _authenticatedAuthController() {
 
 class _WidgetDeliveryRepository implements DeliveryRepository {
   String? completionEvidenceId;
+  bool? codCollected;
   ApiException? proofError;
+  DeliveryContext deliveryContext = const DeliveryContext(
+    taskId: 'delivery-task-1',
+    status: 'out_for_delivery',
+    revision: 7,
+    hub: PickupLocation(name: 'Makati Hub'),
+    destination: PickupLocation(
+      cityMunicipality: 'Pasig',
+      province: 'Metro Manila',
+    ),
+    paymentMethod: 'cod',
+    paymentStatus: 'pending',
+    payableTotal: '115.00',
+    currency: 'PHP',
+  );
 
   @override
   Future<List<PickupTask>> fetchFinalMileTasks() async {
@@ -144,16 +218,7 @@ class _WidgetDeliveryRepository implements DeliveryRepository {
 
   @override
   Future<DeliveryContext> fetchDeliveryContext(String taskId) async {
-    return const DeliveryContext(
-      taskId: 'delivery-task-1',
-      status: 'out_for_delivery',
-      revision: 7,
-      hub: PickupLocation(name: 'Makati Hub'),
-      destination: PickupLocation(
-        cityMunicipality: 'Pasig',
-        province: 'Metro Manila',
-      ),
-    );
+    return deliveryContext;
   }
 
   @override
@@ -208,8 +273,10 @@ class _WidgetDeliveryRepository implements DeliveryRepository {
     required int expectedRevision,
     required String evidenceId,
     required String idempotencyKey,
+    required bool codCollected,
   }) async {
     completionEvidenceId = evidenceId;
+    this.codCollected = codCollected;
     return const CompletionProjection(
       taskId: 'delivery-task-1',
       intentId: 'intent-1',

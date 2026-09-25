@@ -29,9 +29,11 @@ class _PendingCompletionAttempt {
     required this.evidenceId,
     required this.expectedRevision,
     required this.idempotencyKey,
+    required this.codCollected,
   });
 
   final String evidenceId;
   final int expectedRevision;
   final String idempotencyKey;
+  final bool codCollected;
 }

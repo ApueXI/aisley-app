@@ -145,12 +145,14 @@ void main() {
       final completionSubmitted = await controller.submitCompletion(
         _outForDeliveryTask,
         evidenceId: controller.proofs[_outForDeliveryTask.id]!.proofId,
+        confirmedCollection: _codCollection,
       );
 
       expect(proofSubmitted, isTrue);
       expect(completionSubmitted, isTrue);
       expect(repository.proofPhoto?.fileName, 'delivery.jpg');
       expect(repository.completionEvidenceId, 'proof-1');
+      expect(repository.completionCodCollected, isTrue);
       expect(
         repository.proofIdempotencyKeys.single ==
             repository.completionIdempotencyKeys.single,
@@ -196,6 +198,7 @@ void main() {
       final submitted = await controller.submitCompletion(
         _outForDeliveryTask,
         evidenceId: 'new-proof',
+        confirmedCollection: _codCollection,
       );
 
       expect(submitted, isTrue);
@@ -223,6 +226,7 @@ void main() {
       final submitted = await controller.submitCompletion(
         _outForDeliveryTask,
         evidenceId: 'proof-1',
+        confirmedCollection: _codCollection,
       );
 
       expect(submitted, isFalse);
@@ -361,6 +365,7 @@ void main() {
     final submitted = await controller.submitCompletion(
       _outForDeliveryTask,
       evidenceId: 'proof-1',
+      confirmedCollection: _codCollection,
     );
 
     expect(submitted, isTrue);
@@ -394,18 +399,19 @@ void main() {
 
   test('completion timeout reuses the same idempotency key', () async {
     final repository = _FakeDeliveryRepository()..failCompletionOnce = true;
-    final controller = DeliveryController(deliveryRepository: repository);
-    controller.proofs[_outForDeliveryTask.id] = const ProofSubmission(
-      taskId: 'delivery-task-1',
-      proofId: 'proof-1',
-      evidenceStatus: 'awaiting_validation',
-      custodyState: 'out_for_delivery',
-      completionEligible: false,
-    );
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+        taskId: 'delivery-task-1',
+        proofId: 'proof-1',
+        evidenceStatus: 'awaiting_validation',
+        custodyState: 'out_for_delivery',
+        completionEligible: false,
+      );
 
     final first = await controller.submitCompletion(
       _outForDeliveryTask,
       evidenceId: 'proof-1',
+      confirmedCollection: _codCollection,
     );
     final retry = await controller.retryCompletion(_outForDeliveryTask);
 
@@ -416,6 +422,7 @@ void main() {
       repository.completionIdempotencyKeys.first,
       repository.completionIdempotencyKeys.last,
     );
+    expect(repository.completionCodCollected, isTrue);
     expect(
       controller.actionStatus(_outForDeliveryTask),
       DeliveryActionStatus.completionAwaitingValidation,
@@ -424,6 +431,218 @@ void main() {
       controller.completions[_outForDeliveryTask.id]?.isDelivered,
       isFalse,
     );
+  });
+
+  test(
+    'fresh COD read returns the Order payable total for confirmation',
+    () async {
+      final repository = _FakeDeliveryRepository();
+      final controller = DeliveryController(deliveryRepository: repository)
+        ..tasks = <PickupTask>[_outForDeliveryTask]
+        ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+          taskId: 'delivery-task-1',
+          proofId: 'proof-1',
+          evidenceStatus: 'awaiting_validation',
+          custodyState: 'out_for_delivery',
+          completionEligible: false,
+        );
+
+      final collection = await controller.prepareCodCompletion(
+        _outForDeliveryTask,
+      );
+
+      expect(repository.deliveryContextFetches, 1);
+      expect(collection?.displayAmount, 'PHP 115.00');
+      expect(repository.completionIdempotencyKeys, isEmpty);
+    },
+  );
+
+  test(
+    'missing payable total blocks completion even with a parcel price',
+    () async {
+      final repository = _FakeDeliveryRepository()
+        ..deliveryContext = const DeliveryContext(
+          taskId: 'delivery-task-1',
+          status: 'out_for_delivery',
+          revision: 7,
+          paymentMethod: 'cod',
+          paymentStatus: 'pending',
+          currency: 'PHP',
+        );
+      final controller = DeliveryController(deliveryRepository: repository)
+        ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+          taskId: 'delivery-task-1',
+          proofId: 'proof-1',
+          evidenceStatus: 'awaiting_validation',
+          custodyState: 'out_for_delivery',
+          completionEligible: false,
+        );
+
+      final submitted = await controller.submitCompletion(
+        _outForDeliveryTask,
+        evidenceId: 'proof-1',
+        confirmedCollection: _codCollection,
+      );
+
+      expect(submitted, isFalse);
+      expect(repository.completionIdempotencyKeys, isEmpty);
+      expect(
+        controller.actionError(_outForDeliveryTask),
+        contains('payable total'),
+      );
+    },
+  );
+
+  test('changed payable total requires a new cash confirmation', () async {
+    final repository = _FakeDeliveryRepository()
+      ..deliveryContext = const DeliveryContext(
+        taskId: 'delivery-task-1',
+        status: 'out_for_delivery',
+        revision: 7,
+        paymentMethod: 'cod',
+        paymentStatus: 'pending',
+        payableTotal: '120.00',
+        currency: 'PHP',
+      );
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+        taskId: 'delivery-task-1',
+        proofId: 'proof-1',
+        evidenceStatus: 'awaiting_validation',
+        custodyState: 'out_for_delivery',
+        completionEligible: false,
+      );
+
+    final submitted = await controller.submitCompletion(
+      _outForDeliveryTask,
+      evidenceId: 'proof-1',
+      confirmedCollection: _codCollection,
+    );
+
+    expect(submitted, isFalse);
+    expect(repository.completionIdempotencyKeys, isEmpty);
+    expect(
+      controller.actionError(_outForDeliveryTask),
+      contains('amount changed'),
+    );
+  });
+
+  test('unsupported payment method cannot submit COD intent', () async {
+    final repository = _FakeDeliveryRepository()
+      ..deliveryContext = const DeliveryContext(
+        taskId: 'delivery-task-1',
+        status: 'out_for_delivery',
+        revision: 7,
+        paymentMethod: 'prepaid',
+        paymentStatus: 'paid',
+        payableTotal: '115.00',
+        currency: 'PHP',
+      );
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+        taskId: 'delivery-task-1',
+        proofId: 'proof-1',
+        evidenceStatus: 'awaiting_validation',
+        custodyState: 'out_for_delivery',
+        completionEligible: false,
+      );
+
+    final collection = await controller.prepareCodCompletion(
+      _outForDeliveryTask,
+    );
+
+    expect(collection, isNull);
+    expect(
+      controller.actionError(_outForDeliveryTask),
+      contains('supported COD'),
+    );
+    expect(repository.completionIdempotencyKeys, isEmpty);
+  });
+
+  test('offline COD read blocks completion before any mutation', () async {
+    final repository = _FakeDeliveryRepository()
+      ..loadError = const ApiException.network('offline');
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+        taskId: 'delivery-task-1',
+        proofId: 'proof-1',
+        evidenceStatus: 'awaiting_validation',
+        custodyState: 'out_for_delivery',
+        completionEligible: false,
+      );
+
+    final collection = await controller.prepareCodCompletion(
+      _outForDeliveryTask,
+    );
+
+    expect(collection, isNull);
+    expect(
+      controller.actionStatus(_outForDeliveryTask),
+      DeliveryActionStatus.offline,
+    );
+    expect(repository.completionIdempotencyKeys, isEmpty);
+  });
+
+  test('COD read for another task cannot authorize this completion', () async {
+    final repository = _FakeDeliveryRepository()
+      ..deliveryContext = const DeliveryContext(
+        taskId: 'other-task',
+        status: 'out_for_delivery',
+        revision: 7,
+        paymentMethod: 'cod',
+        paymentStatus: 'pending',
+        payableTotal: '115.00',
+        currency: 'PHP',
+      );
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+        taskId: 'delivery-task-1',
+        proofId: 'proof-1',
+        evidenceStatus: 'awaiting_validation',
+        custodyState: 'out_for_delivery',
+        completionEligible: false,
+      );
+
+    final collection = await controller.prepareCodCompletion(
+      _outForDeliveryTask,
+    );
+
+    expect(collection, isNull);
+    expect(
+      controller.actionError(_outForDeliveryTask),
+      contains('delivery.context.task_id'),
+    );
+    expect(repository.completionIdempotencyKeys, isEmpty);
+  });
+
+  test('COD_COLLECTION_REQUIRED gives explicit recovery guidance', () async {
+    final repository = _FakeDeliveryRepository()
+      ..completionError = const ApiException(
+        statusCode: 422,
+        code: 'COD_COLLECTION_REQUIRED',
+        message: 'required',
+      );
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+        taskId: 'delivery-task-1',
+        proofId: 'proof-1',
+        evidenceStatus: 'awaiting_validation',
+        custodyState: 'out_for_delivery',
+        completionEligible: false,
+      );
+
+    final submitted = await controller.submitCompletion(
+      _outForDeliveryTask,
+      evidenceId: 'proof-1',
+      confirmedCollection: _codCollection,
+    );
+
+    expect(submitted, isFalse);
+    expect(
+      controller.actionError(_outForDeliveryTask),
+      contains('full Order payable total'),
+    );
+    expect(controller.hasPendingCompletion(_outForDeliveryTask), isFalse);
   });
 
   test('401 is delegated to the auth boundary', () async {
@@ -454,6 +673,17 @@ class _FakeDeliveryRepository implements DeliveryRepository {
   String? movementStatus;
   DeliveryPhotoSelection? proofPhoto;
   String? completionEvidenceId;
+  bool? completionCodCollected;
+  int deliveryContextFetches = 0;
+  DeliveryContext deliveryContext = const DeliveryContext(
+    taskId: 'delivery-task-1',
+    status: 'out_for_delivery',
+    revision: 7,
+    paymentMethod: 'cod',
+    paymentStatus: 'pending',
+    payableTotal: '115.00',
+    currency: 'PHP',
+  );
   CompletionProjection completionProjection = const CompletionProjection(
     taskId: 'delivery-task-1',
     taskStatus: 'out_for_delivery',
@@ -485,10 +715,9 @@ class _FakeDeliveryRepository implements DeliveryRepository {
 
   @override
   Future<DeliveryContext> fetchDeliveryContext(String taskId) async {
-    return const DeliveryContext(
-      taskId: 'delivery-task-1',
-      status: 'delivery_accepted',
-    );
+    deliveryContextFetches++;
+    if (loadError != null) throw loadError!;
+    return deliveryContext;
   }
 
   @override
@@ -545,8 +774,10 @@ class _FakeDeliveryRepository implements DeliveryRepository {
     required int expectedRevision,
     required String evidenceId,
     required String idempotencyKey,
+    required bool codCollected,
   }) async {
     completionEvidenceId = evidenceId;
+    completionCodCollected = codCollected;
     completionExpectedRevisions.add(expectedRevision);
     completionIdempotencyKeys.add(idempotencyKey);
     if (completionError != null) {
@@ -585,6 +816,8 @@ const _outForDeliveryTask = PickupTask(
   order: PickupOrderReference(reference: 'ORD-100'),
   waybill: PickupWaybillReference(reference: 'WB-100'),
 );
+
+const _codCollection = DeliveryCodCollection(amount: '115.00', currency: 'PHP');
 
 DeliveryPhotoSelection _photo() => DeliveryPhotoSelection(
   path: null,

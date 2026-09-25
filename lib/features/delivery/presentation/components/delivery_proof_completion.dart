@@ -242,28 +242,59 @@ class _ProofAndCompletionCard extends StatelessWidget {
     BuildContext context,
     String evidenceId,
   ) async {
+    final collection = await controller.prepareCodCompletion(task);
+    if (!context.mounted || collection == null) return;
+    var cashConfirmed = false;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Submit Delivered intent?'),
-        content: const Text(
-          'This sends a Delivered intent linked to the photo proof. '
-          'The Order stays pending until Logistics validates it.',
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Confirm COD collection'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Amount to collect: ${collection.displayAmount}'),
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: cashConfirmed,
+                  onChanged: (value) =>
+                      setDialogState(() => cashConfirmed = value == true),
+                  title: Text(
+                    'I collected ${collection.displayAmount} in full.',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Submitting this photo-linked intent does not complete delivery. Logistics must validate the proof and collection.',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: cashConfirmed
+                  ? () => Navigator.of(dialogContext).pop(true)
+                  : null,
+              child: const Text('Submit intent'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Submit intent'),
-          ),
-        ],
       ),
     );
-    if (confirmed == true) {
-      await controller.submitCompletion(task, evidenceId: evidenceId);
+    if (confirmed == true && context.mounted) {
+      await controller.submitCompletion(
+        task,
+        evidenceId: evidenceId,
+        confirmedCollection: collection,
+      );
     }
   }
 }

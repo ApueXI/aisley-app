@@ -247,6 +247,7 @@ extension DeliveryControllerActions on DeliveryController {
   Future<bool> submitCompletion(
     PickupTask task, {
     required String evidenceId,
+    required DeliveryCodCollection confirmedCollection,
   }) async {
     final normalizedEvidenceId = evidenceId.trim();
     if (!task.isFinalMile ||
@@ -277,6 +278,15 @@ extension DeliveryControllerActions on DeliveryController {
     final existing = _pendingCompletions[task.id];
     if (existing != null && existing.evidenceId == normalizedEvidenceId) {
       return _performCompletion(task, existing);
+    }
+    final currentCollection = await _readCodCollection(task);
+    if (currentCollection == null) return false;
+    if (!currentCollection.matches(confirmedCollection)) {
+      _setLocalValidationError(
+        task,
+        'The COD amount changed. Review the current payable total and confirm collection again.',
+      );
+      return false;
     }
     _actionStatuses[task.id] = DeliveryActionStatus.completionLoading;
     _actionErrors[task.id] = null;
@@ -325,6 +335,7 @@ extension DeliveryControllerActions on DeliveryController {
       evidenceId: normalizedEvidenceId,
       expectedRevision: current.revision!,
       idempotencyKey: DeliveryController._newUuid(),
+      codCollected: true,
     );
     _pendingCompletions[task.id] = attempt;
     _actionStatuses[task.id] = DeliveryActionStatus.idle;
@@ -360,6 +371,7 @@ extension DeliveryControllerActions on DeliveryController {
         expectedRevision: attempt.expectedRevision,
         evidenceId: attempt.evidenceId,
         idempotencyKey: attempt.idempotencyKey,
+        codCollected: attempt.codCollected,
       );
       if (completion.taskId != task.id ||
           completion.evidenceId != attempt.evidenceId ||

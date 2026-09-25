@@ -161,6 +161,9 @@ extension DeliveryControllerErrors on DeliveryController {
     if (error.code == 'COMPLETION_STATE_CONFLICT') {
       return 'The completion state changed. Refresh the task before trying again.';
     }
+    if (error.code == 'COD_COLLECTION_REQUIRED') {
+      return 'Confirm the full Order payable total was collected before submitting Delivered intent.';
+    }
     if (error.statusCode == 404) {
       return 'This delivery is no longer available. Refresh to see current work.';
     }
