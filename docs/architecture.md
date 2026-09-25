@@ -4,9 +4,8 @@ system: AISLEY
 type: Client Architecture
 platform: Flutter / Dart
 role: Courier / Rider
-status: Flutter inbox, dashboard previews, photo-POD/COD intent, and Logistics chat implemented; live acceptance and batch adoption remain open
-backend_contract_commit: 94e3467 (copied Laravel documentation baseline; Flutter adoption varies by feature)
-backend_contract_clarification: ca1487c (2026-09-25 Courier COD delivery-read fields only)
+status: Flutter inbox, dashboard previews, photo-POD/COD intent, and Logistics/Seller chat implemented; support tickets, live acceptance, and batch adoption remain open
+backend_contract_commit: ca1487c (copied Laravel documentation baseline; Flutter adoption varies by feature)
 ---
 
 # Scope
@@ -15,7 +14,7 @@ This document describes the external Flutter application used by Couriers. Andro
 
 The Laravel API remains the source of truth for identity, approval, role access, organization and hub ownership, order status, task assignment, and delivery state. The Flutter app renders server responses and submits only fields allowed by the versioned API contract.
 
-Flutter implements the notification inbox, separate read-only dashboard task previews, photo selection/upload and completion intent with COD cash confirmation, and a task-chat inbox with Logistics messaging. Seller/Buyer threads remain read-only. Installed-device/browser acceptance, authenticated COD/Logistics validation, and live chat exchange remain unverified. Normal dispatch-batch acceptance, batch-route rendering, failed-attempt submission, and linehaul trip screens remain unadopted. See `docs/PROGRESS.md` for dated implementation evidence; Laravel remains authoritative for operational state.
+Flutter implements the notification inbox, separate read-only dashboard task previews, photo selection/upload and completion intent with COD cash confirmation, and a task-chat inbox with Logistics/Seller messaging. Buyer threads remain read-only. Courier support-ticket API routes are available but their Flutter UI is not adopted. Installed-device/browser acceptance, authenticated COD/Logistics validation, and live chat exchange remain unverified. Normal dispatch-batch acceptance, batch-route rendering, failed-attempt submission, and linehaul trip screens remain unadopted. See `docs/PROGRESS.md` for dated implementation evidence; Laravel remains authoritative for operational state.
 
 ## Current implementation boundary
 
@@ -33,6 +32,10 @@ The backend currently exposes Courier authentication, account and vehicle manage
 - `POST /api/v1/courier/account/profile-photo` (authenticated multipart upload)
 - `GET /api/v1/courier/account/profile-photo` (authenticated private stream)
 - `DELETE /api/v1/courier/account/profile-photo` (authenticated idempotent removal)
+- `GET`/`POST /api/v1/courier/support-tickets` (authenticated own-ticket list/create)
+- `GET /api/v1/courier/support-tickets/{ticket}` (authenticated own-ticket detail/history)
+- `POST /api/v1/courier/support-tickets/{ticket}/replies` (authenticated idempotent own-ticket reply)
+- `POST /api/v1/courier/support-tickets/{ticket}/read` (authenticated monotonic read marker)
 - `GET /api/v1/courier/vehicle` (authenticated own-vehicle read)
 - `PATCH /api/v1/courier/vehicle` (authenticated revision-checked field update)
 - `POST /api/v1/courier/vehicle/documents/{kind}` (authenticated independent OR/CR replacement)
@@ -62,7 +65,7 @@ The backend currently exposes Courier authentication, account and vehicle manage
 - `GET /api/v1/courier/notifications/unread-count` (authenticated unread count)
 - `GET /api/v1/courier/notifications/{notification}` (authenticated notification detail)
 - `POST /api/v1/courier/notifications/{notification}/read` (authenticated idempotent mark-read)
-- `/api/v1/courier/operational-conversations` with authenticated list/start, detail, paginated messages, send, and read actions for task-scoped Logistics, Seller, and Buyer threads (Flutter Logistics sending implemented; Seller/Buyer read-only)
+- `/api/v1/courier/operational-conversations` with authenticated list/start, detail, paginated messages, send, and read actions for task-scoped Logistics, Seller, and Buyer threads (Flutter Logistics/Seller sending implemented; Buyer read-only)
 - `GET /api/v1/courier/linehaul-trips` (authenticated assigned company-truck trips; client screen not verified)
 
 The dashboard aggregate remains a read-only scaffold. Flutter separately reads the task-list APIs for bounded first-/final-mile previews and the notification API for its inbox badge; opening a preview navigates without mutating a task. QR/Code 128 candidates serve first-mile pickup, final-mile hub handoff is task-bound, and delivery proof is photo-only. Photo/intent and COD confirmation have local implementation and test coverage, while authenticated Logistics validation remains unverified. Backend API availability does not establish Flutter adoption or live acceptance. Background push/WebSockets, live route telemetry, signature proof, earnings, and offline synchronization remain unavailable. Logistics Linehaul/Sort plan mutations are not Courier endpoints; the separate Courier trip read is real.
@@ -131,7 +134,7 @@ test/
 
 The exact state-management, routing, networking, and secure-storage packages are project decisions. Inspect `pubspec.yaml` and reuse existing choices before adding a dependency.
 
-Operational chat is implemented in `lib/features/chat/` using the existing bearer client and the versioned Courier conversation actions in `features/courier/chat-messaging/api-handoff.md`. Logistics sending is enabled; Seller/Buyer threads remain read-only pending counterpart adoption and verification. Keep message bodies in session-bound memory and recheck task eligibility on the server.
+Operational chat is implemented in `lib/features/chat/` using the existing bearer client and the versioned Courier conversation actions in `features/courier/chat-messaging/api-handoff.md`. Logistics/Seller sending is enabled; Buyer threads remain read-only pending counterpart adoption and verification. Keep message bodies in session-bound memory and recheck task eligibility on the server.
 
 ## API integration
 

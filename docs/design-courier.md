@@ -4,7 +4,7 @@ system: AISLEY
 type: Design Guide
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active inbox and read-only dashboard task previews; partial final-mile photo and Logistics chat flows
+status: Active inbox and read-only dashboard task previews; photo/COD intent and Logistics/Seller chat flows implemented locally
 ---
 
 # Courier Flutter Design Guide

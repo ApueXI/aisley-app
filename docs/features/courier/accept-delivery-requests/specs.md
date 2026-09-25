@@ -4,12 +4,12 @@ feature: courier-accept-delivery-requests
 title: Accept Delivery Requests
 system: AISLEY
 type: Feature Specification
-version: 1.5
+version: 1.6
 status: First-mile acceptance and final-mile dispatch batch acceptance implemented
 implementation_status: First-mile listing/acceptance, atomic final-mile batch acceptance, and exceptional single-task reject/re-offer are implemented
-flutter_status: Legacy per-task offer UI recorded in Flutter progress; atomic 1–15 parcel dispatch-batch acceptance not verified/adopted
+flutter_status: Legacy per-task offer UI recorded in Flutter progress; atomic 1–15 parcel dispatch-batch acceptance is not adopted
 canonical: true
-copied_backend_checkout: 94e3467
+copied_backend_checkout: ca1487c
 scope: External Flutter mobile client and Laravel Courier API
 backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378
 backend_contract_version: courier-first-and-final-mile-accept-v1
@@ -28,7 +28,12 @@ An authorized final-mile task and batch projection includes `parcel.price` (the 
 
 One Logistics dispatch schedule is the Courier's final-mile offer. The Courier reviews its parcel count and destination areas, then accepts the entire schedule with one explicit action; partial acceptance is invalid. Each existing Delivery Task and Order remains separate for custody and delivery history. The API must lock and recheck every member, its current offer, Courier affiliation, hub, and state before committing all acceptances together. Rejected individual offers and re-offers are recovery for legacy or exceptional tasks, not the normal batch acceptance path. First-mile and linehaul workflows are unchanged.
 
-Implemented Courier routes are `GET /api/v1/courier/final-mile-batches`, `GET /api/v1/courier/final-mile-batches/{schedule}`, and `POST /api/v1/courier/final-mile-batches/{schedule}/accept`. All derive the Courier and current approved affiliation from the Sanctum token. Acceptance is all-or-nothing and an identical retry returns the already accepted batch. The per-task offer/accept/reject routes documented below remain for exceptional recovery; the normal Courier mockup uses the batch action. The earlier one-task-per-offer wording below describes the underlying task records, not separate normal acceptance taps.
+- `GET /api/v1/courier/final-mile-batches` returns at most 30 Courier-scoped schedules ordered by `scheduled_for` descending in `{"data":[...]}`; detail returns `{"data":{...}}`.
+- `POST /api/v1/courier/final-mile-batches/{schedule}/accept` accepts an empty JSON object. It requires no `Idempotency-Key` header and returns `200 {"data":{...}}`.
+- The batch projection contains `id`, `reference`, `scheduled_for`, `parcel_count`, `status`, and ordered `tasks`; task DTOs retain their existing safe projection.
+- Batch `status` is `offered` before all members are accepted, `accepted` while every member is exactly `delivery_accepted`, and `in_progress` after every member was accepted and at least one advanced.
+- Acceptance is one locked, all-or-nothing transaction. A retry rechecks current task state and returns the latest canonical batch projection; it is state-idempotent, not a stored byte-identical receipt.
+- Foreign, empty, or no-longer-current membership is hidden as `404 BATCH_NOT_FOUND`; a member that fails the locked acceptance recheck returns `409 BATCH_STATE_CONFLICT`. Never loop per-task accepts to imitate the normal batch action.
 
 The development-only `src/couriermockup` may exercise the implemented final-mile offer list, detail, acceptance, and rejection routes with bearer authentication. It must use the same server projection and must not treat an accepted offer as hub custody.
 

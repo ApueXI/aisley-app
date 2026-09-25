@@ -4,10 +4,10 @@ feature: courier-proof-of-delivery
 title: Proof of Delivery (e-POD)
 system: AISLEY
 type: Feature Specification
-version: 1.7
+version: 1.8
 status: Implemented photo POD submission and Logistics validation; signature deferred
 implementation_status: Courier private photo submission and Logistics private preview/validation are implemented; former reference proof is retired for delivery
-flutter_status: Supplied Flutter progress records partial photo POD upload adoption; Logistics validation, installed-device upload, and current COD completion remain unverified
+flutter_status: Photo upload and COD confirmation are implemented locally in Flutter; authenticated Logistics validation and installed-device acceptance remain unverified
 canonical: true
 scope: External Flutter mobile client and Laravel Courier API
 backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378

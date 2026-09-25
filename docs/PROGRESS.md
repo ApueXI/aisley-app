@@ -4,9 +4,15 @@ This is the progress log for the external Courier Flutter application. It is sep
 
 ## Backend contract snapshot
 
-- **Copied backend documentation baseline:** Laravel checkout `94e3467` (2026-09-24), with Courier COD delivery-read fields checked against Laravel checkout `ca1487c` (2026-09-25); Courier chat API `courier-operational-messaging-v2`. Earlier feature-specific API versions and implementation history are preserved in the [2026-09-25 archive](logs/PROGRESS-2026-09-25.md).
+- **Copied backend documentation baseline:** Laravel checkout `ca1487c` (2026-09-25), including Courier COD delivery reads, support tickets, and Courier chat API `courier-operational-messaging-v2`. Earlier feature-specific API versions and implementation history are preserved in the [2026-09-25 archive](logs/PROGRESS-2026-09-25.md).
 - **Flutter status:** Auth/account/vehicle/policy, notifications, first-mile pickup, partial final-mile hub handoff/photo POD/completion intent with COD cash confirmation, delivered history, dashboard scaffold plus separate read-only task previews, and Courier task-chat inbox with Logistics/Seller messaging are implemented. Buyer chat remains read-only; Logistics/Seller chat has not passed live cross-role acceptance.
-- **Outstanding contract/acceptance work:** Final-mile batch acceptance DTO/retry contract, failed-attempt submission, linehaul trip reads, authenticated COD/Logistics validation, live chat exchange/reassignment/terminal behavior and Seller counterpart acceptance, and installed APK/browser camera/upload/chat acceptance remain unverified or deferred. The dashboard aggregate remains `courier-dashboard-scaffold-v1` and must not fabricate operational data.
+- **Outstanding adoption/acceptance work:** Courier support-ticket screens, state-idempotent final-mile batch acceptance, failed-attempt submission, linehaul trip reads, authenticated COD/Logistics validation, live chat exchange/reassignment/terminal behavior and Seller counterpart acceptance, and installed APK/browser camera/upload/chat acceptance remain unverified or deferred. The dashboard aggregate remains `courier-dashboard-scaffold-v1` and must not fabricate operational data.
+
+## 2026-09-26
+
+- Synchronized the copied backend contract from `docs-flutter-from-webapp` to Laravel checkout `ca1487c` while preserving Flutter-owned progress, design rules, and the newer Courier-to-Seller messaging status. Added the implemented `courier-support-tickets-v1` contract, support-ticket schema records and route index, and the historical Flutter handoff record.
+- Updated final-mile batch acceptance to the now-complete contract: list is bounded to 30 schedules ordered by `scheduled_for` descending; detail and accept return the canonical batch projection; accept sends an empty JSON object without `Idempotency-Key`; retries are state-idempotent; `404 BATCH_NOT_FOUND` and `409 BATCH_STATE_CONFLICT` define reconciliation. Flutter batch acceptance remains unimplemented by this documentation sync.
+- Updated copied feature versions/baselines and replaced the obsolete deferred-shipment rule with reuse of deployed Shipment/Parcel/Delivery Task/evidence records. This is documentation only; no Dart code or Laravel source changed.
 
 ## 2026-09-25
 
