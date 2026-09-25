@@ -44,12 +44,18 @@ class ChatTaskContext {
   const ChatTaskContext({
     required this.leg,
     required this.taskId,
+    this.counterpartyRole = 'logistics',
     this.reference,
   });
 
   final String leg;
   final String taskId;
+  final String counterpartyRole;
   final String? reference;
+
+  bool get canCompose =>
+      counterpartyRole == 'logistics' ||
+      (counterpartyRole == 'seller' && leg == 'first_mile');
 }
 
 class ChatSendAttempt {
@@ -112,28 +118,22 @@ class ChatController extends ChangeNotifier {
 
   void startPollingInbox() {
     stopPolling();
-    _pollTimer = Timer.periodic(
-      pollInterval,
-      (_) {
-        if (inboxStatus != ChatLoadStatus.offline &&
-            inboxStatus != ChatLoadStatus.timeout) {
-          unawaited(loadInbox(silent: true));
-        }
-      },
-    );
+    _pollTimer = Timer.periodic(pollInterval, (_) {
+      if (inboxStatus != ChatLoadStatus.offline &&
+          inboxStatus != ChatLoadStatus.timeout) {
+        unawaited(loadInbox(silent: true));
+      }
+    });
   }
 
   void startPollingThread() {
     stopPolling();
-    _pollTimer = Timer.periodic(
-      pollInterval,
-      (_) {
-        if (threadStatus != ChatLoadStatus.offline &&
-            threadStatus != ChatLoadStatus.timeout) {
-          unawaited(refreshActive(silent: true));
-        }
-      },
-    );
+    _pollTimer = Timer.periodic(pollInterval, (_) {
+      if (threadStatus != ChatLoadStatus.offline &&
+          threadStatus != ChatLoadStatus.timeout) {
+        unawaited(refreshActive(silent: true));
+      }
+    });
   }
 
   void stopPolling() {

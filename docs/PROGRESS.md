@@ -5,8 +5,14 @@ This is the progress log for the external Courier Flutter application. It is sep
 ## Backend contract snapshot
 
 - **Copied backend documentation baseline:** Laravel checkout `94e3467` (2026-09-24), with Courier COD delivery-read fields checked against Laravel checkout `ca1487c` (2026-09-25); Courier chat API `courier-operational-messaging-v2`. Earlier feature-specific API versions and implementation history are preserved in the [2026-09-25 archive](logs/PROGRESS-2026-09-25.md).
-- **Flutter status:** Auth/account/vehicle/policy, notifications, first-mile pickup, partial final-mile hub handoff/photo POD/completion intent with COD cash confirmation, delivered history, dashboard scaffold plus separate read-only task previews, and Courier task-chat inbox/Logistics messaging are implemented. Seller/Buyer chat remains read-only in this rollout; Logistics chat has not passed live cross-role acceptance.
-- **Outstanding contract/acceptance work:** Final-mile batch acceptance DTO/retry contract, failed-attempt submission, linehaul trip reads, authenticated COD/Logistics validation, live chat exchange/reassignment/terminal behavior, and installed APK/browser camera/upload/chat acceptance remain unverified or deferred. The dashboard aggregate remains `courier-dashboard-scaffold-v1` and must not fabricate operational data.
+- **Flutter status:** Auth/account/vehicle/policy, notifications, first-mile pickup, partial final-mile hub handoff/photo POD/completion intent with COD cash confirmation, delivered history, dashboard scaffold plus separate read-only task previews, and Courier task-chat inbox with Logistics/Seller messaging are implemented. Buyer chat remains read-only; Logistics/Seller chat has not passed live cross-role acceptance.
+- **Outstanding contract/acceptance work:** Final-mile batch acceptance DTO/retry contract, failed-attempt submission, linehaul trip reads, authenticated COD/Logistics validation, live chat exchange/reassignment/terminal behavior and Seller counterpart acceptance, and installed APK/browser camera/upload/chat acceptance remain unverified or deferred. The dashboard aggregate remains `courier-dashboard-scaffold-v1` and must not fabricate operational data.
+
+## 2026-09-25
+
+- Implemented Courier-to-Seller task messaging against `courier-operational-messaging-v2`. An accepted first-mile task now exposes **Message Seller** until Seller handoff, starts or resumes the role-isolated Seller thread with the exact task UUID, and preserves existing idempotent retry, polling, read-marker, session-clearing, and server-authoritative sendability behavior.
+- Added response-context validation so a send cannot silently switch task, leg, counterpart, or existing conversation. Seller inbox threads are composable when `send_allowed` is true; Buyer threads remain read-only.
+- Verification: targeted chat/pickup tests (23 passed), full `flutter test` (197 passed), `flutter analyze`, the 230-line chat-spec check, and `git diff --check` passed. Authenticated Courier–Seller exchange and the Seller counterpart reply screen remain unverified.
 
 ## 2026-09-25
 

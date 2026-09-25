@@ -81,6 +81,16 @@ class _PickupTaskDetailScreenState extends State<PickupTaskDetailScreen> {
                   ),
                   const SizedBox(height: 16),
                 ],
+                if (widget.chatController != null &&
+                    task.isFirstMile &&
+                    task.status == PickupTaskStatus.accepted) ...[
+                  OutlinedButton.icon(
+                    onPressed: () => _openSellerChat(task),
+                    icon: const Icon(Icons.storefront_outlined),
+                    label: const Text('Message Seller'),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 _buildAction(context, task),
               ],
             ),
@@ -91,6 +101,14 @@ class _PickupTaskDetailScreenState extends State<PickupTaskDetailScreen> {
   }
 
   Future<void> _openLogisticsChat(PickupTask task) async {
+    await _openChat(task, 'logistics');
+  }
+
+  Future<void> _openSellerChat(PickupTask task) async {
+    await _openChat(task, 'seller');
+  }
+
+  Future<void> _openChat(PickupTask task, String counterpartyRole) async {
     final controller = widget.chatController;
     if (controller == null) return;
     await Navigator.of(context).push(
@@ -101,6 +119,7 @@ class _PickupTaskDetailScreenState extends State<PickupTaskDetailScreen> {
           task: ChatTaskContext(
             leg: task.isFirstMile ? 'first_mile' : 'final_mile',
             taskId: task.id,
+            counterpartyRole: counterpartyRole,
             reference: task.order?.reference,
           ),
         ),

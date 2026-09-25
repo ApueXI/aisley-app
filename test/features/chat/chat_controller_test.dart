@@ -76,26 +76,29 @@ void main() {
     controller.dispose();
   });
 
-  test('409 prevents another send until the conflicting attempt is discarded', () async {
-    final repository = _ChatRepository()
-      ..sendError = const ApiException(
-        statusCode: 409,
-        code: 'CONVERSATION_READ_ONLY',
-        message: 'private server detail',
-      );
-    final controller = ChatController(repository: repository);
-    await controller.openThread(_thread());
+  test(
+    '409 prevents another send until the conflicting attempt is discarded',
+    () async {
+      final repository = _ChatRepository()
+        ..sendError = const ApiException(
+          statusCode: 409,
+          code: 'CONVERSATION_READ_ONLY',
+          message: 'private server detail',
+        );
+      final controller = ChatController(repository: repository);
+      await controller.openThread(_thread());
 
-    expect(await controller.sendMessage('Status?'), isFalse);
-    expect(controller.sendStatus, ChatSendStatus.conflict);
-    expect(controller.pendingAttempt, isNotNull);
-    expect(await controller.sendMessage('Status?'), isFalse);
-    expect(repository.sendKeys, hasLength(1));
+      expect(await controller.sendMessage('Status?'), isFalse);
+      expect(controller.sendStatus, ChatSendStatus.conflict);
+      expect(controller.pendingAttempt, isNotNull);
+      expect(await controller.sendMessage('Status?'), isFalse);
+      expect(repository.sendKeys, hasLength(1));
 
-    controller.discardPendingAttempt();
-    expect(controller.pendingAttempt, isNull);
-    controller.dispose();
-  });
+      controller.discardPendingAttempt();
+      expect(controller.pendingAttempt, isNull);
+      controller.dispose();
+    },
+  );
 
   test('422 releases rejected request key and keeps message unsaved', () async {
     final repository = _ChatRepository()
@@ -139,19 +142,34 @@ void main() {
     controller.dispose();
   });
 
-  test('blocks sends to non-Logistics counterpart in this rollout', () async {
+  test('sends to an existing eligible Seller conversation', () async {
     final repository = _ChatRepository();
     final controller = ChatController(repository: repository);
-    final seller = ChatThread.fromJson({
-      ..._threadJson,
-      'counterparty_role': 'seller',
-      'kind': 'courier_seller',
-    });
+    final seller = _sellerThread();
     repository.detailThread = seller;
     await controller.openThread(seller);
 
-    expect(await controller.sendMessage('Hello'), isFalse);
-    expect(repository.sendKeys, isEmpty);
+    expect(await controller.sendMessage('Hello Seller'), isTrue);
+    expect(repository.sendKeys, hasLength(1));
+    expect(controller.activeThread?.counterpartyRole, 'seller');
+    controller.dispose();
+  });
+
+  test('starts Seller chat with the first-mile task and Seller role', () async {
+    final repository = _ChatRepository();
+    final controller = ChatController(repository: repository);
+    await controller.openTask(
+      const ChatTaskContext(
+        leg: 'first_mile',
+        taskId: 'task-1',
+        counterpartyRole: 'seller',
+      ),
+    );
+
+    expect(await controller.sendMessage('I am heading to your Shop.'), isTrue);
+    expect(repository.startRoles, ['seller']);
+    expect(repository.startLegs, ['first_mile']);
+    expect(repository.startTaskIds, ['task-1']);
     controller.dispose();
   });
 
@@ -270,14 +288,10 @@ void main() {
     },
   );
 
-  testWidgets('Seller thread is read-only while counterpart screen is absent', (
+  testWidgets('Seller thread shows a composer when the server allows sends', (
     tester,
   ) async {
-    final seller = ChatThread.fromJson({
-      ..._threadJson,
-      'counterparty_role': 'seller',
-      'kind': 'courier_seller',
-    });
+    final seller = _sellerThread();
     final repository = _ChatRepository()..detailThread = seller;
     final chat = ChatController(repository: repository);
     final auth = AuthController(
@@ -290,6 +304,38 @@ void main() {
           controller: chat,
           authController: auth,
           thread: seller,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.textContaining('Read-only conversation'), findsNothing);
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('Message Seller'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    chat.dispose();
+    auth.dispose();
+  });
+
+  testWidgets('Buyer thread remains read-only in this rollout', (tester) async {
+    final buyer = ChatThread.fromJson({
+      ..._threadJson,
+      'leg': 'final_mile',
+      'counterparty_role': 'customer',
+      'kind': 'courier_customer',
+    });
+    final repository = _ChatRepository()..detailThread = buyer;
+    final chat = ChatController(repository: repository);
+    final auth = AuthController(
+      authRepository: _UnusedAuthRepository(),
+      dashboardRepository: _UnusedDashboardRepository(),
+    )..status = AuthStatus.authenticated;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatThreadScreen(
+          controller: chat,
+          authController: auth,
+          thread: buyer,
         ),
       ),
     );
@@ -314,6 +360,12 @@ class _UnusedDashboardRepository implements DashboardRepository {
 }
 
 ChatThread _thread() => ChatThread.fromJson(_threadJson);
+
+ChatThread _sellerThread() => ChatThread.fromJson({
+  ..._threadJson,
+  'counterparty_role': 'seller',
+  'kind': 'courier_seller',
+});
 
 const _threadJson = <String, dynamic>{
   'id': 'thread-1',
@@ -348,6 +400,9 @@ class _ChatRepository implements ChatRepository {
   ChatThread? detailThread;
   final List<String> startKeys = [];
   final List<String> startBodies = [];
+  final List<String> startRoles = [];
+  final List<String> startLegs = [];
+  final List<String> startTaskIds = [];
   final List<String> sendKeys = [];
 
   @override
@@ -387,6 +442,9 @@ class _ChatRepository implements ChatRepository {
   }) async {
     startKeys.add(idempotencyKey);
     startBodies.add(body);
+    startRoles.add(counterpartyRole);
+    startLegs.add(leg);
+    startTaskIds.add(taskId);
     if (startError case final error?) throw error;
     if (failFirstStart) {
       failFirstStart = false;
@@ -395,7 +453,8 @@ class _ChatRepository implements ChatRepository {
         networkFailure: ApiNetworkFailure.timeout,
       );
     }
-    return ChatSendResult(thread: _thread(), message: _message());
+    final thread = counterpartyRole == 'seller' ? _sellerThread() : _thread();
+    return ChatSendResult(thread: thread, message: _message());
   }
 
   @override
@@ -406,7 +465,10 @@ class _ChatRepository implements ChatRepository {
   }) async {
     sendKeys.add(idempotencyKey);
     if (sendError case final error?) throw error;
-    return ChatSendResult(thread: _thread(), message: _message());
+    return ChatSendResult(
+      thread: detailThread ?? _thread(),
+      message: _message(),
+    );
   }
 
   @override

@@ -8,14 +8,15 @@ extension ChatControllerSends on ChatController {
     if (task == null ||
         body.isEmpty ||
         body.length > 2000 ||
+        !task.canCompose ||
         (threadStatus != ChatLoadStatus.loaded &&
             threadStatus != ChatLoadStatus.empty) ||
         sendStatus == ChatSendStatus.conflict ||
         (thread != null &&
-            (thread.counterpartyRole != 'logistics' ||
+            (thread.counterpartyRole != task.counterpartyRole ||
                 thread.sendAllowed != true))) {
       sendStatus = ChatSendStatus.validation;
-      sendError = 'Enter a message of 1–2,000 characters in an active Logistics conversation.';
+      sendError = 'Enter a message of 1–2,000 characters in an active task conversation.';
       _notify();
       return false;
     }
@@ -24,6 +25,7 @@ extension ChatControllerSends on ChatController {
     if (attempt != null &&
         (attempt.body != body ||
             attempt.taskId != task.taskId ||
+            attempt.counterpartyRole != task.counterpartyRole ||
             (attempt.threadId != null && attempt.threadId != thread?.id))) {
       sendStatus = ChatSendStatus.uncertain;
       sendError =
@@ -36,7 +38,7 @@ extension ChatControllerSends on ChatController {
       key: ChatController._newUuid(),
       leg: task.leg,
       taskId: task.taskId,
-      counterpartyRole: 'logistics',
+      counterpartyRole: task.counterpartyRole,
       threadId: thread?.id,
     );
     pendingAttempt = attempt;
@@ -59,6 +61,12 @@ extension ChatControllerSends on ChatController {
               idempotencyKey: attempt.key,
             );
       if (epoch != _epoch) return false;
+      if (result.thread.leg != attempt.leg ||
+          result.thread.taskId != attempt.taskId ||
+          result.thread.counterpartyRole != attempt.counterpartyRole ||
+          (attempt.threadId != null && result.thread.id != attempt.threadId)) {
+        throw const ApiContractException('chat.send.context');
+      }
       _threadRequestId++;
       _replaceThread(result.thread);
       _mergeMessages([result.message]);

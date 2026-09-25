@@ -43,7 +43,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen>
       if (!mounted) return;
       final attempt = widget.controller.pendingAttempt;
       if (attempt != null &&
-          attempt.taskId == widget.controller.activeTask?.taskId) {
+          attempt.taskId == widget.controller.activeTask?.taskId &&
+          attempt.counterpartyRole ==
+              widget.controller.activeTask?.counterpartyRole) {
         _text.text = attempt.body;
       }
       widget.controller.startPollingThread();
@@ -120,14 +122,15 @@ class _ChatThreadScreenState extends State<ChatThreadScreen>
         final controller = widget.controller;
         final thread = controller.activeThread;
         final task = controller.activeTask;
-        final role = thread?.counterpartyRole ?? 'logistics';
+        final role =
+            thread?.counterpartyRole ?? task?.counterpartyRole ?? 'logistics';
         final title = switch (role) {
           'seller' => 'Seller',
           'customer' => 'Buyer',
           _ => 'Logistics',
         };
         final sendable =
-            role == 'logistics' &&
+            task?.canCompose == true &&
             (controller.threadStatus == ChatLoadStatus.loaded ||
                 controller.threadStatus == ChatLoadStatus.empty) &&
             controller.sendStatus != ChatSendStatus.conflict &&
@@ -145,7 +148,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen>
                   '${task?.leg == 'first_mile' ? 'First mile' : 'Final mile'} · ${thread?.taskReference ?? task?.reference ?? thread?.orderReference ?? 'Task'}',
                 ),
               ),
-              if (thread?.sendAllowed == false || role != 'logistics')
+              if (thread?.sendAllowed == false || task?.canCompose == false)
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16),
                   child: Text(

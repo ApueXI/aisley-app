@@ -82,6 +82,7 @@ extension ChatControllerReads on ChatController {
     activeTask = ChatTaskContext(
       leg: thread.leg,
       taskId: thread.taskId,
+      counterpartyRole: thread.counterpartyRole,
       reference: thread.taskReference,
     );
     messages = const [];
@@ -124,7 +125,7 @@ extension ChatControllerReads on ChatController {
         if (epoch != _epoch || requestId != _threadRequestId) return;
         for (final thread in page.items) {
           if (thread.taskId == task.taskId &&
-              thread.counterpartyRole == 'logistics') {
+              thread.counterpartyRole == task.counterpartyRole) {
             activeThread = thread;
             await refreshActive();
             return;

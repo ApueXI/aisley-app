@@ -59,7 +59,7 @@ void main() {
   );
 
   test(
-    'starts and sends with exact JSON and distinct supplied UUID keys',
+    'starts Seller chat and sends with exact JSON and distinct UUID keys',
     () async {
       final requests = <http.Request>[];
       final repo = _repo((incoming) async {
@@ -69,8 +69,8 @@ void main() {
       await repo.start(
         leg: 'first_mile',
         taskId: 'task-1',
-        counterpartyRole: 'logistics',
-        body: 'Hello',
+        counterpartyRole: 'seller',
+        body: 'Hello Seller',
         idempotencyKey: '11111111-1111-4111-8111-111111111111',
       );
       await repo.send(
@@ -82,8 +82,8 @@ void main() {
       expect(jsonDecode(requests[0].body), {
         'leg': 'first_mile',
         'task_id': 'task-1',
-        'counterparty_role': 'logistics',
-        'body': 'Hello',
+        'counterparty_role': 'seller',
+        'body': 'Hello Seller',
       });
       expect(
         requests[0].headers['idempotency-key'],
