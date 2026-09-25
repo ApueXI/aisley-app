@@ -23,7 +23,7 @@ The Courier's final-mile delivery action is photo POD: **Open camera for POD** i
 
 ## COD capture confirmation (2026-09-23)
 
-For COD Orders, the Courier mockup shows the server-projected payable total and requires a positive acknowledgment that the full cash amount was collected before sending Delivered intent. It does not accept a manually entered amount. The completion API derives amount/currency/time from the Order. Logistics reviews that declaration and confirms collection before delivery approval; an unsuccessful cash collection is recorded as an unsuccessful delivery attempt.
+For COD Orders, show the authorized delivery context's `data.order.payable_total` and `data.order.currency` when `data.order.payment_method` is `cod`, then require a positive acknowledgment that the full cash amount was collected before sending Delivered intent. Do not substitute `data.parcel.price`, accept a manually entered amount, or proceed when payment fields are missing. The completion API derives amount/currency/time from the Order. Logistics reviews that declaration and confirms collection before delivery approval; an unsuccessful cash collection is recorded as an unsuccessful delivery attempt. See Deliver Order for the response example and Complete Delivery for the intent request.
 
 ## Final-mile photo revision (2026-09-20)
 

@@ -22,7 +22,7 @@ source_coverage: docs/requirements.md, docs/workspace.md, docs/schema.md, docs/d
 
 ## Offer price revision (2026-09-21)
 
-An authorized final-mile task and batch projection includes `parcel.price` (the Order merchandise subtotal) and `parcel.currency`, alongside item count and destination area. The Courier can see the parcel's merchandise price before acceptance without receiving payment credentials, address details beyond the offer's safe area, or an identifier entry requirement. The development mockup labels this value **Parcel price**. The assigned task remains the server-side parcel identity for later handoff and POD.
+An authorized final-mile task and batch projection includes `parcel.price` (the Order merchandise subtotal) and `parcel.currency`, alongside item count and destination area. The Courier can see the parcel's merchandise price before acceptance without receiving payment credentials, address details beyond the offer's safe area, or an identifier entry requirement. The development mockup labels this value **Parcel price**; it is not the COD amount due, which the accepted-task delivery context exposes as `data.order.payable_total` and `data.order.currency`. The assigned task remains the server-side parcel identity for later handoff and POD.
 
 ## Final-mile dispatch batch revision (2026-09-20)
 
