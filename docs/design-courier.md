@@ -4,7 +4,7 @@ system: AISLEY
 type: Design Guide
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active inbox and partial final-mile photo flow; batch acceptance and operational chat need client adoption
+status: Active inbox and read-only dashboard task previews; partial final-mile photo and Logistics chat flows
 ---
 
 # Courier Flutter Design Guide
@@ -13,7 +13,7 @@ status: Active inbox and partial final-mile photo flow; batch acceptance and ope
 
 This guide applies to the external Flutter Courier application on Android and to local browser testing of that same app through Flutter `web-server`. It does not define the separate webapp's Customer storefront or React Admin, Seller, or Logistics dashboards. Laravel remains authoritative for identity, approval, ownership, and operational state.
 
-The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, account management, policy consent, notifications, first-mile identifier pickup, task-bound final-mile hub handoff, batch routes, final-mile movement, private photo POD, Logistics-reviewed completion, delivered history, and task-scoped chat with Logistics, Seller, and Buyer. The supplied Flutter progress confirms the notification inbox, Android/web QR/Code 128 candidates, and partial photo-POD/intent adoption; normal batch acceptance and chat screens are not recorded. COD confirmation, Logistics validation, and installed-device acceptance remain unverified. Background push, live route telemetry, signature proof, earnings, and offline task screens remain deferred.
+The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, account management, policy consent, notifications, first-mile identifier pickup, task-bound final-mile hub handoff, batch routes, final-mile movement, private photo POD, Logistics-reviewed completion, delivered history, and task-scoped chat with Logistics, Seller, and Buyer. Flutter now has a notification inbox, separate read-only first-/final-mile dashboard task previews, Android/web QR/Code 128 candidates, partial photo-POD/intent adoption, and a Logistics task-chat client. The Laravel dashboard aggregate remains unavailable; normal batch acceptance, live cross-role chat, COD confirmation, Logistics validation, and installed-device acceptance remain unverified. Background push, live route telemetry, signature proof, earnings, and offline task screens remain deferred.
 
 ## Design goals
 
@@ -50,7 +50,7 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 ## Navigation and layout
 
 - Use a single, predictable authentication stack: Logistics selection → registration → pending result, or login → authenticated state.
-- Navigate to the implemented Notifications, Pickup orders, Delivery work, and Delivery history screens from the dashboard, but distinguish a screen's existence from compatibility with the current backend. The notification inbox works against its adopted v1 contract; final-mile photo/COD validation remains incomplete, and chat UI is not yet adopted. Do not fabricate jobs or controls for unadopted capabilities.
+- Navigate to the implemented Notifications, Pickup orders, Delivery work, Delivery history, and Task messages screens from the dashboard, but distinguish a screen's existence from end-to-end backend acceptance. The notification inbox works against its adopted v1 contract; first-/final-mile dashboard previews are separate read-only task-list reads, not Laravel aggregate cards. Final-mile photo/COD validation and live chat exchange remain unverified. Do not fabricate jobs or controls for unadopted capabilities.
 - Use Flutter's adaptive navigation primitives. Phones are the primary target; tablets may use wider constrained content but must not become a desktop sidebar clone.
 - Preserve user input when validation or a recoverable network error returns. Confirm before discarding a partially completed registration.
 - Keep primary actions reachable above the keyboard when possible; use bottom action areas only when they do not obscure content or accessibility focus.
@@ -118,7 +118,7 @@ The current API supports Logistics discovery, Courier registration, approval-gat
 - Keep barcode scanning for first-mile identifiers. The partially adopted final-mile photo capture/upload UI must follow the shared upload policy, private bearer reads, retry/idempotency, permission, and accessibility rules; a barcode scan is not delivery proof.
 - Completion is an explicit intent followed by a fresh completion read. Display delivered only when the server returns the committed `delivered` projection.
 
-### Operational messaging (Flutter client not yet verified)
+### Operational messaging (live exchange not yet verified)
 
 - From an active offered/accepted task, offer **Message Logistics**; show **Message Seller** only after first-mile acceptance and **Message Buyer** only after final-mile acceptance. Laravel rechecks eligibility on every call.
 - Keep the task reference, leg, and safe counterpart label visible in a private thread. Render messages as plain text, show unread/read-only states, and offer explicit retry without claiming an uncertain send succeeded.

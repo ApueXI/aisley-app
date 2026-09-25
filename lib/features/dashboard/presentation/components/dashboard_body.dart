@@ -12,6 +12,7 @@ class _DashboardBody extends StatelessWidget {
     required this.onOpenHistory,
     this.onOpenNotifications,
     this.onOpenMessages,
+    this.previewController,
     this.profilePhoto,
   });
 
@@ -25,6 +26,7 @@ class _DashboardBody extends StatelessWidget {
   final VoidCallback onOpenHistory;
   final VoidCallback? onOpenNotifications;
   final VoidCallback? onOpenMessages;
+  final DashboardPreviewController? previewController;
   final ProfilePhotoData? profilePhoto;
 
   @override
@@ -40,14 +42,24 @@ class _DashboardBody extends StatelessWidget {
       children: [
         _WelcomeCard(courier: courier, profilePhoto: profilePhoto),
         const SizedBox(height: 24),
+        if (previewController case final controller?) ...[
+          _DashboardTaskPreviews(
+            controller: controller,
+            onOpenFirstMile: onOpenPickups,
+            onOpenFinalMile: onOpenDeliveries,
+          ),
+          const SizedBox(height: 24),
+        ],
         Text(
-          'Your work',
+          'Dashboard summaries',
           style: Theme.of(context).textTheme.titleLarge
               ?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 6),
         Text(
-          'Dashboard summaries are not available yet. Open the work screens for current tasks.',
+          previewController == null
+              ? 'Dashboard summaries are not available yet. Open the work screens for current tasks.'
+              : 'The aggregate is unavailable. Task previews above come from separate task lists.',
           style: Theme.of(context).textTheme.bodyMedium
               ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),

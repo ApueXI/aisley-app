@@ -12,6 +12,7 @@ import '../features/auth/presentation/controllers/auth_controller.dart';
 import '../features/chat/data/chat_repository.dart';
 import '../features/chat/presentation/controllers/chat_controller.dart';
 import '../features/dashboard/data/dashboard_repository.dart';
+import '../features/dashboard/presentation/controllers/dashboard_preview_controller.dart';
 import '../features/delivery/data/delivery_repository.dart';
 import '../features/delivery/presentation/controllers/delivery_controller.dart';
 import '../features/history/data/history_repository.dart';
@@ -42,6 +43,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
   HistoryController? _historyController;
   NotificationController? _notificationController;
   ChatController? _chatController;
+  DashboardPreviewController? _dashboardPreviewController;
   VehicleController? _vehicleController;
   bool _hasStartupError = false;
 
@@ -72,6 +74,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
       late final HistoryController historyController;
       late final NotificationController notificationController;
       late final ChatController chatController;
+      late final DashboardPreviewController dashboardPreviewController;
       late final VehicleController vehicleController;
       final authController = AuthController(
         authRepository: ApiAuthRepository(
@@ -87,6 +90,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
           historyController.clear();
           notificationController.clear();
           chatController.clear();
+          dashboardPreviewController.clear();
           vehicleController.clear();
         },
       );
@@ -120,6 +124,10 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         repository: ApiChatRepository(client: apiClient),
         onAuthFailure: authController.handleChatAuthFailure,
       );
+      dashboardPreviewController = DashboardPreviewController(
+        repository: ApiPickupRepository(client: apiClient),
+        onAuthFailure: authController.handlePickupAuthFailure,
+      );
       vehicleController = VehicleController(
         vehicleRepository: ApiVehicleRepository(client: apiClient),
         onAuthFailure: authController.handleVehicleAuthFailure,
@@ -138,6 +146,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         _historyController = historyController;
         _notificationController = notificationController;
         _chatController = chatController;
+        _dashboardPreviewController = dashboardPreviewController;
         _vehicleController = vehicleController;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -169,6 +178,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         historyController: _historyController,
         notificationController: _notificationController,
         chatController: _chatController,
+        dashboardPreviewController: _dashboardPreviewController,
         vehicleController: _vehicleController,
       );
     }

@@ -312,7 +312,9 @@ class PickupTask {
       json['status'] ?? json['state'],
       'pickup.task.status',
     );
-    final leg = PickupTaskLeg.fromApi(json['leg'], fallback: defaultLeg);
+    final leg = json.containsKey('leg')
+        ? PickupTaskLeg.fromApi(json['leg'])
+        : defaultLeg;
     parsePickupTaskStatus(rawStatus);
 
     final rawSchedule = json['schedule'];

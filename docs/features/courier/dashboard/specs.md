@@ -4,9 +4,9 @@ title: Courier Dashboard
 system: AISLEY
 type: Feature Specification
 version: 2.7
-status: Flutter dashboard partially implemented; task previews planned; Laravel aggregate scaffold-only
+status: Flutter dashboard partially implemented with read-only task previews; Laravel aggregate scaffold-only
 implementation_status: Protected dashboard scaffold and separate Courier notification/task APIs implemented; aggregate operational sections unavailable
-flutter_status: Scaffold validation, inbox badge, and feature/chat links implemented; task previews not yet implemented
+flutter_status: Scaffold validation, inbox badge, feature/chat links, and separate read-only task previews implemented; live acceptance unverified
 canonical: true
 role: Courier / Rider
 scope: External Flutter mobile client and Laravel read API scaffold
@@ -21,8 +21,8 @@ source_coverage: docs/requirements.md, docs/workspace.md, docs/schema.md, docs/d
 ## WHAT
 
 - **Purpose:** Provide the external Flutter Courier app with one read-oriented view of new allocations, available pickup/delivery requests, and the Courier's active work.
-- **Current scaffold:** `GET /api/v1/courier/dashboard` returns unavailable notification, available-task, and active-task aggregate sections. Flutter validates that shape, shows its independent inbox badge, and links to Pickup, Delivery, History, and Task messages; no live dashboard task cards are implemented.
-- **Partial Flutter target:** Add separate read-only first-/final-mile work previews from the already implemented, Courier-scoped task-list APIs. Label each preview by source and leg; retain the unavailable aggregate state. Do not treat client composition as a new Laravel dashboard DTO.
+- **Current scaffold:** `GET /api/v1/courier/dashboard` returns unavailable notification, available-task, and active-task aggregate sections. Flutter validates that shape, shows its independent inbox badge, and links to Pickup, Delivery, History, and Task messages; it does not render aggregate-derived task cards.
+- **Partial Flutter implementation:** Separate read-only first-/final-mile work previews consume the Courier-scoped task-list APIs. Each preview names its source and leg and retains independent loading/error state; the aggregate remains unavailable. Client composition is not a new Laravel dashboard DTO.
 - **Later scope:** A versioned Laravel aggregate may replace client previews. Normal 1–15-parcel batch acceptance, route display, COD completion, and cross-role chat acceptance remain separate feature gates; a dashboard link does not prove those flows work end-to-end.
 - **Mobile boundary:** Flutter owns screens, secure token storage, refresh behavior, and accessibility. Laravel owns identity, authorization, tenant scope, task eligibility, status, and data freshness.
 - **MVP relationship:** A Courier operates only within one approved Logistics organization and its sole operational hub. First-mile Seller pickup and final-mile hub delivery are independent task legs.
@@ -111,11 +111,11 @@ approved Courier session
 - [x] Flutter consumes the separate inbox API and shows its unread badge without interpreting the scaffold notification section as live.
 - [x] Flutter dashboard links to the task-chat inbox; its limited Logistics messaging adoption is not a dashboard chat aggregate.
 - [x] The current Flutter handoff records partial task-bound hub pickup/photo POD adoption; installed-device and end-to-end Logistics validation remain unverified.
-- [ ] Flutter shows read-only first-/final-mile previews from their separate authorized list APIs, each with source labels, independent states, and safe navigation/refetch.
-- [ ] Preview tests prove page-limited first-mile reads, unpaginated final-mile reads, unknown-status handling, partial failure, logout clearing, and no action or fabricated count.
+- [x] Flutter shows read-only first-/final-mile previews from their separate authorized list APIs, each with source labels, independent states, and safe navigation/refetch.
+- [x] Preview tests prove page-limited first-mile reads, unpaginated final-mile reads, unknown-status handling, partial failure, logout clearing, and no action or fabricated count.
 - [ ] Adopt the documented atomic final-mile batch action only after its authorized request/response, pagination/order, and retry details are verified; do not reactivate normal per-task acceptance meanwhile.
 - [ ] A versioned operational dashboard API returns safe available/active summaries with explicit freshness and count semantics; the current scaffold does not.
-- [ ] Partial preview rows identify their explicit leg/status and show only authorized list fields; distance/ETA is displayed only if the source DTO includes it.
+- [x] Partial preview rows identify their explicit leg/status and show only authorized list fields; distance/ETA is displayed only if the source DTO includes it.
 - [x] Rejected offers remain visible with safe reason/time; Logistics can re-offer the same task from the dedicated Dispatch page without changing the Order or duplicating task/waybill history.
 - [ ] Unfinished work can display informational `stale` with freshness metadata and is never automatically cancelled or reassigned.
 - [ ] Flutter consumes a versioned operational dashboard DTO after Laravel implements it; current task screens and inbox are not that DTO.
