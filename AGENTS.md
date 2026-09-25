@@ -52,12 +52,13 @@ Do not commit secret files, generated credentials, local device data, or unrelat
 17. Stay in scope. Do not refactor unrelated screens, rename shared packages, or change the Laravel repository from a Flutter task.
 18. For registration, profile-photo, or vehicle-document uploads, read `docs/flutter-file-uploads.md`. Keep Android's working upload path intact while adding browser-safe selected-file transport; do not use browser paths with `MultipartFile.fromPath` or claim web uploads work until browser and installed-APK checks pass.
 19. Archive the progress log at 150 lines. After appending a dated entry, if docs/PROGRESS.md exceeds 150 physical lines, preserve its complete contents unchanged in docs/logs/PROGRESS-YYYY-MM-DD.md; use a unique numbered suffix if that path exists, and never overwrite an archive. Replace the active log with its standard header, an up-to-date backend/API and Flutter-status snapshot, and a dated entry linking to the archive and summarizing the latest work. Historical entries may move to archives but must never be deleted or rewritten. Read an archive when older implementation history is relevant.
+20. **Use familiar patterns and focused decisions.** All frontend work must follow `docs/design-courier.md`, including its Jakob's Law and Hick's Law guidance. Reuse familiar Material interactions, consistent labels, navigation, and shared theme styles; give each active task/form step one prominent next action, group secondary choices, and reveal later steps when relevant. Preserve essential context, accessibility, explicit consent, and server-required confirmations. Review affected screens against the guide before handoff; document a justified exception instead of silently adding a competing pattern.
 
 ## Read before changing code
 
 - Read the latest `docs/PROGRESS.md` entry and record the backend/API version used by the Flutter change.
 - Read `docs/features/courier/rules.md` and the exact matching feature spec. Existing specs may use either `spec.md` or `specs.md`; preserve the path.
-- Read `docs/design-courier.md` before changing screen layout, styling, interaction, animation, or accessibility.
+- Read `docs/design-courier.md` before changing screen layout, styling, interaction, animation, or accessibility. It is the shared Flutter UI authority; feature specs own API behavior and cannot silently introduce conflicting visual conventions.
 - Read the Courier-related sections of copied `docs/requirements.md`, `docs/workspace.md`, `docs/schema.md`, and `docs/domain/Courier.md`.
 - Read `docs/domain/Logistics.md` when affiliation, hub, assignment, parcel, or Logistics authority is involved.
 - Read `docs/references/user-registration-requirements.md` for registration or approval work.
@@ -129,7 +130,7 @@ Do not commit secret files, generated credentials, local device data, or unrelat
 
 ## Privacy, accessibility, and reliability
 
-- Never display or persist raw storage paths, private evidence, token hashes, payment credentials, reviewer notes, or unnecessary Buyer/Seller PII.
+- Never display raw storage paths, token hashes, payment credentials, private reviewer notes, or unnecessary Buyer/Seller PII. Display private images only in the owning feature's authorized preview flow; do not log, export, or persist evidence in ordinary app storage.
 - Use authorized, server-provided delivery URLs or identifiers for private assets; never construct blob URLs from filenames or IDs.
 - Provide visible loading, empty, unavailable, forbidden, stale, partial, retry, success, and offline states. Do not represent a failed request as an empty list.
 - Provide semantic labels, visible focus, readable status text, sufficient touch targets, and non-color-only indicators for every interactive screen.
@@ -142,6 +143,7 @@ Do not commit secret files, generated credentials, local device data, or unrelat
 - Test JSON parsing, nullable fields, multipart field names, secure-storage failures, token expiry, `401/403/409/422/429`, timeout, offline, retry, and logout behavior.
 - Test that unavailable/scaffold API sections do not create fake operational cards or enable mutation buttons.
 - Add widget/accessibility tests for loading, empty, unavailable, forbidden, stale, partial, error, and success states.
+- For frontend changes, verify familiar controls, stable navigation/labels, action hierarchy, discoverable secondary choices, preserved essential context, and accessible focus/text scaling against `docs/design-courier.md`. A documentation update alone does not prove existing screens comply.
 - Mocks and fixtures support deterministic tests but cannot replace verification against the documented Laravel API when an endpoint is implemented.
 - Before handoff, verify spec line count, endpoint paths, backend commit/API version, copied-document synchronization, privacy rules, and progress entry.
 - Record the backend commit/API version and Flutter change in this project's `docs/PROGRESS.md`; update it whenever the backend contract changes.
