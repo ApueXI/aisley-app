@@ -2,7 +2,7 @@
 
 Aisley Courier is the external Flutter/Dart application for Aisley Couriers. It is a Courier client, not a Customer, Seller, Admin, or Logistics dashboard.
 
-The current app provides Courier authentication, account and vehicle management, policy consent, notifications, first-mile pickup, atomic final-mile dispatch-batch acceptance, task-bound final-mile hub handoff, photo upload/COD completion intent, delivery history, and Logistics/Seller task chat. The dashboard has separate read-only task previews while its backend aggregate remains a scaffold; Buyer chat is read-only. Camera barcode scanning is implemented for the Android release APK and local Flutter web-server testing; Linux remains manual-input only for barcodes. Live batch/API, Logistics validation, and device/browser acceptance remain unverified. See [docs/README.md](docs/README.md) and [docs/PROGRESS.md](docs/PROGRESS.md) for the current boundary.
+The current app provides Courier authentication, account and vehicle management, policy consent, notifications, first-mile pickup, atomic final-mile dispatch-batch acceptance, task-bound final-mile hub handoff, Android rear-camera POD/browser file fallback, photo upload/COD completion intent, delivery history, and Logistics/Seller task chat. The dashboard has separate read-only task previews while its backend aggregate remains a scaffold; Buyer chat is read-only. Barcode scanning is implemented for Android and local Flutter web-server testing; Linux remains manual-input only for barcodes. Live batch/API, Logistics validation, and device/browser acceptance remain unverified. See [docs/README.md](docs/README.md) and [docs/PROGRESS.md](docs/PROGRESS.md) for the current boundary.
 
 Frontend work follows the shared [Courier design guide](docs/design-courier.md): familiar Material interactions, consistent labels and navigation, and focused decisions based on Jakob's Law and Hick's Law. [AGENTS.md](AGENTS.md) requires review of changed screens against those rules; feature specs continue to define the authorized workflow.
 
@@ -114,7 +114,7 @@ flutter run -d web-server --web-hostname localhost --web-port 8765
 
 Open `http://localhost:8765` in your browser. Browser webcam access requires permission and a secure context such as localhost; a non-local browser test needs HTTPS. Allow the exact Flutter origin in the Laravel API's CORS configuration. See the [Flutter web-server guide](https://docs.flutter.dev/platform-integration/web/setup) and [browser camera requirements](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia).
 
-Camera scanning uses the shared Flutter scanner for QR and Code 128 tracking-ID candidates in the first-mile pickup flow. It fills the pickup input and never submits an action automatically. Final-mile proof of delivery is photo-only and does not use a scanned identifier. If permission or browser camera support is unavailable, use manual first-mile input; do not use a plaintext token workaround. The API must allow the exact localhost origin for authenticated web testing.
+Camera scanning uses the shared Flutter scanner for QR and Code 128 tracking-ID candidates in the first-mile pickup flow. It fills the pickup input and never submits an action automatically. Final-mile proof is photo-only: Android uses a separate rear-camera still capture, while localhost web uses the file chooser. If scanner permission or browser support is unavailable, use manual first-mile input; do not use a plaintext token workaround. The API must allow the exact localhost origin for authenticated web testing.
 
 The shared multipart sender now keeps Android/native readable-path uploads and uses bounded selected-file bytes in the browser. Registration evidence, profile photos, vehicle documents, and delivery photo POD use this platform-safe transport. Browser CORS/private-read behavior and installed-APK uploads still require runtime acceptance against a reachable API; build success alone does not verify either target. See the [cross-platform upload guide](docs/flutter-file-uploads.md), and allow the exact localhost origin plus the required upload/private-read preflights in the API.
 
@@ -126,7 +126,7 @@ Android uses the existing `android/` runner. To build an installable release APK
 flutter build apk --release
 ```
 
-The output is `build/app/outputs/flutter-apk/app-release.apk`. The release APK includes the camera permission and shared QR/Code 128 scanner. Verify camera permission and successful scans on an installed release APK; manual entry remains available when permission is denied. A successful build alone does not prove the physical camera flow works.
+The output is `build/app/outputs/flutter-apk/app-release.apk`. The release APK includes camera permission, the first-mile QR/Code 128 scanner, and dedicated final-mile rear-camera still capture. Verify scanner and POD capture/permission states on an installed release APK; first-mile manual entry and POD file fallback remain available. A successful build alone does not prove either physical camera flow works.
 
 ## Run on Windows desktop
 

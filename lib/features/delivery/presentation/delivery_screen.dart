@@ -1,9 +1,6 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:file_selector/file_selector.dart';
 
-import '../../../core/networking/multipart_file_adapter.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../chat/presentation/controllers/chat_controller.dart';
 import '../../chat/presentation/chat_thread_screen.dart';
@@ -12,6 +9,9 @@ import '../../policy/presentation/policy_screen.dart';
 import '../../pickup/domain/pickup_models.dart';
 import '../domain/delivery_models.dart';
 import 'controllers/delivery_controller.dart';
+import 'photo_capture/delivery_photo_capture.dart';
+import 'photo_capture/delivery_photo_capture_result.dart';
+import 'photo_capture/delivery_photo_selection_loader.dart';
 
 part 'components/delivery_list.dart';
 part 'components/delivery_task.dart';
@@ -33,6 +33,7 @@ class DeliveryScreen extends StatefulWidget {
     this.policyController,
     this.onOpenPickup,
     this.chatController,
+    this.photoCaptureLauncher = const CameraDeliveryPhotoCaptureLauncher(),
     super.key,
   });
 
@@ -41,6 +42,7 @@ class DeliveryScreen extends StatefulWidget {
   final PolicyController? policyController;
   final VoidCallback? onOpenPickup;
   final ChatController? chatController;
+  final DeliveryPhotoCaptureLauncher photoCaptureLauncher;
 
   @override
   State<DeliveryScreen> createState() => _DeliveryScreenState();
@@ -90,6 +92,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
           task: task,
           onOpenPickup: widget.onOpenPickup,
           chatController: widget.chatController,
+          photoCaptureLauncher: widget.photoCaptureLauncher,
         ),
       ),
     );
