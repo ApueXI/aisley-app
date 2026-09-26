@@ -4,7 +4,7 @@ system: AISLEY
 type: Client Architecture
 platform: Flutter / Dart
 role: Courier / Rider
-status: Flutter inbox, dashboard previews, final-mile batch acceptance, photo-POD/COD intent, and Logistics/Seller chat implemented; support tickets and live acceptance remain open
+status: Flutter inbox, support tickets, dashboard previews, final-mile batch acceptance, photo-POD/COD intent, and Logistics/Seller chat implemented; live acceptance remains open
 backend_contract_commit: ca1487c (copied Laravel documentation baseline; Flutter adoption varies by feature)
 ---
 
@@ -14,7 +14,7 @@ This document describes the external Flutter application used by Couriers. Andro
 
 The Laravel API remains the source of truth for identity, approval, role access, organization and hub ownership, order status, task assignment, and delivery state. The Flutter app renders server responses and submits only fields allowed by the versioned API contract.
 
-Flutter implements the notification inbox, separate read-only dashboard task previews, final-mile batch list/detail/atomic acceptance with state reconciliation, photo selection/upload and completion intent with COD cash confirmation, and a task-chat inbox with Logistics/Seller messaging. Buyer threads remain read-only. Courier support-ticket API routes are available but their Flutter UI is not adopted. Installed-device/browser acceptance, authenticated batch/API and COD/Logistics validation, and live chat exchange remain unverified. Batch-route rendering, failed-attempt submission, and linehaul trip screens remain unadopted. See `docs/PROGRESS.md` for dated implementation evidence; Laravel remains authoritative for operational state.
+Flutter implements the notification inbox, private support-ticket list/create/detail/reply/read flow, separate read-only dashboard task previews, final-mile batch list/detail/atomic acceptance with state reconciliation, photo selection/upload and completion intent with COD cash confirmation, and a task-chat inbox with Logistics/Seller messaging. Buyer threads remain read-only. Installed-device/browser acceptance, authenticated support-ticket/batch/API and COD/Logistics validation, and live chat exchange remain unverified. Batch-route rendering, failed-attempt submission, and linehaul trip screens remain unadopted. See `docs/PROGRESS.md` for dated implementation evidence; Laravel remains authoritative for operational state.
 
 ## Current implementation boundary
 
@@ -113,6 +113,7 @@ lib/
 │   ├── notification/    # Authorized inbox, unread count, and mark-read
 │   ├── policy/          # Published policies and explicit consent
 │   ├── chat/            # Task inbox/history and Logistics message sending
+│   ├── support/         # Private Admin support ticket list, history, replies, and reads
 │   ├── batch/           # Final-mile dispatch-batch list, detail, and atomic acceptance
 │   ├── pickup/
 │   │   ├── data/         # Pickup task, manifest, and handoff repositories
@@ -136,6 +137,8 @@ test/
 The exact state-management, routing, networking, and secure-storage packages are project decisions. Inspect `pubspec.yaml` and reuse existing choices before adding a dependency.
 
 Operational chat is implemented in `lib/features/chat/` using the existing bearer client and the versioned Courier conversation actions in `features/courier/chat-messaging/api-handoff.md`. Logistics/Seller sending is enabled; Buyer threads remain read-only pending counterpart adoption and verification. Keep message bodies in session-bound memory and recheck task eligibility on the server.
+
+Courier support tickets are implemented separately in `lib/features/support/` against `courier-support-tickets-v1`. The controller keeps bounded list/history state and uncertain mutation keys only in session memory, polls only the visible support route, and clears private drafts and transcripts when authentication or authorization is lost.
 
 ## API integration
 

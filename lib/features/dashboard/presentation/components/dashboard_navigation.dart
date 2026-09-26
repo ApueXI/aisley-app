@@ -194,4 +194,17 @@ mixin _DashboardNavigation on State<DashboardScreen> {
       ),
     );
   }
+
+  Future<void> _openSupportTickets() async {
+    final supportTicketController = widget.supportTicketController;
+    if (supportTicketController == null || !mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SupportTicketScreen(
+          controller: supportTicketController,
+          authController: widget.authController,
+        ),
+      ),
+    );
+  }
 }

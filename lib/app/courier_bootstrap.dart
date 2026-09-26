@@ -25,6 +25,8 @@ import '../features/policy/data/policy_repository.dart';
 import '../features/policy/presentation/controllers/policy_controller.dart';
 import '../features/pickup/data/pickup_repository.dart';
 import '../features/pickup/presentation/controllers/pickup_controller.dart';
+import '../features/support/data/support_ticket_repository.dart';
+import '../features/support/presentation/controllers/support_ticket_controller.dart';
 import '../features/vehicle/data/vehicle_repository.dart';
 import '../features/vehicle/presentation/controllers/vehicle_controller.dart';
 import 'courier_app.dart';
@@ -46,6 +48,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
   HistoryController? _historyController;
   NotificationController? _notificationController;
   ChatController? _chatController;
+  SupportTicketController? _supportTicketController;
   DashboardPreviewController? _dashboardPreviewController;
   VehicleController? _vehicleController;
   bool _hasStartupError = false;
@@ -75,6 +78,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
       late final HistoryController historyController;
       late final NotificationController notificationController;
       late final ChatController chatController;
+      late final SupportTicketController supportTicketController;
       late final DashboardPreviewController dashboardPreviewController;
       late final VehicleController vehicleController;
       final authController = AuthController(
@@ -92,6 +96,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
           historyController.clear();
           notificationController.clear();
           chatController.clear();
+          supportTicketController.clear();
           dashboardPreviewController.clear();
           vehicleController.clear();
         },
@@ -125,6 +130,10 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
       chatController = ChatController(
         repository: ApiChatRepository(client: apiClient),
         onAuthFailure: authController.handleChatAuthFailure,
+      );
+      supportTicketController = SupportTicketController(
+        repository: ApiSupportTicketRepository(client: apiClient),
+        onAuthFailure: authController.handleSupportTicketAuthFailure,
       );
       dashboardPreviewController = DashboardPreviewController(
         repository: ApiPickupRepository(client: apiClient),
@@ -160,6 +169,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         _historyController = historyController;
         _notificationController = notificationController;
         _chatController = chatController;
+        _supportTicketController = supportTicketController;
         _dashboardPreviewController = dashboardPreviewController;
         _vehicleController = vehicleController;
       });
@@ -193,6 +203,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         historyController: _historyController,
         notificationController: _notificationController,
         chatController: _chatController,
+        supportTicketController: _supportTicketController,
         dashboardPreviewController: _dashboardPreviewController,
         vehicleController: _vehicleController,
       );

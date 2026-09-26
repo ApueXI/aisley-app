@@ -15,6 +15,7 @@ import '../features/notification/presentation/controllers/notification_controlle
 import '../features/policy/presentation/controllers/policy_controller.dart';
 import '../features/policy/presentation/policy_screen.dart';
 import '../features/pickup/presentation/controllers/pickup_controller.dart';
+import '../features/support/presentation/controllers/support_ticket_controller.dart';
 import '../features/vehicle/presentation/controllers/vehicle_controller.dart';
 
 class CourierApp extends StatelessWidget {
@@ -28,6 +29,7 @@ class CourierApp extends StatelessWidget {
     this.historyController,
     this.notificationController,
     this.chatController,
+    this.supportTicketController,
     this.dashboardPreviewController,
     this.vehicleController,
     super.key,
@@ -42,6 +44,7 @@ class CourierApp extends StatelessWidget {
   final HistoryController? historyController;
   final NotificationController? notificationController;
   final ChatController? chatController;
+  final SupportTicketController? supportTicketController;
   final DashboardPreviewController? dashboardPreviewController;
   final VehicleController? vehicleController;
 
@@ -62,6 +65,7 @@ class CourierApp extends StatelessWidget {
         historyController: historyController,
         notificationController: notificationController,
         chatController: chatController,
+        supportTicketController: supportTicketController,
         dashboardPreviewController: dashboardPreviewController,
         vehicleController: vehicleController,
       ),
@@ -80,6 +84,7 @@ class AuthGate extends StatefulWidget {
     this.historyController,
     this.notificationController,
     this.chatController,
+    this.supportTicketController,
     this.dashboardPreviewController,
     this.vehicleController,
     super.key,
@@ -94,6 +99,7 @@ class AuthGate extends StatefulWidget {
   final HistoryController? historyController;
   final NotificationController? notificationController;
   final ChatController? chatController;
+  final SupportTicketController? supportTicketController;
   final DashboardPreviewController? dashboardPreviewController;
   final VehicleController? vehicleController;
 
@@ -137,6 +143,7 @@ class _AuthGateState extends State<AuthGate> {
             historyController: widget.historyController,
             notificationController: widget.notificationController,
             chatController: widget.chatController,
+            supportTicketController: widget.supportTicketController,
             dashboardPreviewController: widget.dashboardPreviewController,
             vehicleController: widget.vehicleController,
           ),

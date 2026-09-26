@@ -4,14 +4,14 @@ system: AISLEY
 type: Feature Index
 role: Courier / Rider
 platform: Flutter / Dart
-status: Flutter dashboard previews, inbox, final-mile batch acceptance, photo-POD/COD intent, and Logistics/Seller chat implemented; support tickets and live acceptance remain open
+status: Flutter dashboard previews, inbox, support tickets, final-mile batch acceptance, photo-POD/COD intent, and Logistics/Seller chat implemented; live acceptance remains open
 ---
 
 # Courier feature index
 
 ## Implementation rule
 
-`auth/spec.md`, `account-management/specs.md`, `support-tickets/spec.md`, `../logistics/vehicle-fleet-management/specs.md` (the shared Courier/Logistics vehicle contract), the policy-consent specification, `notification/specs.md`, `accept-delivery-requests/specs.md`, `pick-up-order/specs.md`, `delivery-order/specs.md`, `proof-of-delivery/specs.md`, `complete-delivery/specs.md`, `delivery-history/specs.md`, and `chat-messaging/specs.md` describe implemented API slices; client adoption and live acceptance vary. Flutter has a task-chat inbox with Logistics/Seller sending; Buyer threads remain read-only, and support-ticket screens remain unadopted. Incident Reporting and Profit Dashboard remain planning drafts and cannot authorize invented requests, fields, statuses, providers, or offline behavior.
+`auth/spec.md`, `account-management/specs.md`, `support-tickets/spec.md`, `../logistics/vehicle-fleet-management/specs.md` (the shared Courier/Logistics vehicle contract), the policy-consent specification, `notification/specs.md`, `accept-delivery-requests/specs.md`, `pick-up-order/specs.md`, `delivery-order/specs.md`, `proof-of-delivery/specs.md`, `complete-delivery/specs.md`, `delivery-history/specs.md`, and `chat-messaging/specs.md` describe implemented API slices; client adoption and live acceptance vary. Flutter has a private support-ticket flow and a task-chat inbox with Logistics/Seller sending; Buyer threads remain read-only. Incident Reporting and Profit Dashboard remain planning drafts and cannot authorize invented requests, fields, statuses, providers, or offline behavior.
 
 Every Flutter feature follows [`../../design-courier.md`](../../design-courier.md), including its Jakob's Law/Hick's Law interaction rules and frontend review criteria. Reuse familiar controls and labels, emphasize the current next action, and group optional choices while preserving essential context. Feature-specific workflow and API requirements remain binding; consult [`../../PROGRESS.md`](../../PROGRESS.md) for current Flutter implementation evidence.
 
@@ -93,4 +93,4 @@ Flutter camera work targets the Android release APK and the same Flutter app ser
 
 ## Draft files
 
-The remaining planning drafts are Incident Reporting and Profit Dashboard. Courier support tickets have an implemented API contract but no Flutter screens. Dashboard operational aggregation remains unavailable; separate Flutter task previews and the notification badge are implemented. Courier Chat/Messaging has Flutter Logistics/Seller sending and read-only Buyer threads; use `chat-messaging/api-handoff.md` for exact calls. Atomic batch acceptance is locally implemented, while task-bound hub handoff, photo upload, and COD-aware completion intent still need authenticated end-to-end Logistics validation and installed-device/browser acceptance. Batch route presentation remains unadopted; background push, signature proof, and notification-driven mutations remain deferred.
+The remaining planning drafts are Incident Reporting and Profit Dashboard. Courier support tickets have implemented Flutter list/create/detail/reply/read screens; authenticated live acceptance remains open. Dashboard operational aggregation remains unavailable; separate Flutter task previews and the notification badge are implemented. Courier Chat/Messaging has Flutter Logistics/Seller sending and read-only Buyer threads; use `chat-messaging/api-handoff.md` for exact calls. Atomic batch acceptance is locally implemented, while task-bound hub handoff, photo upload, and COD-aware completion intent still need authenticated end-to-end Logistics validation and installed-device/browser acceptance. Batch route presentation remains unadopted; background push, signature proof, and notification-driven mutations remain deferred.

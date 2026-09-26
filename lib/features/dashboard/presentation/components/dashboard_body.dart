@@ -12,6 +12,7 @@ class _DashboardBody extends StatelessWidget {
     required this.onOpenHistory,
     this.onOpenNotifications,
     this.onOpenMessages,
+    this.onOpenSupport,
     this.previewController,
     this.profilePhoto,
   });
@@ -26,6 +27,7 @@ class _DashboardBody extends StatelessWidget {
   final VoidCallback onOpenHistory;
   final VoidCallback? onOpenNotifications;
   final VoidCallback? onOpenMessages;
+  final VoidCallback? onOpenSupport;
   final DashboardPreviewController? previewController;
   final ProfilePhotoData? profilePhoto;
 
@@ -122,6 +124,14 @@ class _DashboardBody extends StatelessWidget {
             onPressed: onOpenMessages,
             icon: const Icon(Icons.chat_bubble_outline),
             label: const Text('Task messages'),
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (onOpenSupport != null) ...[
+          OutlinedButton.icon(
+            onPressed: onOpenSupport,
+            icon: const Icon(Icons.support_agent_outlined),
+            label: const Text('Support tickets'),
           ),
           const SizedBox(height: 12),
         ],

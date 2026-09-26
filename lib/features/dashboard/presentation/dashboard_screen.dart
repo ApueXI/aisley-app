@@ -22,6 +22,8 @@ import '../../policy/presentation/controllers/policy_controller.dart';
 import '../../pickup/presentation/controllers/pickup_controller.dart';
 import '../../pickup/presentation/pickup_screen.dart';
 import '../../pickup/domain/pickup_models.dart';
+import '../../support/presentation/controllers/support_ticket_controller.dart';
+import '../../support/presentation/support_ticket_screen.dart';
 import '../../vehicle/presentation/controllers/vehicle_controller.dart';
 import '../domain/dashboard_models.dart';
 import '../domain/dashboard_task_preview.dart';
@@ -44,6 +46,7 @@ class DashboardScreen extends StatefulWidget {
     this.historyController,
     this.notificationController,
     this.chatController,
+    this.supportTicketController,
     this.dashboardPreviewController,
     this.vehicleController,
     super.key,
@@ -58,6 +61,7 @@ class DashboardScreen extends StatefulWidget {
   final HistoryController? historyController;
   final NotificationController? notificationController;
   final ChatController? chatController;
+  final SupportTicketController? supportTicketController;
   final DashboardPreviewController? dashboardPreviewController;
   final VehicleController? vehicleController;
 
@@ -273,6 +277,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                     onOpenMessages: widget.chatController == null
                         ? null
                         : _openMessages,
+                    onOpenSupport: widget.supportTicketController == null
+                        ? null
+                        : _openSupportTickets,
                     previewController: widget.dashboardPreviewController,
                   )
                 : AnimatedBuilder(
@@ -292,6 +299,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                       onOpenMessages: widget.chatController == null
                           ? null
                           : _openMessages,
+                      onOpenSupport: widget.supportTicketController == null
+                          ? null
+                          : _openSupportTickets,
                       previewController: widget.dashboardPreviewController,
                       profilePhoto: widget.accountController!.profilePhoto,
                     ),
