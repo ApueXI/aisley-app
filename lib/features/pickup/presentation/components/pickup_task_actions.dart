@@ -62,9 +62,17 @@ extension _PickupTaskActions on _PickupTaskDetailScreenState {
               const SizedBox(height: 8),
               const Text(
                 'Final-mile offers must be accepted as a whole dispatch batch. '
-                'Batch acceptance is not available in this app yet. Parcels '
-                'cannot be accepted one at a time.',
+                'Review the complete batch before accepting responsibility. '
+                'Parcels cannot be accepted one at a time.',
               ),
+              if (_onOpenBatches != null) ...[
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: _onOpenBatches,
+                  icon: const Icon(Icons.inventory_2_outlined),
+                  label: const Text('Review dispatch batches'),
+                ),
+              ],
             ],
           ),
         ),

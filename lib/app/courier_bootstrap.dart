@@ -9,6 +9,8 @@ import '../features/account/data/account_repository.dart';
 import '../features/account/presentation/controllers/account_controller.dart';
 import '../features/auth/data/auth_repository.dart';
 import '../features/auth/presentation/controllers/auth_controller.dart';
+import '../features/batch/data/final_mile_batch_repository.dart';
+import '../features/batch/presentation/controllers/final_mile_batch_controller.dart';
 import '../features/chat/data/chat_repository.dart';
 import '../features/chat/presentation/controllers/chat_controller.dart';
 import '../features/dashboard/data/dashboard_repository.dart';
@@ -37,6 +39,7 @@ class CourierBootstrapApp extends StatefulWidget {
 class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
   AuthController? _authController;
   AccountController? _accountController;
+  FinalMileBatchController? _batchController;
   PolicyController? _policyController;
   PickupController? _pickupController;
   DeliveryController? _deliveryController;
@@ -65,6 +68,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
       final tokenStorage = SecureTokenStorage();
       final apiClient = ApiClient(config: config, tokenStorage: tokenStorage);
       late final AccountController accountController;
+      late final FinalMileBatchController batchController;
       late final PolicyController policyController;
       late final PickupController pickupController;
       late final DeliveryController deliveryController;
@@ -81,6 +85,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         dashboardRepository: ApiDashboardRepository(client: apiClient),
         onSessionEnded: () {
           accountController.clear();
+          batchController.clear();
           policyController.clear();
           pickupController.clear();
           deliveryController.clear();
@@ -125,6 +130,17 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         repository: ApiPickupRepository(client: apiClient),
         onAuthFailure: authController.handlePickupAuthFailure,
       );
+      batchController = FinalMileBatchController(
+        repository: ApiFinalMileBatchRepository(client: apiClient),
+        onAuthFailure: authController.handlePickupAuthFailure,
+        onBatchAccepted: () async {
+          await Future.wait<void>([
+            pickupController.load(),
+            deliveryController.load(),
+            dashboardPreviewController.refreshFinalMile(),
+          ]);
+        },
+      );
       vehicleController = VehicleController(
         vehicleRepository: ApiVehicleRepository(client: apiClient),
         onAuthFailure: authController.handleVehicleAuthFailure,
@@ -137,6 +153,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
       setState(() {
         _authController = authController;
         _accountController = accountController;
+        _batchController = batchController;
         _policyController = policyController;
         _pickupController = pickupController;
         _deliveryController = deliveryController;
@@ -169,6 +186,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
       return CourierApp(
         authController: authController,
         accountController: _accountController,
+        batchController: _batchController,
         policyController: _policyController,
         pickupController: _pickupController,
         deliveryController: _deliveryController,

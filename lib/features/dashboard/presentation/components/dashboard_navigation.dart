@@ -73,6 +73,7 @@ mixin _DashboardNavigation on State<DashboardScreen> {
           pickupController: pickupController,
           policyController: widget.policyController,
           onOpenDelivery: _openDeliveries,
+          onOpenBatches: _openBatches,
           chatController: widget.chatController,
         ),
       ),
@@ -83,6 +84,20 @@ mixin _DashboardNavigation on State<DashboardScreen> {
             Future<void>.value(),
       );
     }
+  }
+
+  Future<void> _openBatches() async {
+    final batchController = widget.batchController;
+    if (batchController == null || !mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => FinalMileBatchScreen(
+          authController: widget.authController,
+          batchController: batchController,
+          policyController: widget.policyController,
+        ),
+      ),
+    );
   }
 
   Future<void> _openDeliveries() async {

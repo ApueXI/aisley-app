@@ -4,7 +4,7 @@ system: AISLEY
 type: Client Architecture
 platform: Flutter / Dart
 role: Courier / Rider
-status: Flutter inbox, dashboard previews, photo-POD/COD intent, and Logistics/Seller chat implemented; support tickets, live acceptance, and batch adoption remain open
+status: Flutter inbox, dashboard previews, final-mile batch acceptance, photo-POD/COD intent, and Logistics/Seller chat implemented; support tickets and live acceptance remain open
 backend_contract_commit: ca1487c (copied Laravel documentation baseline; Flutter adoption varies by feature)
 ---
 
@@ -14,7 +14,7 @@ This document describes the external Flutter application used by Couriers. Andro
 
 The Laravel API remains the source of truth for identity, approval, role access, organization and hub ownership, order status, task assignment, and delivery state. The Flutter app renders server responses and submits only fields allowed by the versioned API contract.
 
-Flutter implements the notification inbox, separate read-only dashboard task previews, photo selection/upload and completion intent with COD cash confirmation, and a task-chat inbox with Logistics/Seller messaging. Buyer threads remain read-only. Courier support-ticket API routes are available but their Flutter UI is not adopted. Installed-device/browser acceptance, authenticated COD/Logistics validation, and live chat exchange remain unverified. Normal dispatch-batch acceptance, batch-route rendering, failed-attempt submission, and linehaul trip screens remain unadopted. See `docs/PROGRESS.md` for dated implementation evidence; Laravel remains authoritative for operational state.
+Flutter implements the notification inbox, separate read-only dashboard task previews, final-mile batch list/detail/atomic acceptance with state reconciliation, photo selection/upload and completion intent with COD cash confirmation, and a task-chat inbox with Logistics/Seller messaging. Buyer threads remain read-only. Courier support-ticket API routes are available but their Flutter UI is not adopted. Installed-device/browser acceptance, authenticated batch/API and COD/Logistics validation, and live chat exchange remain unverified. Batch-route rendering, failed-attempt submission, and linehaul trip screens remain unadopted. See `docs/PROGRESS.md` for dated implementation evidence; Laravel remains authoritative for operational state.
 
 ## Current implementation boundary
 
@@ -113,6 +113,7 @@ lib/
 │   ├── notification/    # Authorized inbox, unread count, and mark-read
 │   ├── policy/          # Published policies and explicit consent
 │   ├── chat/            # Task inbox/history and Logistics message sending
+│   ├── batch/           # Final-mile dispatch-batch list, detail, and atomic acceptance
 │   ├── pickup/
 │   │   ├── data/         # Pickup task, manifest, and handoff repositories
 │   │   ├── domain/       # Server status, task, manifest, and handoff models

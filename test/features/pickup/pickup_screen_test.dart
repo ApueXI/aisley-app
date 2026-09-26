@@ -180,7 +180,7 @@ void main() {
     expect(find.text('Pickup confirmed'), findsNothing);
   });
 
-  testWidgets('explains that final-mile batch acceptance is not adopted', (
+  testWidgets('routes a final-mile offer to dispatch batch acceptance', (
     tester,
   ) async {
     final controller = PickupController(
@@ -195,6 +195,7 @@ void main() {
           authController: authController,
           pickupController: controller,
           task: offeredTask,
+          onOpenBatches: () {},
         ),
       ),
     );
@@ -202,10 +203,10 @@ void main() {
 
     expect(find.text('Dispatch batch offer'), findsOneWidget);
     expect(
-      find.textContaining('Batch acceptance is not available in this app yet'),
+      find.textContaining('accepted as a whole dispatch batch'),
       findsOneWidget,
     );
-    expect(find.textContaining('contract is confirmed'), findsNothing);
+    expect(find.text('Review dispatch batches'), findsOneWidget);
     expect(find.text('Accept hub delivery'), findsNothing);
   });
 
