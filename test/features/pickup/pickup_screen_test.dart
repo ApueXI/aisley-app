@@ -180,6 +180,35 @@ void main() {
     expect(find.text('Pickup confirmed'), findsNothing);
   });
 
+  testWidgets('explains that final-mile batch acceptance is not adopted', (
+    tester,
+  ) async {
+    final controller = PickupController(
+      pickupRepository: _WidgetPickupRepository(includeFinalMile: true),
+    );
+    final authController = _authenticatedAuthController();
+    final offeredTask = _finalMileTask.copyWith(rawStatus: 'delivery_assigned');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PickupTaskDetailScreen(
+          authController: authController,
+          pickupController: controller,
+          task: offeredTask,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dispatch batch offer'), findsOneWidget);
+    expect(
+      find.textContaining('Batch acceptance is not available in this app yet'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('contract is confirmed'), findsNothing);
+    expect(find.text('Accept hub delivery'), findsNothing);
+  });
+
   testWidgets('keeps an unavailable section distinct from an empty section', (
     tester,
   ) async {

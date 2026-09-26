@@ -10,6 +10,12 @@ This is the progress log for the external Courier Flutter application. It is sep
 
 ## 2026-09-26
 
+- Removed runtime `.env` asset loading and packaging. The app now uses the non-secret `API_BASE_URL` Dart define with the existing localhost default, so `flutter run -d linux` remains unchanged while alternate origins use `--dart-define`; secret values remain prohibited in client configuration.
+- Corrected the root setup/web guidance to describe first-mile-only barcode scanning, photo-only final-mile POD, and the implemented native-path/browser-byte multipart transport without claiming runtime browser or installed-APK acceptance. Updated the disabled final-mile offer card to state that batch acceptance is not yet adopted in Flutter rather than incorrectly calling the `courier-first-and-final-mile-accept-v1` contract unconfirmed. Backend baseline remains `ca1487c`; no API behavior changed.
+- Verification: `flutter analyze --no-pub`, the targeted pickup widget tests (5 passed), and `git diff --check` passed.
+
+## 2026-09-26
+
 - Synchronized the copied backend contract from `docs-flutter-from-webapp` to Laravel checkout `ca1487c` while preserving Flutter-owned progress, design rules, and the newer Courier-to-Seller messaging status. Added the implemented `courier-support-tickets-v1` contract, support-ticket schema records and route index, and the historical Flutter handoff record.
 - Updated final-mile batch acceptance to the now-complete contract: list is bounded to 30 schedules ordered by `scheduled_for` descending; detail and accept return the canonical batch projection; accept sends an empty JSON object without `Idempotency-Key`; retries are state-idempotent; `404 BATCH_NOT_FOUND` and `409 BATCH_STATE_CONFLICT` define reconciliation. Flutter batch acceptance remains unimplemented by this documentation sync.
 - Updated copied feature versions/baselines and replaced the obsolete deferred-shipment rule with reuse of deployed Shipment/Parcel/Delivery Task/evidence records. This is documentation only; no Dart code or Laravel source changed.

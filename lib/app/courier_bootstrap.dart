@@ -61,10 +61,7 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
     }
 
     try {
-      final config = await AppConfig.load().timeout(
-        const Duration(seconds: 5),
-        onTimeout: () => AppConfig.fromEnvironment,
-      );
+      const config = AppConfig.fromEnvironment;
       final tokenStorage = SecureTokenStorage();
       final apiClient = ApiClient(config: config, tokenStorage: tokenStorage);
       late final AccountController accountController;

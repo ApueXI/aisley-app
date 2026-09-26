@@ -34,20 +34,19 @@ From the cloned repository root:
 ```bash
 git clone <repository-url>
 cd aisley_app
-cp .env.example .env
 flutter pub get
 flutter doctor -v
 flutter analyze
 flutter test
 ```
 
-Edit `.env` and set the API origin only. The app appends `/api/v1` itself, so do not include that suffix:
+The app uses `http://127.0.0.1:8000` by default, so the normal Linux development command remains `flutter run -d linux`. To use another API origin, pass the non-secret build setting with `--dart-define`; the app appends `/api/v1` itself, so do not include that suffix:
 
-```dotenv
-API_BASE_URL=http://127.0.0.1:8000
+```bash
+flutter run -d linux --dart-define=API_BASE_URL=http://192.0.2.10:8000
 ```
 
-Use an HTTPS API URL outside local development. Do not put passwords, bearer tokens, signing keys, or other secrets in `.env`; the file is ignored by Git and is bundled as a client asset when the app runs.
+Append the same `--dart-define=API_BASE_URL=...` option to another `flutter run` or `flutter build` command when that target needs a different origin. Use HTTPS outside local development. Dart defines are compiled into the client, so use them only for non-secret configuration such as the public API origin; never put passwords, bearer tokens, signing keys, provider credentials, or other secrets in them. The app does not read or bundle `.env` files.
 
 If the Laravel API is running on another machine, use a development-machine address reachable from the target platform and configure the API's CORS policy for browser runs. The app shows a recoverable network state when the API is unavailable.
 
@@ -115,9 +114,9 @@ flutter run -d web-server --web-hostname localhost --web-port 8765
 
 Open `http://localhost:8765` in your browser. Browser webcam access requires permission and a secure context such as localhost; a non-local browser test needs HTTPS. Allow the exact Flutter origin in the Laravel API's CORS configuration. See the [Flutter web-server guide](https://docs.flutter.dev/platform-integration/web/setup) and [browser camera requirements](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia).
 
-Camera scanning uses the shared Flutter scanner for QR and Code 128 tracking-ID candidates. It fills pickup or proof input and never submits an action automatically. If permission or browser camera support is unavailable, use manual input; do not use a plaintext token workaround. The API must allow the exact localhost origin for authenticated web testing.
+Camera scanning uses the shared Flutter scanner for QR and Code 128 tracking-ID candidates in the first-mile pickup flow. It fills the pickup input and never submits an action automatically. Final-mile proof of delivery is photo-only and does not use a scanned identifier. If permission or browser camera support is unavailable, use manual first-mile input; do not use a plaintext token workaround. The API must allow the exact localhost origin for authenticated web testing.
 
-Browser file uploads are not yet verified: the current shared multipart sender uses a native file-path API. See the [cross-platform upload guide](docs/flutter-file-uploads.md) before testing registration evidence, profile-photo, or vehicle-document uploads in `web-server`. The intended change keeps Android's working upload route and adds a browser-safe selected-file transport; the API must allow this exact origin and the required upload/private-read preflights. A successful `flutter build web` or APK build alone does not verify either upload path.
+The shared multipart sender now keeps Android/native readable-path uploads and uses bounded selected-file bytes in the browser. Registration evidence, profile photos, vehicle documents, and delivery photo POD use this platform-safe transport. Browser CORS/private-read behavior and installed-APK uploads still require runtime acceptance against a reachable API; build success alone does not verify either target. See the [cross-platform upload guide](docs/flutter-file-uploads.md), and allow the exact localhost origin plus the required upload/private-read preflights in the API.
 
 ## Run on Android and build an APK
 

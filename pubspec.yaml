@@ -62,7 +62,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - .env
     - lib/psgc-address-data/data/list-of-all-regions.json
     - lib/psgc-address-data/data/0100000000-region-i-ilocos-region/
     - lib/psgc-address-data/data/0200000000-region-ii-cagayan-valley/
