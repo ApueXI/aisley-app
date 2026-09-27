@@ -12,6 +12,7 @@ import 'package:aisley_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:aisley_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:aisley_app/features/delivery/data/delivery_repository.dart';
 import 'package:aisley_app/features/delivery/domain/delivery_models.dart';
+import 'package:aisley_app/features/delivery/domain/delivery_proof_photo.dart';
 import 'package:aisley_app/features/delivery/presentation/controllers/delivery_controller.dart';
 import 'package:aisley_app/features/delivery/presentation/delivery_screen.dart';
 import 'package:aisley_app/features/delivery/presentation/photo_capture/delivery_photo_capture.dart';
@@ -73,6 +74,13 @@ void main() {
 
       expect(repository.uploadedPhoto?.fileName, 'captured.jpg');
       expect(find.textContaining('Photo proof received.'), findsOneWidget);
+      await tester.ensureVisible(find.text('Submitted photo'));
+      await tester.pumpAndSettle();
+      expect(find.text('Submitted photo'), findsOneWidget);
+      expect(
+        controller.proofPhotoStatuses['proof-1'],
+        ProofPhotoLoadStatus.loaded,
+      );
     },
   );
 
@@ -383,6 +391,14 @@ class _WidgetDeliveryRepository implements DeliveryRepository {
       evidenceStatus: hasEvidence ? 'awaiting_validation' : null,
       evidenceId: hasEvidence ? 'proof-1' : null,
       revision: 7,
+    );
+  }
+
+  @override
+  Future<DeliveryProofPhoto> fetchProofPhoto(String proofId) async {
+    return DeliveryProofPhoto(
+      bytes: Uint8List.fromList(<int>[0xff, 0xd8, 0xff, 0xd9]),
+      contentType: 'image/jpeg',
     );
   }
 

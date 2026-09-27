@@ -224,12 +224,17 @@ extension DeliveryControllerActions on DeliveryController {
       if (proof.taskId != task.id) {
         throw const ApiContractException('delivery.proof.task_id');
       }
+      final previousProofId = proofs[task.id]?.proofId;
+      if (previousProofId != null && previousProofId != proof.proofId) {
+        clearProofPhoto(previousProofId);
+      }
       proofs[task.id] = proof;
       _pendingProofs.remove(task.id);
       _actionStatuses[task.id] = proof.evidenceStatus == 'rejected'
           ? DeliveryActionStatus.validationError
           : DeliveryActionStatus.proofAwaitingValidation;
       _notifyDeliveryListeners();
+      await loadProofPhoto(proof.proofId, force: true);
       return true;
     } on ApiException catch (error) {
       if (DeliveryController._isDefinitiveMutationError(error)) {

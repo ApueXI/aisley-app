@@ -212,6 +212,24 @@ class _ProofAndCompletionCard extends StatelessWidget {
                 ),
               ),
             ],
+            if (evidenceId != null) ...[
+              const SizedBox(height: 16),
+              DeliveryProofPhotoPreview(
+                title: proofRejected
+                    ? 'Rejected submitted photo'
+                    : 'Submitted photo',
+                status:
+                    controller.proofPhotoStatuses[evidenceId] ??
+                    ProofPhotoLoadStatus.idle,
+                photo: controller.proofPhotos[evidenceId],
+                errorMessage: controller.proofPhotoErrors[evidenceId],
+                onRetry: () =>
+                    controller.loadProofPhoto(evidenceId, force: true),
+                semanticLabel: proofRejected
+                    ? 'Rejected proof of delivery photo'
+                    : 'Submitted proof of delivery photo',
+              ),
+            ],
             const Divider(height: 32),
             Text(
               'Delivered intent',

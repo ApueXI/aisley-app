@@ -2,12 +2,15 @@ import 'dart:convert';
 
 import '../../../core/networking/api_client.dart';
 import '../../../core/networking/api_contract_exception.dart';
+import '../../delivery/domain/delivery_proof_photo.dart';
 import '../domain/history_models.dart';
 
 abstract interface class HistoryRepository {
   Future<DeliveryHistoryPage> fetchHistory({String? reference, int limit = 20});
 
   Future<DeliveryHistoryItem> fetchDetail(String taskId);
+
+  Future<DeliveryProofPhoto> fetchProofPhoto(String proofId);
 }
 
 class ApiHistoryRepository implements HistoryRepository {
@@ -71,6 +74,21 @@ class ApiHistoryRepository implements HistoryRepository {
       throw const ApiContractException('history.detail.data');
     }
     return DeliveryHistoryItem.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  @override
+  Future<DeliveryProofPhoto> fetchProofPhoto(String proofId) async {
+    final response = await _client.get(
+      '/courier/delivery-proofs/${_pathSegment(proofId)}/photo',
+      authenticated: true,
+      headers: const <String, String>{
+        'Accept': 'application/json, image/jpeg, image/png, image/webp',
+      },
+    );
+    return DeliveryProofPhoto.fromResponse(
+      bytes: response.bodyBytes,
+      contentTypeHeader: response.headers['content-type'],
+    );
   }
 }
 

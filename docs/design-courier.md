@@ -4,7 +4,7 @@ system: AISLEY
 type: Design Guide
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active inbox and read-only dashboard task previews; photo/COD intent and Logistics/Seller chat flows implemented locally
+status: Active inbox/dashboard previews; photo/COD intent, private POD review, and Logistics/Seller chat flows implemented locally
 ---
 
 # Courier Flutter Design Guide
@@ -13,7 +13,7 @@ status: Active inbox and read-only dashboard task previews; photo/COD intent and
 
 This guide applies to the external Flutter Courier application on Android and to local browser testing of that same app through Flutter `web-server`. It does not define the separate webapp's Customer storefront or React Admin, Seller, or Logistics dashboards. Laravel remains authoritative for identity, approval, ownership, and operational state.
 
-The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, account management, policy consent, notifications, support tickets, first-mile identifier pickup, task-bound final-mile hub handoff, batch routes, final-mile movement, private photo POD, Logistics-reviewed completion, delivered history, and task-scoped chat with Logistics, Seller, and Buyer. Flutter implements the notification inbox, private support-ticket flow, separate read-only first-/final-mile dashboard task previews, atomic final-mile batch acceptance, Android/web QR/Code 128 candidates, Android rear-camera POD plus browser file fallback, photo upload and completion intent with COD cash confirmation, and Logistics/Seller task chat. Buyer chat remains read-only; batch-route rendering, failed-attempt submission, and linehaul trip screens remain unadopted. Authenticated support-ticket/batch API and COD/Logistics validation, live chat exchange, and installed-device/browser acceptance remain unverified. The Laravel dashboard aggregate remains unavailable. Background push, live route telemetry, signature proof, earnings, and offline mutations remain deferred.
+The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, account management, policy consent, notifications, support tickets, first-mile identifier pickup, task-bound final-mile hub handoff, batch routes, final-mile movement, private photo POD, Logistics-reviewed completion, delivered history, and task-scoped chat with Logistics, Seller, and Buyer. Flutter implements the notification inbox, private support-ticket flow, separate read-only first-/final-mile dashboard task previews, atomic final-mile batch acceptance, Android/web QR/Code 128 candidates, Android rear-camera POD plus browser file fallback, photo upload and completion intent with COD cash confirmation, authenticated in-memory POD review for active/rejected/history detail, and Logistics/Seller task chat. Buyer chat remains read-only; batch-route rendering, failed-attempt submission, and linehaul trip screens remain unadopted. Authenticated support-ticket/batch API and COD/Logistics validation, live chat exchange, and installed-device/browser acceptance remain unverified. The Laravel dashboard aggregate remains unavailable. Background push, live route telemetry, signature proof, earnings, and offline mutations remain deferred.
 
 ## Frontend authority
 
@@ -149,7 +149,7 @@ Apply Jakob's Law by retaining recognizable platform interactions and consistent
 ### Delivery history
 
 - Present delivered final-mile records as read-only cards with order reference, delivered time, pickup/destination areas, item count, and safe proof/completion status.
-- History detail may show immutable item snapshots and opaque proof references; exclude street addresses, contact phone numbers, raw proof payloads, storage paths, and mutation controls. An authorized private photo viewer requires adoption of the documented Courier proof-read endpoint; that viewer is not currently implemented.
+- History detail may show immutable item snapshots, opaque proof references, and the adopted authenticated private photo viewer. Keep validated image bytes only in account-scoped memory and clear them when detail/session scope ends; exclude street addresses, contact phone numbers, raw storage paths, public media URLs, and mutation controls.
 - Keep cursor pagination unavailable when the server does not provide a usable cursor; distinguish an empty successful list from unavailable, unauthorized, offline, and retryable states.
 
 ## Status, error, and network presentation

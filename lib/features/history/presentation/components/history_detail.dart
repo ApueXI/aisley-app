@@ -30,6 +30,12 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   }
 
   @override
+  void dispose() {
+    widget.historyController.clearDetail(notify: false);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: widget.historyController,
@@ -66,7 +72,18 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                     showPolicyAction: widget.policyController != null,
                   )
                 else
-                  _HistoryDetailCard(item: item),
+                  _HistoryDetailCard(
+                    item: item,
+                    proofPhoto: controller.detailProofPhoto,
+                    proofPhotoStatus: controller.detailProofPhotoStatus,
+                    proofPhotoError: controller.detailProofPhotoError,
+                    onRetryProofPhoto: item.evidenceId == null
+                        ? null
+                        : () => controller.loadDetailProofPhoto(
+                            item.evidenceId!,
+                            force: true,
+                          ),
+                  ),
               ],
             ),
           ),
@@ -134,9 +151,19 @@ class _HistoryDetailIdentity extends StatelessWidget {
 }
 
 class _HistoryDetailCard extends StatelessWidget {
-  const _HistoryDetailCard({required this.item});
+  const _HistoryDetailCard({
+    required this.item,
+    required this.proofPhoto,
+    required this.proofPhotoStatus,
+    required this.proofPhotoError,
+    required this.onRetryProofPhoto,
+  });
 
   final DeliveryHistoryItem item;
+  final DeliveryProofPhoto? proofPhoto;
+  final ProofPhotoLoadStatus proofPhotoStatus;
+  final String? proofPhotoError;
+  final VoidCallback? onRetryProofPhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -206,6 +233,17 @@ class _HistoryDetailCard extends StatelessWidget {
                 label: 'Proof reference',
                 value: item.evidenceId!,
               ),
+            if (item.evidenceId != null && onRetryProofPhoto != null) ...[
+              const SizedBox(height: 12),
+              DeliveryProofPhotoPreview(
+                title: 'Proof of delivery photo',
+                status: proofPhotoStatus,
+                photo: proofPhoto,
+                errorMessage: proofPhotoError,
+                onRetry: onRetryProofPhoto!,
+                semanticLabel: 'Delivery history proof photo',
+              ),
+            ],
             if (item.items.isNotEmpty) ...[
               const Divider(height: 28),
               Text(

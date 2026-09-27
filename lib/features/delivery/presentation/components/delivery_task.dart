@@ -40,6 +40,10 @@ class _DeliveryTaskScreenState extends State<DeliveryTaskScreen>
   @override
   void dispose() {
     widget.authController.removeListener(_handleAuthState);
+    widget.deliveryController.clearProofPhotosForTask(
+      widget.task.id,
+      notify: false,
+    );
     _selectedPhoto = null;
     super.dispose();
   }

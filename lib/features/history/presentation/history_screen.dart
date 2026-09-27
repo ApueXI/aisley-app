@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 import '../../policy/presentation/controllers/policy_controller.dart';
 import '../../policy/presentation/policy_screen.dart';
+import '../../delivery/domain/delivery_proof_photo.dart';
+import '../../delivery/presentation/components/delivery_proof_photo_preview.dart';
 import '../domain/history_models.dart';
 import 'controllers/history_controller.dart';
 

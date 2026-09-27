@@ -58,6 +58,30 @@ void main() {
     expect(item.order?.reference, 'ORDER-EXAMPLE');
     expect(item.evidenceId, 'evidence-uuid');
   });
+
+  test('reads a history proof photo with bearer authorization', () async {
+    late http.Request request;
+    final repository = _repository((incoming) async {
+      request = incoming;
+      return http.Response.bytes(
+        <int>[0xff, 0xd8, 0xff, 0xd9],
+        200,
+        headers: const <String, String>{'content-type': 'image/jpeg'},
+      );
+    });
+
+    final photo = await repository.fetchProofPhoto('evidence-uuid');
+
+    expect(
+      request.url.path,
+      '/api/v1/courier/delivery-proofs/evidence-uuid/photo',
+    );
+    expect(request.headers['authorization'], 'Bearer history-token');
+    expect(request.headers['accept'], contains('image/png'));
+    expect(request.headers['accept'], contains('application/json'));
+    expect(photo.contentType, 'image/jpeg');
+    expect(photo.bytes, <int>[0xff, 0xd8, 0xff, 0xd9]);
+  });
 }
 
 ApiHistoryRepository _repository(

@@ -7,7 +7,7 @@ type: Feature Specification
 version: 1.8
 status: Implemented photo POD submission and Logistics validation; signature deferred
 implementation_status: Courier private photo submission and Logistics private preview/validation are implemented; former reference proof is retired for delivery
-flutter_status: Android rear-camera capture, browser file fallback, photo upload, and COD confirmation are implemented locally; authenticated Logistics validation and physical-device/browser acceptance remain unverified
+flutter_status: Android capture/browser fallback, upload, COD confirmation, and in-memory authenticated Courier photo review are implemented locally; Logistics and device/browser acceptance remain unverified
 canonical: true
 scope: External Flutter mobile client and Laravel Courier API
 backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378
@@ -107,7 +107,7 @@ final-mile task
 
 - `POST /api/v1/courier/tasks/{task}/proof-of-delivery` — accepts multipart `photo` and `expected_revision` plus a UUID `Idempotency-Key`. It creates awaiting-validation private evidence and never sets `delivered`. JSON identifier payloads return `422`.
 - `GET /api/v1/courier/tasks/{task}/proof-of-delivery` — deferred; use the task/completion projections while a dedicated proof-read contract is finalized.
-- Photo submission is implemented under `docs/references/file-upload-requirements.md`; signature submission remains deferred.
+- `GET /api/v1/courier/delivery-proofs/{proof}/photo` — returns the owning Courier's authorized JPEG, PNG, or WebP bytes with private no-store caching; Flutter validates the media type/signature, keeps bytes only in account-scoped memory, and clears them on screen/session loss. Signature submission remains deferred.
 - The client must not submit `courier_id`, organization/hub IDs, target status, `verified`, `delivered`, raw storage paths, or another task's Order ID as authority.
 - HTTP 202 returns `data.task_id`, `proof_id`, `evidence_status`, `custody_state`, `completion_eligible: false`, and `submitted_at`. Map this `proof_id` to completion's `evidence_id`; unlike hub pickup, the response names it `proof_id`.
 - After that response, enable the separate explicit completion-intent action while proof is `awaiting_validation`. Waiting for Logistics to approve proof first creates a circular dependency: Logistics needs an intent for that same proof before finalization.
@@ -216,5 +216,6 @@ Idempotency-Key: <UUID header>
 - [x] Photo POD is scoped, privately stored, idempotent, and consumable by Complete Delivery; reference-based delivery proof is retired.
 - [x] e-POD never directly sets `delivered`, changes assignment, or decides refunds/returns.
 - [x] External Flutter implements rear-camera capture, file fallback, preview/replace/remove/upload, and deterministic permission/cancel/validation/retry states; physical-device/browser acceptance remains open.
+- [x] External Flutter privately rereads active/rejected POD by opaque proof ID without exposing or persisting a raw storage path.
 
 **References:** `docs/features/courier/rules.md`, `docs/features/shared/shipment-fulfillment/spec.md`, `docs/references/file-upload-requirements.md`, `docs/features/logistics/update-status/specs.md`, `docs/features/courier/pick-up-order/specs.md`, and `docs/features/courier/complete-delivery/specs.md`.
