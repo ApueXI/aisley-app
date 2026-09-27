@@ -6,7 +6,7 @@ type: Feature Specification
 version: 1.5
 status: Implemented read-only final-mile history API; advanced filters deferred
 implementation_status: Courier-scoped delivered task list/detail APIs are implemented; Flutter list/detail is reported implemented; cursor/date filters remain deferred
-flutter_status: Delivered-history list/detail screens recorded in Flutter progress; private photo preview not verified/adopted
+flutter_status: Delivered-history list/detail and account-scoped in-memory private photo preview are implemented locally; authenticated API and device/browser acceptance remain unverified
 canonical: true
 copied_backend_checkout: ca1487c
 role: Courier
@@ -17,7 +17,7 @@ backend_contract_version: courier-delivery-history-v1
 
 # Delivery History
 
-**Flutter adoption boundary:** Existing read-only history screens are recorded in the external progress log. Current Laravel history derives only from Logistics-confirmed photo-POD deliveries; the snapshot does not establish a Flutter private-photo preview. Keep the proof ID/status read-only and use an authorized private photo endpoint only after client adoption.
+**Flutter adoption boundary:** Existing read-only history screens and the authenticated in-memory private-photo preview are recorded in the external progress log. Current Laravel history derives only from Logistics-confirmed photo-POD deliveries. Keep proof ID/status read-only; the adopted preview independently reauthorizes through the Courier proof endpoint and clears bytes when detail or account scope ends.
 
 ## Photo POD revision (2026-09-20)
 
@@ -206,6 +206,7 @@ Courier intent + Logistics-validated proof
 - [x] DTOs exclude contact/street details, secrets, raw media paths, and unrelated evidence.
 - [x] History has no status or deletion mutation path.
 - [x] Errors remain distinguishable from an authoritative empty response.
+- [x] Flutter history detail rereads authorized proof bytes in memory, validates image type/signature, and clears them on detail/session loss.
 - [ ] Complete PostgreSQL and external Flutter parsing/state verification; recorded SQLite flow tests do not prove this entire gate.
 
 - Test non-Courier and same-email-role tokens, suspended users, revoked affiliation, and foreign UUIDs.

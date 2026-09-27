@@ -7,6 +7,7 @@ class PickupTaskDetailScreen extends StatefulWidget {
     required this.task,
     this.policyController,
     this.onOpenDelivery,
+    this.onOpenBatches,
     this.chatController,
     super.key,
   });
@@ -16,6 +17,7 @@ class PickupTaskDetailScreen extends StatefulWidget {
   final PickupTask task;
   final PolicyController? policyController;
   final VoidCallback? onOpenDelivery;
+  final VoidCallback? onOpenBatches;
   final ChatController? chatController;
 
   @override
@@ -35,6 +37,8 @@ class _PickupTaskDetailScreenState extends State<PickupTaskDetailScreen> {
   PolicyController? get _policyController => widget.policyController;
 
   VoidCallback? get _onOpenDelivery => widget.onOpenDelivery;
+
+  VoidCallback? get _onOpenBatches => widget.onOpenBatches;
 
   BuildContext get _pickupContext => context;
 

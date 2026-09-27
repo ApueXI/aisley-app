@@ -8,6 +8,7 @@ class DeliveryTaskScreen extends StatefulWidget {
     this.policyController,
     this.onOpenPickup,
     this.chatController,
+    this.photoCaptureLauncher = const CameraDeliveryPhotoCaptureLauncher(),
     super.key,
   });
 
@@ -17,6 +18,7 @@ class DeliveryTaskScreen extends StatefulWidget {
   final PolicyController? policyController;
   final VoidCallback? onOpenPickup;
   final ChatController? chatController;
+  final DeliveryPhotoCaptureLauncher photoCaptureLauncher;
 
   @override
   State<DeliveryTaskScreen> createState() => _DeliveryTaskScreenState();
@@ -27,6 +29,7 @@ class _DeliveryTaskScreenState extends State<DeliveryTaskScreen>
   @override
   void initState() {
     super.initState();
+    widget.authController.addListener(_handleAuthState);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         widget.deliveryController.loadDetails(widget.task);
@@ -36,8 +39,22 @@ class _DeliveryTaskScreenState extends State<DeliveryTaskScreen>
 
   @override
   void dispose() {
+    widget.authController.removeListener(_handleAuthState);
+    widget.deliveryController.clearProofPhotosForTask(
+      widget.task.id,
+      notify: false,
+    );
     _selectedPhoto = null;
     super.dispose();
+  }
+
+  void _handleAuthState() {
+    if (widget.authController.status == AuthStatus.authenticated) return;
+    _selectedPhoto = null;
+    _photoSelectionError = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+    });
   }
 
   @override
@@ -136,6 +153,8 @@ class _DeliveryTaskScreenState extends State<DeliveryTaskScreen>
         isPicking: _isPickingPhoto,
         canCancelUpload: _cancelPhotoUpload != null,
         onChoosePhoto: _pickPhoto,
+        cameraSupported: widget.photoCaptureLauncher.isSupported,
+        onCapturePhoto: _capturePhoto,
         onDiscardPhoto: () => setState(() {
           _selectedPhoto = null;
           _photoSelectionError = null;

@@ -25,6 +25,7 @@ class PickupScreen extends StatefulWidget {
     required this.pickupController,
     this.policyController,
     this.onOpenDelivery,
+    this.onOpenBatches,
     this.chatController,
     super.key,
   });
@@ -33,6 +34,7 @@ class PickupScreen extends StatefulWidget {
   final PickupController pickupController;
   final PolicyController? policyController;
   final VoidCallback? onOpenDelivery;
+  final VoidCallback? onOpenBatches;
   final ChatController? chatController;
 
   @override
@@ -82,6 +84,7 @@ class _PickupScreenState extends State<PickupScreen> {
           policyController: widget.policyController,
           task: task,
           onOpenDelivery: widget.onOpenDelivery,
+          onOpenBatches: widget.onOpenBatches,
           chatController: widget.chatController,
         ),
       ),

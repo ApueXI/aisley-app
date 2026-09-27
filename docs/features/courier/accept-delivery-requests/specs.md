@@ -7,7 +7,7 @@ type: Feature Specification
 version: 1.6
 status: First-mile acceptance and final-mile dispatch batch acceptance implemented
 implementation_status: First-mile listing/acceptance, atomic final-mile batch acceptance, and exceptional single-task reject/re-offer are implemented
-flutter_status: Legacy per-task offer UI recorded in Flutter progress; atomic 1–15 parcel dispatch-batch acceptance is not adopted
+flutter_status: Atomic 1–15 parcel dispatch-batch list, detail, acceptance, and uncertain-result reconciliation implemented; live API acceptance unverified
 canonical: true
 copied_backend_checkout: ca1487c
 scope: External Flutter mobile client and Laravel Courier API
@@ -18,7 +18,7 @@ source_coverage: docs/requirements.md, docs/workspace.md, docs/schema.md, docs/d
 
 # Accept Delivery Requests
 
-**Flutter adoption boundary:** Laravel now treats one dispatch schedule as the normal final-mile offer and accepts all 1–15 parcel tasks atomically. The supplied Flutter progress records the older per-task acceptance UI, not this batch action. Do not simulate a batch by looping individual accept calls; use the dedicated batch route after updating and testing the client.
+**Flutter adoption boundary:** Laravel treats one dispatch schedule as the normal final-mile offer and accepts all 1–15 parcel tasks atomically. Flutter now uses the dedicated list, detail, and accept routes with state-idempotent uncertain-result reconciliation; authenticated live API acceptance remains unverified. Never simulate a batch by looping individual accept calls.
 
 ## Offer price revision (2026-09-21)
 

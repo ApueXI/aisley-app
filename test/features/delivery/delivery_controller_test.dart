@@ -6,6 +6,7 @@ import 'package:aisley_app/core/networking/api_client.dart';
 import 'package:aisley_app/core/networking/api_contract_exception.dart';
 import 'package:aisley_app/features/delivery/data/delivery_repository.dart';
 import 'package:aisley_app/features/delivery/domain/delivery_models.dart';
+import 'package:aisley_app/features/delivery/domain/delivery_proof_photo.dart';
 import 'package:aisley_app/features/delivery/presentation/controllers/delivery_controller.dart';
 import 'package:aisley_app/features/pickup/domain/pickup_models.dart';
 
@@ -68,7 +69,103 @@ void main() {
       DeliveryActionStatus.proofAwaitingValidation,
     );
     expect(controller.completions[_outForDeliveryTask.id], isNull);
+    expect(controller.proofPhotos['proof-1']?.contentType, 'image/jpeg');
+    expect(
+      controller.proofPhotoStatuses['proof-1'],
+      ProofPhotoLoadStatus.loaded,
+    );
   });
+
+  test(
+    'private proof bytes clear with account-scoped delivery state',
+    () async {
+      final controller = DeliveryController(
+        deliveryRepository: _FakeDeliveryRepository(),
+      );
+
+      await controller.loadProofPhoto('proof-1');
+      expect(controller.proofPhotos['proof-1'], isNotNull);
+
+      controller.clear();
+
+      expect(controller.proofPhotos, isEmpty);
+      expect(controller.proofPhotoStatuses, isEmpty);
+      expect(controller.proofPhotoErrors, isEmpty);
+    },
+  );
+
+  test(
+    'private proof authorization loss clears bytes and reaches auth',
+    () async {
+      ApiException? authFailure;
+      final repository = _FakeDeliveryRepository();
+      final controller = DeliveryController(
+        deliveryRepository: repository,
+        onAuthFailure: (error) async => authFailure = error,
+      );
+      await controller.loadProofPhoto('proof-1');
+      repository.proofPhotoReadError = const ApiException(
+        statusCode: 401,
+        code: 'UNAUTHENTICATED',
+        message: 'expired',
+      );
+
+      await controller.loadProofPhoto('proof-1', force: true);
+
+      expect(controller.proofPhotos, isEmpty);
+      expect(controller.proofPhotoStatuses, isEmpty);
+      expect(controller.proofPhotoErrors, isEmpty);
+      expect(authFailure?.statusCode, 401);
+    },
+  );
+
+  test('task removal clears its private proof bytes', () async {
+    final repository = _FakeDeliveryRepository()
+      ..listedTask = const PickupTask(
+        id: 'other-task',
+        leg: PickupTaskLeg.finalMile,
+        rawStatus: 'delivery_assigned',
+        revision: 1,
+      );
+    final controller = DeliveryController(deliveryRepository: repository)
+      ..tasks = <PickupTask>[_outForDeliveryTask]
+      ..proofs[_outForDeliveryTask.id] = const ProofSubmission(
+        taskId: 'delivery-task-1',
+        proofId: 'proof-1',
+        evidenceStatus: 'awaiting_validation',
+        custodyState: 'out_for_delivery',
+        completionEligible: false,
+      );
+    await controller.loadProofPhoto('proof-1');
+
+    await controller.load();
+
+    expect(controller.proofPhotos, isEmpty);
+    expect(controller.proofPhotoStatuses, isEmpty);
+  });
+
+  test(
+    'rejected proof projection keeps its private photo reviewable',
+    () async {
+      final repository = _FakeDeliveryRepository()
+        ..completionProjection = const CompletionProjection(
+          taskId: 'delivery-task-1',
+          taskStatus: 'out_for_delivery',
+          completionStatus: 'rejected',
+          evidenceStatus: 'rejected',
+          evidenceId: 'proof-1',
+          revision: 8,
+        );
+      final controller = DeliveryController(deliveryRepository: repository)
+        ..tasks = <PickupTask>[_outForDeliveryTask];
+
+      await controller.loadCompletion(_outForDeliveryTask);
+
+      expect(controller.evidenceStatusFor(_outForDeliveryTask), 'rejected');
+      expect(repository.proofPhotoReads, <String>['proof-1']);
+      expect(controller.proofPhotos['proof-1'], isNotNull);
+    },
+  );
 
   test(
     'photo proof uses the exact task revision, not a stale list revision',
@@ -698,6 +795,8 @@ class _FakeDeliveryRepository implements DeliveryRepository {
   final List<String> proofIdempotencyKeys = <String>[];
   final List<String> movementIdempotencyKeys = <String>[];
   final List<String> completionIdempotencyKeys = <String>[];
+  Object? proofPhotoReadError;
+  final List<String> proofPhotoReads = <String>[];
 
   @override
   Future<List<PickupTask>> fetchFinalMileTasks() async {
@@ -766,6 +865,16 @@ class _FakeDeliveryRepository implements DeliveryRepository {
   @override
   Future<CompletionProjection> fetchCompletion(String taskId) async {
     return completionProjection;
+  }
+
+  @override
+  Future<DeliveryProofPhoto> fetchProofPhoto(String proofId) async {
+    proofPhotoReads.add(proofId);
+    if (proofPhotoReadError != null) throw proofPhotoReadError!;
+    return DeliveryProofPhoto(
+      bytes: Uint8List.fromList(<int>[0xff, 0xd8, 0xff, 0xd9]),
+      contentType: 'image/jpeg',
+    );
   }
 
   @override

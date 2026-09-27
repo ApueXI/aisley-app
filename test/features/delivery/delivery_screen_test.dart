@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -11,11 +12,134 @@ import 'package:aisley_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:aisley_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:aisley_app/features/delivery/data/delivery_repository.dart';
 import 'package:aisley_app/features/delivery/domain/delivery_models.dart';
+import 'package:aisley_app/features/delivery/domain/delivery_proof_photo.dart';
 import 'package:aisley_app/features/delivery/presentation/controllers/delivery_controller.dart';
 import 'package:aisley_app/features/delivery/presentation/delivery_screen.dart';
+import 'package:aisley_app/features/delivery/presentation/photo_capture/delivery_photo_capture.dart';
+import 'package:aisley_app/features/delivery/presentation/photo_capture/delivery_photo_capture_result.dart';
 import 'package:aisley_app/features/pickup/domain/pickup_models.dart';
 
 void main() {
+  testWidgets(
+    'camera capture can be previewed, replaced, removed, and uploaded',
+    (tester) async {
+      final repository = _WidgetDeliveryRepository();
+      final controller = DeliveryController(deliveryRepository: repository)
+        ..tasks = <PickupTask>[_outForDeliveryTask];
+      final launcher = _WidgetPhotoCaptureLauncher(
+        result: DeliveryPhotoCaptureResult.captured(
+          XFile.fromData(
+            Uint8List.fromList(<int>[0xff, 0xd8, 0xff, 0xd9]),
+            path: '/tmp/captured.jpg',
+            mimeType: 'image/jpeg',
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DeliveryTaskScreen(
+            authController: _authenticatedAuthController(),
+            deliveryController: controller,
+            task: _outForDeliveryTask,
+            photoCaptureLauncher: launcher,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final openCamera = find.widgetWithText(
+        FilledButton,
+        'Open camera for POD',
+      );
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+      await tester.tap(openCamera);
+      await tester.pumpAndSettle();
+
+      expect(launcher.captureCalls, 1);
+      expect(find.byType(Image), findsOneWidget);
+      expect(find.text('Retake photo'), findsOneWidget);
+      expect(find.text('Replace from files'), findsOneWidget);
+      expect(find.text('Remove photo'), findsOneWidget);
+
+      final submitPhoto = find.widgetWithText(
+        FilledButton,
+        'Submit photo proof',
+      );
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+      await tester.tap(submitPhoto);
+      await tester.pumpAndSettle();
+
+      expect(repository.uploadedPhoto?.fileName, 'captured.jpg');
+      expect(find.textContaining('Photo proof received.'), findsOneWidget);
+      await tester.ensureVisible(find.text('Submitted photo'));
+      await tester.pumpAndSettle();
+      expect(find.text('Submitted photo'), findsOneWidget);
+      expect(
+        controller.proofPhotoStatuses['proof-1'],
+        ProofPhotoLoadStatus.loaded,
+      );
+    },
+  );
+
+  testWidgets('camera denial is explicit and file fallback remains available', (
+    tester,
+  ) async {
+    final controller = DeliveryController(
+      deliveryRepository: _WidgetDeliveryRepository(),
+    )..tasks = <PickupTask>[_outForDeliveryTask];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DeliveryTaskScreen(
+          authController: _authenticatedAuthController(),
+          deliveryController: controller,
+          task: _outForDeliveryTask,
+          photoCaptureLauncher: _WidgetPhotoCaptureLauncher(
+            result: const DeliveryPhotoCaptureResult.permissionDenied(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final openCamera = find.widgetWithText(FilledButton, 'Open camera for POD');
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pumpAndSettle();
+    await tester.tap(openCamera);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Camera permission was denied'), findsOneWidget);
+    expect(find.text('Choose photo file'), findsOneWidget);
+    expect(find.textContaining('Photo proof received.'), findsNothing);
+  });
+
+  testWidgets('non-Android targets show only the file chooser', (tester) async {
+    final controller = DeliveryController(
+      deliveryRepository: _WidgetDeliveryRepository(),
+    )..tasks = <PickupTask>[_outForDeliveryTask];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DeliveryTaskScreen(
+          authController: _authenticatedAuthController(),
+          deliveryController: controller,
+          task: _outForDeliveryTask,
+          photoCaptureLauncher: _WidgetPhotoCaptureLauncher(
+            supported: false,
+            result: const DeliveryPhotoCaptureResult.unavailable(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Open camera for POD'), findsNothing);
+    expect(find.text('Choose photo'), findsOneWidget);
+  });
+
   testWidgets(
     'shows Delivered intent after photo proof 202 while Logistics validation is pending',
     (tester) async {
@@ -190,6 +314,7 @@ AuthController _authenticatedAuthController() {
 class _WidgetDeliveryRepository implements DeliveryRepository {
   String? completionEvidenceId;
   bool? codCollected;
+  DeliveryPhotoSelection? uploadedPhoto;
   ApiException? proofError;
   DeliveryContext deliveryContext = const DeliveryContext(
     taskId: 'delivery-task-1',
@@ -244,6 +369,7 @@ class _WidgetDeliveryRepository implements DeliveryRepository {
     void Function(void Function() cancel)? onCancel,
   }) async {
     if (proofError != null) throw proofError!;
+    uploadedPhoto = photo;
     return const ProofSubmission(
       taskId: 'delivery-task-1',
       proofId: 'proof-1',
@@ -255,15 +381,24 @@ class _WidgetDeliveryRepository implements DeliveryRepository {
 
   @override
   Future<CompletionProjection> fetchCompletion(String taskId) async {
+    final hasEvidence = uploadedPhoto != null;
     return CompletionProjection(
       taskId: 'delivery-task-1',
       taskStatus: 'out_for_delivery',
       completionStatus: completionEvidenceId == null
           ? null
           : 'awaiting_validation',
-      evidenceStatus: 'awaiting_validation',
-      evidenceId: 'proof-1',
+      evidenceStatus: hasEvidence ? 'awaiting_validation' : null,
+      evidenceId: hasEvidence ? 'proof-1' : null,
       revision: 7,
+    );
+  }
+
+  @override
+  Future<DeliveryProofPhoto> fetchProofPhoto(String proofId) async {
+    return DeliveryProofPhoto(
+      bytes: Uint8List.fromList(<int>[0xff, 0xd8, 0xff, 0xd9]),
+      contentType: 'image/jpeg',
     );
   }
 
@@ -286,6 +421,23 @@ class _WidgetDeliveryRepository implements DeliveryRepository {
       evidenceId: 'proof-1',
       revision: 7,
     );
+  }
+}
+
+class _WidgetPhotoCaptureLauncher implements DeliveryPhotoCaptureLauncher {
+  _WidgetPhotoCaptureLauncher({required this.result, this.supported = true});
+
+  final DeliveryPhotoCaptureResult result;
+  final bool supported;
+  int captureCalls = 0;
+
+  @override
+  bool get isSupported => supported;
+
+  @override
+  Future<DeliveryPhotoCaptureResult> capture(BuildContext context) async {
+    captureCalls++;
+    return result;
   }
 }
 

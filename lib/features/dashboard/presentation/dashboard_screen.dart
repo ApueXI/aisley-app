@@ -7,6 +7,8 @@ import '../../account/presentation/controllers/account_controller.dart';
 import '../../account/presentation/account_screen.dart';
 import '../../auth/domain/auth_models.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
+import '../../batch/presentation/controllers/final_mile_batch_controller.dart';
+import '../../batch/presentation/final_mile_batch_screen.dart';
 import '../../chat/presentation/chat_inbox_screen.dart';
 import '../../chat/presentation/controllers/chat_controller.dart';
 import '../../delivery/presentation/controllers/delivery_controller.dart';
@@ -20,6 +22,8 @@ import '../../policy/presentation/controllers/policy_controller.dart';
 import '../../pickup/presentation/controllers/pickup_controller.dart';
 import '../../pickup/presentation/pickup_screen.dart';
 import '../../pickup/domain/pickup_models.dart';
+import '../../support/presentation/controllers/support_ticket_controller.dart';
+import '../../support/presentation/support_ticket_screen.dart';
 import '../../vehicle/presentation/controllers/vehicle_controller.dart';
 import '../domain/dashboard_models.dart';
 import '../domain/dashboard_task_preview.dart';
@@ -35,12 +39,14 @@ class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
     required this.authController,
     this.accountController,
+    this.batchController,
     this.policyController,
     this.pickupController,
     this.deliveryController,
     this.historyController,
     this.notificationController,
     this.chatController,
+    this.supportTicketController,
     this.dashboardPreviewController,
     this.vehicleController,
     super.key,
@@ -48,12 +54,14 @@ class DashboardScreen extends StatefulWidget {
 
   final AuthController authController;
   final AccountController? accountController;
+  final FinalMileBatchController? batchController;
   final PolicyController? policyController;
   final PickupController? pickupController;
   final DeliveryController? deliveryController;
   final HistoryController? historyController;
   final NotificationController? notificationController;
   final ChatController? chatController;
+  final SupportTicketController? supportTicketController;
   final DashboardPreviewController? dashboardPreviewController;
   final VehicleController? vehicleController;
 
@@ -135,6 +143,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             title: const Text('Courier dashboard'),
             actions: [
               if (widget.pickupController != null ||
+                  widget.batchController != null ||
                   widget.deliveryController != null ||
                   widget.historyController != null)
                 PopupMenuButton<String>(
@@ -144,6 +153,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                     switch (value) {
                       case 'pickup':
                         _openPickups();
+                      case 'batches':
+                        _openBatches();
                       case 'delivery':
                         _openDeliveries();
                       case 'history':
@@ -155,6 +166,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                       const PopupMenuItem<String>(
                         value: 'pickup',
                         child: Text('Pickup orders'),
+                      ),
+                    if (widget.batchController != null)
+                      const PopupMenuItem<String>(
+                        value: 'batches',
+                        child: Text('Final-mile batches'),
                       ),
                     if (widget.deliveryController != null)
                       const PopupMenuItem<String>(
@@ -261,6 +277,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                     onOpenMessages: widget.chatController == null
                         ? null
                         : _openMessages,
+                    onOpenSupport: widget.supportTicketController == null
+                        ? null
+                        : _openSupportTickets,
                     previewController: widget.dashboardPreviewController,
                   )
                 : AnimatedBuilder(
@@ -280,6 +299,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                       onOpenMessages: widget.chatController == null
                           ? null
                           : _openMessages,
+                      onOpenSupport: widget.supportTicketController == null
+                          ? null
+                          : _openSupportTickets,
                       previewController: widget.dashboardPreviewController,
                       profilePhoto: widget.accountController!.profilePhoto,
                     ),

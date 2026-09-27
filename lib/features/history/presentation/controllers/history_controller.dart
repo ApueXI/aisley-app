@@ -5,8 +5,11 @@ import 'package:flutter/foundation.dart';
 import '../../../../core/networking/api_client.dart';
 import '../../../../core/networking/api_contract_exception.dart';
 import '../../../../core/security/token_storage.dart';
+import '../../../delivery/domain/delivery_proof_photo.dart';
 import '../../data/history_repository.dart';
 import '../../domain/history_models.dart';
+
+part 'history_controller_proof_photo.dart';
 
 typedef HistoryAuthFailureHandler = Future<void> Function(ApiException error);
 
@@ -40,12 +43,20 @@ class HistoryController extends ChangeNotifier {
   DeliveryHistoryItem? detail;
   HistoryLoadStatus detailStatus = HistoryLoadStatus.idle;
   String? detailErrorMessage;
+  DeliveryProofPhoto? detailProofPhoto;
+  String? detailProofId;
+  ProofPhotoLoadStatus detailProofPhotoStatus = ProofPhotoLoadStatus.idle;
+  String? detailProofPhotoError;
 
   Timer? _retryTimer;
   bool _loading = false;
   bool _authFailureNotified = false;
+  int _detailEpoch = 0;
+  int _detailProofPhotoEpoch = 0;
 
   bool get canRetryRateLimit => _retryTimer == null;
+
+  void _notifyHistoryListeners() => notifyListeners();
 
   Future<void> load({String? reference}) async {
     if (_loading || !canRetryRateLimit) {
@@ -84,14 +95,23 @@ class HistoryController extends ChangeNotifier {
   }
 
   Future<void> loadDetail(String taskId) async {
+    final epoch = ++_detailEpoch;
+    _clearDetailProofPhoto(notify: false);
     detailStatus = HistoryLoadStatus.loading;
     detailErrorMessage = null;
     notifyListeners();
     try {
-      detail = await historyRepository.fetchDetail(taskId);
+      final loadedDetail = await historyRepository.fetchDetail(taskId);
+      if (epoch != _detailEpoch) return;
+      detail = loadedDetail;
       detailStatus = HistoryLoadStatus.loaded;
       notifyListeners();
+      final evidenceId = loadedDetail.evidenceId;
+      if (evidenceId != null) {
+        await loadDetailProofPhoto(evidenceId, force: true);
+      }
     } on ApiException catch (error) {
+      if (epoch != _detailEpoch) return;
       detailStatus = _stateFor(error);
       detailErrorMessage = _messageForError(error);
       if (detailStatus == HistoryLoadStatus.rateLimited) {
@@ -102,10 +122,12 @@ class HistoryController extends ChangeNotifier {
         await _notifyAuthFailure(error);
       }
     } on TokenStorageException {
+      if (epoch != _detailEpoch) return;
       detailStatus = HistoryLoadStatus.secureStorageFailure;
       detailErrorMessage = 'Secure session storage is unavailable. This delivery cannot be opened.';
       notifyListeners();
     } on ApiContractException {
+      if (epoch != _detailEpoch) return;
       detailStatus = HistoryLoadStatus.failed;
       detailErrorMessage =
           'The delivery history response was not understood. Please retry.';
@@ -124,10 +146,22 @@ class HistoryController extends ChangeNotifier {
     nextCursor = null;
     errorMessage = null;
     retryAfter = null;
+    _detailEpoch++;
+    _clearDetail(notify: false);
+    notifyListeners();
+  }
+
+  void clearDetail({bool notify = true}) {
+    _detailEpoch++;
+    _clearDetail(notify: notify);
+  }
+
+  void _clearDetail({required bool notify}) {
     detail = null;
     detailStatus = HistoryLoadStatus.idle;
     detailErrorMessage = null;
-    notifyListeners();
+    _clearDetailProofPhoto(notify: false);
+    if (notify) notifyListeners();
   }
 
   @override
@@ -144,6 +178,7 @@ class HistoryController extends ChangeNotifier {
     }
     notifyListeners();
     if (error.statusCode == 401) {
+      _clearDetailProofPhoto(notify: false);
       await _notifyAuthFailure(error);
     }
   }

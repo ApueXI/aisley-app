@@ -9,6 +9,8 @@ class _ProofAndCompletionCard extends StatelessWidget {
     required this.isPicking,
     required this.canCancelUpload,
     required this.onChoosePhoto,
+    required this.cameraSupported,
+    required this.onCapturePhoto,
     required this.onDiscardPhoto,
     required this.onSubmitPhoto,
     required this.onCancelUpload,
@@ -23,6 +25,8 @@ class _ProofAndCompletionCard extends StatelessWidget {
   final bool isPicking;
   final bool canCancelUpload;
   final VoidCallback onChoosePhoto;
+  final bool cameraSupported;
+  final VoidCallback onCapturePhoto;
   final VoidCallback onDiscardPhoto;
   final VoidCallback onSubmitPhoto;
   final VoidCallback onCancelUpload;
@@ -75,13 +79,20 @@ class _ProofAndCompletionCard extends StatelessWidget {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ],
-            if (canChoosePhoto) ...[
+            if (canChoosePhoto && selectedPhoto == null) ...[
               const SizedBox(height: 12),
+              if (cameraSupported)
+                FilledButton.icon(
+                  onPressed: onCapturePhoto,
+                  icon: const Icon(Icons.camera_alt_outlined),
+                  label: const Text('Open camera for POD'),
+                ),
+              if (cameraSupported) const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: onChoosePhoto,
-                icon: const Icon(Icons.add_a_photo_outlined),
+                icon: const Icon(Icons.photo_library_outlined),
                 label: Text(
-                  selectedPhoto == null ? 'Choose photo' : 'Change photo',
+                  cameraSupported ? 'Choose photo file' : 'Choose photo',
                 ),
               ),
             ],
@@ -110,10 +121,29 @@ class _ProofAndCompletionCard extends StatelessWidget {
                       const Text('Photo preview unavailable.'),
                 ),
               ),
-              TextButton(
-                onPressed: onDiscardPhoto,
-                child: const Text('Remove photo'),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  if (cameraSupported)
+                    OutlinedButton.icon(
+                      onPressed: onCapturePhoto,
+                      icon: const Icon(Icons.cameraswitch_outlined),
+                      label: const Text('Retake photo'),
+                    ),
+                  OutlinedButton.icon(
+                    onPressed: onChoosePhoto,
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: const Text('Replace from files'),
+                  ),
+                  TextButton.icon(
+                    onPressed: onDiscardPhoto,
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Remove photo'),
+                  ),
+                ],
               ),
+              const SizedBox(height: 8),
               FilledButton.icon(
                 onPressed: onSubmitPhoto,
                 icon: const Icon(Icons.cloud_upload_outlined),
@@ -180,6 +210,24 @@ class _ProofAndCompletionCard extends StatelessWidget {
                       ? 'Photo proof validated by Logistics. Delivery is not complete until Logistics validates the completion intent.'
                       : 'Photo proof received. Awaiting Logistics validation; this does not mark the Order delivered.',
                 ),
+              ),
+            ],
+            if (evidenceId != null) ...[
+              const SizedBox(height: 16),
+              DeliveryProofPhotoPreview(
+                title: proofRejected
+                    ? 'Rejected submitted photo'
+                    : 'Submitted photo',
+                status:
+                    controller.proofPhotoStatuses[evidenceId] ??
+                    ProofPhotoLoadStatus.idle,
+                photo: controller.proofPhotos[evidenceId],
+                errorMessage: controller.proofPhotoErrors[evidenceId],
+                onRetry: () =>
+                    controller.loadProofPhoto(evidenceId, force: true),
+                semanticLabel: proofRejected
+                    ? 'Rejected proof of delivery photo'
+                    : 'Submitted proof of delivery photo',
               ),
             ],
             const Divider(height: 32),

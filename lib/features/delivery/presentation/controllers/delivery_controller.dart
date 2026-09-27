@@ -10,6 +10,7 @@ import '../../../../core/security/token_storage.dart';
 import '../../../pickup/domain/pickup_models.dart';
 import '../../data/delivery_repository.dart';
 import '../../domain/delivery_models.dart';
+import '../../domain/delivery_proof_photo.dart';
 
 part 'delivery_controller_reads.dart';
 part 'delivery_controller_actions.dart';
@@ -17,6 +18,7 @@ part 'delivery_controller_errors.dart';
 part 'delivery_controller_reconciliation.dart';
 part 'delivery_controller_attempts.dart';
 part 'delivery_controller_cod.dart';
+part 'delivery_controller_proof_photo.dart';
 
 typedef DeliveryAuthFailureHandler = Future<void> Function(ApiException error);
 
@@ -79,6 +81,11 @@ class DeliveryController extends ChangeNotifier {
       <String, DeliveryLoadStatus>{};
   final Map<String, String?> completionErrors = <String, String?>{};
   final Map<String, ProofSubmission> proofs = <String, ProofSubmission>{};
+  final Map<String, DeliveryProofPhoto> proofPhotos =
+      <String, DeliveryProofPhoto>{};
+  final Map<String, ProofPhotoLoadStatus> proofPhotoStatuses =
+      <String, ProofPhotoLoadStatus>{};
+  final Map<String, String?> proofPhotoErrors = <String, String?>{};
 
   final Map<String, DeliveryActionStatus> _actionStatuses =
       <String, DeliveryActionStatus>{};
@@ -92,6 +99,8 @@ class DeliveryController extends ChangeNotifier {
       <String, _PendingCompletionAttempt>{};
 
   int _loadEpoch = 0;
+  int _proofPhotoEpochCounter = 0;
+  final Map<String, int> _proofPhotoEpochs = <String, int>{};
   bool _loadInFlight = false;
   bool _authFailureNotified = false;
   Timer? _retryTimer;
@@ -199,6 +208,7 @@ class DeliveryController extends ChangeNotifier {
     completionStatuses.clear();
     completionErrors.clear();
     proofs.clear();
+    clearAllProofPhotos(notify: false);
     _actionStatuses.clear();
     _actionErrors.clear();
     _actionRetryAfter.clear();

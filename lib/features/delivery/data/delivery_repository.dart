@@ -5,6 +5,7 @@ import '../../../core/networking/api_contract_exception.dart';
 import '../../../core/networking/multipart_file_selection.dart';
 import '../../pickup/domain/pickup_models.dart';
 import '../domain/delivery_models.dart';
+import '../domain/delivery_proof_photo.dart';
 
 abstract interface class DeliveryRepository {
   Future<List<PickupTask>> fetchFinalMileTasks();
@@ -29,6 +30,8 @@ abstract interface class DeliveryRepository {
   });
 
   Future<CompletionProjection> fetchCompletion(String taskId);
+
+  Future<DeliveryProofPhoto> fetchProofPhoto(String proofId);
 
   Future<CompletionProjection> submitCompletion({
     required String taskId,
@@ -152,6 +155,21 @@ class ApiDeliveryRepository implements DeliveryRepository {
     );
     return CompletionProjection.fromResponse(
       _decodeObject(response.body, 'delivery.completion'),
+    );
+  }
+
+  @override
+  Future<DeliveryProofPhoto> fetchProofPhoto(String proofId) async {
+    final response = await _client.get(
+      '/courier/delivery-proofs/${_pathSegment(proofId)}/photo',
+      authenticated: true,
+      headers: const <String, String>{
+        'Accept': 'application/json, image/jpeg, image/png, image/webp',
+      },
+    );
+    return DeliveryProofPhoto.fromResponse(
+      bytes: response.bodyBytes,
+      contentTypeHeader: response.headers['content-type'],
     );
   }
 

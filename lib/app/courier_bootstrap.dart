@@ -9,6 +9,8 @@ import '../features/account/data/account_repository.dart';
 import '../features/account/presentation/controllers/account_controller.dart';
 import '../features/auth/data/auth_repository.dart';
 import '../features/auth/presentation/controllers/auth_controller.dart';
+import '../features/batch/data/final_mile_batch_repository.dart';
+import '../features/batch/presentation/controllers/final_mile_batch_controller.dart';
 import '../features/chat/data/chat_repository.dart';
 import '../features/chat/presentation/controllers/chat_controller.dart';
 import '../features/dashboard/data/dashboard_repository.dart';
@@ -23,6 +25,8 @@ import '../features/policy/data/policy_repository.dart';
 import '../features/policy/presentation/controllers/policy_controller.dart';
 import '../features/pickup/data/pickup_repository.dart';
 import '../features/pickup/presentation/controllers/pickup_controller.dart';
+import '../features/support/data/support_ticket_repository.dart';
+import '../features/support/presentation/controllers/support_ticket_controller.dart';
 import '../features/vehicle/data/vehicle_repository.dart';
 import '../features/vehicle/presentation/controllers/vehicle_controller.dart';
 import 'courier_app.dart';
@@ -37,12 +41,14 @@ class CourierBootstrapApp extends StatefulWidget {
 class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
   AuthController? _authController;
   AccountController? _accountController;
+  FinalMileBatchController? _batchController;
   PolicyController? _policyController;
   PickupController? _pickupController;
   DeliveryController? _deliveryController;
   HistoryController? _historyController;
   NotificationController? _notificationController;
   ChatController? _chatController;
+  SupportTicketController? _supportTicketController;
   DashboardPreviewController? _dashboardPreviewController;
   VehicleController? _vehicleController;
   bool _hasStartupError = false;
@@ -61,19 +67,18 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
     }
 
     try {
-      final config = await AppConfig.load().timeout(
-        const Duration(seconds: 5),
-        onTimeout: () => AppConfig.fromEnvironment,
-      );
+      const config = AppConfig.fromEnvironment;
       final tokenStorage = SecureTokenStorage();
       final apiClient = ApiClient(config: config, tokenStorage: tokenStorage);
       late final AccountController accountController;
+      late final FinalMileBatchController batchController;
       late final PolicyController policyController;
       late final PickupController pickupController;
       late final DeliveryController deliveryController;
       late final HistoryController historyController;
       late final NotificationController notificationController;
       late final ChatController chatController;
+      late final SupportTicketController supportTicketController;
       late final DashboardPreviewController dashboardPreviewController;
       late final VehicleController vehicleController;
       final authController = AuthController(
@@ -84,12 +89,14 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         dashboardRepository: ApiDashboardRepository(client: apiClient),
         onSessionEnded: () {
           accountController.clear();
+          batchController.clear();
           policyController.clear();
           pickupController.clear();
           deliveryController.clear();
           historyController.clear();
           notificationController.clear();
           chatController.clear();
+          supportTicketController.clear();
           dashboardPreviewController.clear();
           vehicleController.clear();
         },
@@ -124,9 +131,24 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
         repository: ApiChatRepository(client: apiClient),
         onAuthFailure: authController.handleChatAuthFailure,
       );
+      supportTicketController = SupportTicketController(
+        repository: ApiSupportTicketRepository(client: apiClient),
+        onAuthFailure: authController.handleSupportTicketAuthFailure,
+      );
       dashboardPreviewController = DashboardPreviewController(
         repository: ApiPickupRepository(client: apiClient),
         onAuthFailure: authController.handlePickupAuthFailure,
+      );
+      batchController = FinalMileBatchController(
+        repository: ApiFinalMileBatchRepository(client: apiClient),
+        onAuthFailure: authController.handlePickupAuthFailure,
+        onBatchAccepted: () async {
+          await Future.wait<void>([
+            pickupController.load(),
+            deliveryController.load(),
+            dashboardPreviewController.refreshFinalMile(),
+          ]);
+        },
       );
       vehicleController = VehicleController(
         vehicleRepository: ApiVehicleRepository(client: apiClient),
@@ -140,12 +162,14 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
       setState(() {
         _authController = authController;
         _accountController = accountController;
+        _batchController = batchController;
         _policyController = policyController;
         _pickupController = pickupController;
         _deliveryController = deliveryController;
         _historyController = historyController;
         _notificationController = notificationController;
         _chatController = chatController;
+        _supportTicketController = supportTicketController;
         _dashboardPreviewController = dashboardPreviewController;
         _vehicleController = vehicleController;
       });
@@ -172,12 +196,14 @@ class _CourierBootstrapAppState extends State<CourierBootstrapApp> {
       return CourierApp(
         authController: authController,
         accountController: _accountController,
+        batchController: _batchController,
         policyController: _policyController,
         pickupController: _pickupController,
         deliveryController: _deliveryController,
         historyController: _historyController,
         notificationController: _notificationController,
         chatController: _chatController,
+        supportTicketController: _supportTicketController,
         dashboardPreviewController: _dashboardPreviewController,
         vehicleController: _vehicleController,
       );

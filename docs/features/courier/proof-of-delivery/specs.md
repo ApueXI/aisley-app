@@ -7,7 +7,7 @@ type: Feature Specification
 version: 1.8
 status: Implemented photo POD submission and Logistics validation; signature deferred
 implementation_status: Courier private photo submission and Logistics private preview/validation are implemented; former reference proof is retired for delivery
-flutter_status: Photo upload and COD confirmation are implemented locally in Flutter; authenticated Logistics validation and installed-device acceptance remain unverified
+flutter_status: Android capture/browser fallback, upload, COD confirmation, and in-memory authenticated Courier photo review are implemented locally; Logistics and device/browser acceptance remain unverified
 canonical: true
 scope: External Flutter mobile client and Laravel Courier API
 backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378
@@ -98,16 +98,16 @@ final-mile task
 - Confirm object storage before evidence becomes `validated`; reconcile orphaned objects and failed database writes without claiming proof success.
 - Offline capture is not authoritative in the MVP. A future encrypted local queue must replay through Logistics validation and may be rejected as stale.
 - Communication, notification, or route-provider failure after Logistics records evidence cannot roll back the committed event.
-- Camera/storage denial, invalid QR, corrupt image, timeout, throttling, and server errors remain explicit recoverable states.
+- Camera/storage denial, cancelled capture, corrupt image, timeout, throttling, and server errors remain explicit recoverable states.
 
 ## HOW
 
 ### Implemented photo endpoint contract
-- The development-only Courier API mockup submits a private photo POD and shows its pending Logistics validation state. Signature controls remain unavailable.
+- The external Flutter Courier app captures or selects private photo POD, submits it, and shows its pending Logistics validation state. Signature controls remain unavailable.
 
 - `POST /api/v1/courier/tasks/{task}/proof-of-delivery` — accepts multipart `photo` and `expected_revision` plus a UUID `Idempotency-Key`. It creates awaiting-validation private evidence and never sets `delivered`. JSON identifier payloads return `422`.
 - `GET /api/v1/courier/tasks/{task}/proof-of-delivery` — deferred; use the task/completion projections while a dedicated proof-read contract is finalized.
-- Photo submission is implemented under `docs/references/file-upload-requirements.md`; signature submission remains deferred.
+- `GET /api/v1/courier/delivery-proofs/{proof}/photo` — returns the owning Courier's authorized JPEG, PNG, or WebP bytes with private no-store caching; Flutter validates the media type/signature, keeps bytes only in account-scoped memory, and clears them on screen/session loss. Signature submission remains deferred.
 - The client must not submit `courier_id`, organization/hub IDs, target status, `verified`, `delivered`, raw storage paths, or another task's Order ID as authority.
 - HTTP 202 returns `data.task_id`, `proof_id`, `evidence_status`, `custody_state`, `completion_eligible: false`, and `submitted_at`. Map this `proof_id` to completion's `evidence_id`; unlike hub pickup, the response names it `proof_id`.
 - After that response, enable the separate explicit completion-intent action while proof is `awaiting_validation`. Waiting for Logistics to approve proof first creates a circular dependency: Logistics needs an intent for that same proof before finalization.
@@ -155,13 +155,13 @@ Idempotency-Key: <UUID header>
 - `401` signs the Courier out; `403` means inactive/unauthorized task or affiliation; `404` hides foreign task/proof existence.
 - `409` means stale task revision, duplicate/conflicting evidence, or completion race; refresh the task before retrying.
 - `422` returns field-addressable proof/file errors; `429` supplies retry-after; timeout/offline keeps the attempt uncertain until a fresh GET.
-- Camera or signature permission denial is recoverable and never satisfies proof. Scanner mismatch remains a rejected evidence attempt.
+- Camera or file-access denial is recoverable and never satisfies proof. Barcode scanning remains outside final-mile POD.
 - Flutter must disable duplicate taps while pending, reuse the idempotency key after a timeout, and never create a second proof locally.
 
 ### Flutter proof screen
 
 - Show task/Order reference, destination context, required methods, evidence status, upload progress, and the next server-authorized action.
-- Use explicit **Add photo POD** and **Delivered** actions. Signature and delivery QR actions remain unavailable until separately approved.
+- Use explicit **Open camera for POD**, file-fallback, **Submit photo proof**, and **Delivered** intent actions. Signature and delivery QR actions remain unavailable until separately approved.
 - Announce validation/rejection reasons textually, provide retake/correct-and-resubmit actions, and keep controls keyboard/screen-reader accessible.
 - Clear private previews and cached evidence on logout, account denial, affiliation revocation, or task removal.
 - The app must work with text status and no map; route/navigation belongs to Deliver Order.
@@ -192,7 +192,7 @@ Idempotency-Key: <UUID header>
 - Show the task/Order reference and destination context needed for the handoff, but never imply proof success from a local preview or completed upload progress bar.
 - Explain accepted image types and the 10 MiB limit before selection; use accessible labels, text status, large touch targets, and non-color-only errors.
 - Preserve the idempotency key across timeout/retry; clear private evidence previews and cached task data on logout or authorization loss.
-- After QR submission, use Complete Delivery's GET/POST contract for intent; evidence may await validation. Only Logistics finalization establishes delivered, not a client-computed eligibility flag.
+- After photo submission, use Complete Delivery's GET/POST contract for intent; evidence may await validation. Only Logistics finalization establishes delivered, not a client-computed eligibility flag.
 
 ### Tests, observability, and rollout
 
@@ -200,7 +200,7 @@ Idempotency-Key: <UUID header>
 - Test that Logistics records the Courier performer and Logistics recorder, that access/scan does not satisfy proof, and that notification failure cannot undo evidence.
 - Flutter tests cover capture permissions, file validation feedback, progress/retry, secure storage, offline/timeout/conflict states, and accessibility.
 - Log task/proof/event IDs, performing Courier, recording Logistics account, evidence state, result, revision, and timestamp; never log media bytes, raw paths, or QR tokens.
-- Keep media upload endpoints unavailable until the shared file policy and storage contract are deployed. The QR/tracking-ID/Order-reference submission is live with the shared transition service; record its API revision separately from the deferred media extension in Flutter progress.
+- Keep signature controls unavailable until their policy and endpoint are deployed. Photo POD is live with the shared transition service; record Flutter camera/upload adoption separately from physical-device acceptance in progress.
 
 ### Open decisions
 
@@ -215,6 +215,7 @@ Idempotency-Key: <UUID header>
 - [x] Evidence status is separate from custody; invalid, duplicate, or access-only events do not advance delivery.
 - [x] Photo POD is scoped, privately stored, idempotent, and consumable by Complete Delivery; reference-based delivery proof is retired.
 - [x] e-POD never directly sets `delivered`, changes assignment, or decides refunds/returns.
-- [ ] Verify external Flutter photo capture/upload, pending validation, rejection, offline, conflict, and retry states; the in-repo mockup is a development harness.
+- [x] External Flutter implements rear-camera capture, file fallback, preview/replace/remove/upload, and deterministic permission/cancel/validation/retry states; physical-device/browser acceptance remains open.
+- [x] External Flutter privately rereads active/rejected POD by opaque proof ID without exposing or persisting a raw storage path.
 
 **References:** `docs/features/courier/rules.md`, `docs/features/shared/shipment-fulfillment/spec.md`, `docs/references/file-upload-requirements.md`, `docs/features/logistics/update-status/specs.md`, `docs/features/courier/pick-up-order/specs.md`, and `docs/features/courier/complete-delivery/specs.md`.

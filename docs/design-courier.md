@@ -4,7 +4,7 @@ system: AISLEY
 type: Design Guide
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active inbox and read-only dashboard task previews; photo/COD intent and Logistics/Seller chat flows implemented locally
+status: Active inbox/dashboard previews; photo/COD intent, private POD review, and Logistics/Seller chat flows implemented locally
 ---
 
 # Courier Flutter Design Guide
@@ -13,7 +13,7 @@ status: Active inbox and read-only dashboard task previews; photo/COD intent and
 
 This guide applies to the external Flutter Courier application on Android and to local browser testing of that same app through Flutter `web-server`. It does not define the separate webapp's Customer storefront or React Admin, Seller, or Logistics dashboards. Laravel remains authoritative for identity, approval, ownership, and operational state.
 
-The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, account management, policy consent, notifications, first-mile identifier pickup, task-bound final-mile hub handoff, batch routes, final-mile movement, private photo POD, Logistics-reviewed completion, delivered history, and task-scoped chat with Logistics, Seller, and Buyer. Flutter implements the notification inbox, separate read-only first-/final-mile dashboard task previews, Android/web QR/Code 128 candidates, photo selection/upload and completion intent with COD cash confirmation, and Logistics/Seller task chat. Buyer chat remains read-only; normal batch acceptance, batch-route rendering, failed-attempt submission, and linehaul trip screens remain unadopted. Authenticated COD/Logistics validation, live chat exchange, and installed-device/browser acceptance remain unverified. The Laravel dashboard aggregate remains unavailable. Background push, live route telemetry, signature proof, earnings, and offline mutations remain deferred.
+The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, account management, policy consent, notifications, support tickets, first-mile identifier pickup, task-bound final-mile hub handoff, batch routes, final-mile movement, private photo POD, Logistics-reviewed completion, delivered history, and task-scoped chat with Logistics, Seller, and Buyer. Flutter implements the notification inbox, private support-ticket flow, separate read-only first-/final-mile dashboard task previews, atomic final-mile batch acceptance, Android/web QR/Code 128 candidates, Android rear-camera POD plus browser file fallback, photo upload and completion intent with COD cash confirmation, authenticated in-memory POD review for active/rejected/history detail, and Logistics/Seller task chat. Buyer chat remains read-only; batch-route rendering, failed-attempt submission, and linehaul trip screens remain unadopted. Authenticated support-ticket/batch API and COD/Logistics validation, live chat exchange, and installed-device/browser acceptance remain unverified. The Laravel dashboard aggregate remains unavailable. Background push, live route telemetry, signature proof, earnings, and offline mutations remain deferred.
 
 ## Frontend authority
 
@@ -33,7 +33,7 @@ Apply Jakob's Law by retaining recognizable platform interactions and consistent
 - Keep work entry points easy to find. Bound dashboard previews and link to their complete owning lists; do not duplicate every task action on the dashboard or treat a preview as a complete workload count.
 - Reveal workflow steps as prerequisites become satisfied. For final-mile delivery, movement, photo selection/upload, explicit cash acknowledgment when required, completion intent, and pending Logistics review remain distinct steps. Never skip a required step to reduce clicks.
 - Keep task identity, leg, current status, required address/contact context, cash due, validation errors, and consequences visible at the decision where they matter. Do not collapse essential information or preselect policy consent, cash collection, or an operational confirmation.
-- Label buttons by what the tap does. **Choose photo** opens a picker; **Scan** opens a scanner; a camera-specific label requires a working camera action. A **Delivered** intent action must explain before submission that Logistics review is pending; only the server-confirmed result may be labelled delivered.
+- Label buttons by what the tap does. **Choose photo** opens a picker, **Open camera for POD** opens still-photo capture, and **Scan** opens a scanner. A **Delivered** intent action must explain before submission that Logistics review is pending; only the server-confirmed result may be labelled delivered.
 - Use one explicit confirmation at the point of a consequential action, following the owning spec. Avoid chains of equivalent confirmation dialogs and confirmations for ordinary navigation. Retain discard protection for unsaved work and the documented sign-out/removal confirmations.
 - Keep navigation and choices stable during refresh. Update status in place without stealing focus, changing the selected task, or moving an action under the user's pointer. Android and web-server share labels and workflow semantics while using their supported picker, permission, and input controls.
 
@@ -123,7 +123,7 @@ Apply Jakob's Law by retaining recognizable platform interactions and consistent
 
 ### Pickup orders
 
-- Show server-assigned Seller pickups and final-mile hub pickups in separate sections. First-mile acceptance is per task. Normal final-mile acceptance is atomic for a server-defined dispatch batch; its Flutter action remains unavailable until the batch contract is adopted. Reading a task never accepts it.
+- Show server-assigned Seller pickups and final-mile hub pickups in separate sections. First-mile acceptance is per task. Normal final-mile acceptance is atomic for a server-defined dispatch batch and is available through its dedicated list/detail flow. Reading a task or batch never accepts it.
 - Show only authorized schedule, Seller/hub, pickup address, reference, and destination context. Present human-readable status labels while preserving lowercase server values in models. Do not expose Buyer contacts before the owning contract permits them. The final-mile projection may show **Parcel price** from `parcel.price`/`currency` when adopted; it is merchandise subtotal, never the COD cash amount.
 - For first mile, require an explicit confirmation after the QR/manual identifier candidate is resolved to the matching task. A waybill QR payload is untrusted text; the current client supports camera, scanner keyboard/paste input, and a manual Order ID/reference fallback. Final-mile hub handoff has no identifier step.
 - **Scan** opens the camera only when selected, works in the installed Android release APK and in the same Flutter app at `http://localhost:8765` through the fixed-port web-server run, and displays a visible manual-input control. Show permission denied, unavailable, busy, unsupported, and insecure-origin states with a manual alternative; release the stream when leaving the screen or switching tasks. Linux remains manual-input only.
@@ -137,7 +137,7 @@ Apply Jakob's Law by retaining recognizable platform interactions and consistent
 - After the server records `picked_up_from_hub`, show one explicit movement action at a time: `in_transit`, then `out_for_delivery`. Each action confirms the server-authorized transition and revision; it never writes an Order status locally.
 - Show the authorized hub, destination, recipient contact, instructions, and server-provided advisory metrics. The backend now offers a schedule-scoped batch route, but the supplied Flutter snapshot does not verify its map UI. Missing route geometry or metrics remain visibly unavailable; do not fabricate distance, ETA, or coordinates.
 - At `out_for_delivery`, the backend requires a private JPEG/PNG/WebP **photo POD** tied to the task. Show pending review after upload and Delivered intent; only Logistics validation may mark delivered. The implemented COD screen refetches `data.order.payment_method`, `payment_status`, `payable_total`, and `currency`, requires explicit acknowledgment of the displayed cash due, and rechecks it before sending `cod_collected: true`. Missing, unsupported, or changed payment data blocks the intent; Flutter never submits an amount or marks payment paid.
-- The implemented photo flow uses **Choose photo** and selected-file upload. Dedicated rear-camera POD capture remains a target requiring verification; first-mile barcode capture does not prove it works. Follow the shared upload policy, private bearer reads, retry/idempotency, permission, and accessibility rules for any camera extension.
+- On Android, **Open camera for POD** uses the rear camera for still capture, then shows preview, retake, file replacement, removal, and upload actions. Local web-server and unsupported targets use **Choose photo** without invoking the camera plugin. First-mile barcode capture stays separate. Physical-device/browser acceptance remains required.
 - Completion is an explicit intent followed by a fresh completion read. Display delivered only when the server returns the committed `delivered` projection.
 
 ### Operational messaging (live exchange not yet verified)
@@ -149,7 +149,7 @@ Apply Jakob's Law by retaining recognizable platform interactions and consistent
 ### Delivery history
 
 - Present delivered final-mile records as read-only cards with order reference, delivered time, pickup/destination areas, item count, and safe proof/completion status.
-- History detail may show immutable item snapshots and opaque proof references; exclude street addresses, contact phone numbers, raw proof payloads, storage paths, and mutation controls. An authorized private photo viewer requires adoption of the documented Courier proof-read endpoint; that viewer is not currently implemented.
+- History detail may show immutable item snapshots, opaque proof references, and the adopted authenticated private photo viewer. Keep validated image bytes only in account-scoped memory and clear them when detail/session scope ends; exclude street addresses, contact phone numbers, raw storage paths, public media URLs, and mutation controls.
 - Keep cursor pagination unavailable when the server does not provide a usable cursor; distinguish an empty successful list from unavailable, unauthorized, offline, and retryable states.
 
 ## Status, error, and network presentation

@@ -18,6 +18,14 @@ extension DeliveryControllerReads on DeliveryController {
       if (epoch != _loadEpoch) {
         return;
       }
+      final loadedTaskIds = loadedTasks.map((task) => task.id).toSet();
+      final removedTaskIds = tasks
+          .map((task) => task.id)
+          .where((taskId) => !loadedTaskIds.contains(taskId))
+          .toList(growable: false);
+      for (final taskId in removedTaskIds) {
+        clearProofPhotosForTask(taskId, notify: false);
+      }
       tasks = List<PickupTask>.unmodifiable(loadedTasks);
       for (final task in loadedTasks) {
         if (_actionStatuses[task.id] == DeliveryActionStatus.conflict) {
@@ -118,6 +126,10 @@ extension DeliveryControllerReads on DeliveryController {
       _syncTaskFromCompletion(task, completion);
       _reconcileActionWithCompletion(taskId, completion);
       _notifyDeliveryListeners();
+      final evidenceId = completion.evidenceId;
+      if (evidenceId != null) {
+        await loadProofPhoto(evidenceId, force: true);
+      }
     } on ApiException catch (error) {
       await _setCompletionError(taskId, error);
     } on TokenStorageException {

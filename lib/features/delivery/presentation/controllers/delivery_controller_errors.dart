@@ -12,6 +12,7 @@ extension DeliveryControllerErrors on DeliveryController {
     }
     _notifyDeliveryListeners();
     if (error.statusCode == 401) {
+      clearAllProofPhotos(notify: false);
       await _notifyAuthFailure(error);
     }
   }
@@ -24,6 +25,7 @@ extension DeliveryControllerErrors on DeliveryController {
     }
     _notifyDeliveryListeners();
     if (error.statusCode == 401) {
+      clearAllProofPhotos(notify: false);
       await _notifyAuthFailure(error);
     }
   }
@@ -36,6 +38,7 @@ extension DeliveryControllerErrors on DeliveryController {
     }
     _notifyDeliveryListeners();
     if (error.statusCode == 401) {
+      clearAllProofPhotos(notify: false);
       await _notifyAuthFailure(error);
     }
   }
@@ -49,6 +52,7 @@ extension DeliveryControllerErrors on DeliveryController {
     }
     _notifyDeliveryListeners();
     if (error.statusCode == 401) {
+      clearAllProofPhotos(notify: false);
       await _notifyAuthFailure(error);
     }
   }

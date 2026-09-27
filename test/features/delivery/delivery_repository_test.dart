@@ -141,6 +141,55 @@ void main() {
   );
 
   test(
+    'reads private proof photo from the fixed authenticated route',
+    () async {
+      late http.Request request;
+      final repository = _repository((incoming) async {
+        request = incoming;
+        return http.Response.bytes(
+          <int>[0xff, 0xd8, 0xff, 0xd9],
+          200,
+          headers: const <String, String>{'content-type': 'image/jpeg'},
+        );
+      });
+
+      final photo = await repository.fetchProofPhoto('proof/private id');
+
+      expect(request.method, 'GET');
+      expect(
+        request.url.path,
+        '/api/v1/courier/delivery-proofs/proof%2Fprivate%20id/photo',
+      );
+    expect(request.headers['authorization'], 'Bearer delivery-token');
+    expect(request.headers['accept'], contains('image/webp'));
+    expect(request.headers['accept'], contains('application/json'));
+      expect(photo.contentType, 'image/jpeg');
+      expect(photo.bytes, <int>[0xff, 0xd8, 0xff, 0xd9]);
+    },
+  );
+
+  test('rejects a private proof response with mismatched image bytes', () {
+    final repository = _repository((_) async {
+      return http.Response.bytes(
+        <int>[1, 2, 3, 4],
+        200,
+        headers: const <String, String>{'content-type': 'image/png'},
+      );
+    });
+
+    expect(
+      repository.fetchProofPhoto('proof-1'),
+      throwsA(
+        isA<ApiContractException>().having(
+          (error) => error.field,
+          'field',
+          'delivery.proof_photo.signature',
+        ),
+      ),
+    );
+  });
+
+  test(
     'submits completion intent without claiming delivery from 202',
     () async {
       late http.Request request;

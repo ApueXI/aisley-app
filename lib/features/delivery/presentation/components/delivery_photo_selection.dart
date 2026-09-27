@@ -5,6 +5,46 @@ mixin _DeliveryPhotoSelection on State<DeliveryTaskScreen> {
   String? _photoSelectionError;
   bool _isPickingPhoto = false;
   void Function()? _cancelPhotoUpload;
+
+  Future<void> _capturePhoto() async {
+    if (_isPickingPhoto) return;
+    setState(() {
+      _isPickingPhoto = true;
+      _photoSelectionError = null;
+    });
+    try {
+      final result = await widget.photoCaptureLauncher.capture(context);
+      if (!mounted) return;
+      if (result.status == DeliveryPhotoCaptureStatus.chooseFile) {
+        setState(() => _isPickingPhoto = false);
+        await _pickPhoto();
+        return;
+      }
+      final file = result.file;
+      if (result.status == DeliveryPhotoCaptureStatus.captured &&
+          file != null) {
+        final selection = await loadDeliveryPhotoSelection(
+          file,
+          captured: true,
+        );
+        if (!mounted) return;
+        setState(() => _selectedPhoto = selection);
+        return;
+      }
+      setState(() => _photoSelectionError = _captureMessage(result.status));
+    } on FormatException catch (error) {
+      if (mounted) setState(() => _photoSelectionError = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _photoSelectionError = 'The captured photo could not be opened. Retake it or choose a photo file.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPickingPhoto = false);
+    }
+  }
+
   Future<void> _pickPhoto() async {
     if (_isPickingPhoto) return;
     setState(() {
@@ -15,32 +55,15 @@ mixin _DeliveryPhotoSelection on State<DeliveryTaskScreen> {
       final file = await openFile(
         acceptedTypeGroups: const <XTypeGroup>[_deliveryPhotoTypeGroup],
       );
-      if (file == null) return;
-      final name = file.name.trim();
-      final extension = name.split('.').last.toLowerCase();
-      if (!<String>{'jpg', 'jpeg', 'png', 'webp'}.contains(extension)) {
-        throw const FormatException('Choose a JPEG, PNG, or WebP photo.');
-      }
-      final length = await file.length();
-      if (length == 0 || length >= maxImageUploadBytes) {
-        throw const FormatException('Choose a non-empty photo under 10 MiB.');
-      }
-      final bytes = await file.readAsBytes();
-      if (bytes.isEmpty ||
-          bytes.length >= maxImageUploadBytes ||
-          !_matchesPhotoSignature(extension, bytes)) {
-        throw const FormatException(
-          'The selected file does not match a JPEG, PNG, or WebP photo under 10 MiB.',
+      if (file == null) {
+        setState(
+          () => _photoSelectionError = 'Photo selection was cancelled. Choose a photo when you are ready.',
         );
+        return;
       }
+      final selection = await loadDeliveryPhotoSelection(file, captured: false);
       if (!mounted) return;
-      setState(() {
-        _selectedPhoto = DeliveryPhotoSelection(
-          path: file.path,
-          fileName: name,
-          bytes: Uint8List.fromList(bytes),
-        );
-      });
+      setState(() => _selectedPhoto = selection);
     } on FormatException catch (error) {
       if (mounted) setState(() => _photoSelectionError = error.message);
     } catch (_) {
@@ -73,22 +96,17 @@ mixin _DeliveryPhotoSelection on State<DeliveryTaskScreen> {
   }
 }
 
-bool _matchesPhotoSignature(String extension, Uint8List bytes) {
-  if (extension == 'jpg' || extension == 'jpeg') {
-    return bytes.length >= 3 &&
-        bytes[0] == 0xff &&
-        bytes[1] == 0xd8 &&
-        bytes[2] == 0xff;
-  }
-  if (extension == 'png') {
-    const header = <int>[137, 80, 78, 71, 13, 10, 26, 10];
-    return bytes.length >= header.length &&
-        List.generate(
-          header.length,
-          (index) => index,
-        ).every((index) => bytes[index] == header[index]);
-  }
-  return bytes.length >= 12 &&
-      String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF' &&
-      String.fromCharCodes(bytes.sublist(8, 12)) == 'WEBP';
-}
+String _captureMessage(DeliveryPhotoCaptureStatus status) => switch (status) {
+  DeliveryPhotoCaptureStatus.cancelled => 'Camera capture was cancelled. Open the camera again or choose a photo file.',
+  DeliveryPhotoCaptureStatus.chooseFile =>
+    'Choose a JPEG, PNG, or WebP photo under 10 MiB.',
+  DeliveryPhotoCaptureStatus.permissionDenied => 'Camera permission was denied. Allow it in Android settings, then retry, or choose a photo file.',
+  DeliveryPhotoCaptureStatus.unavailable =>
+    'A rear camera is unavailable. Choose a photo file instead.',
+  DeliveryPhotoCaptureStatus.busy =>
+    'The camera is busy. Wait a moment and retry, or choose a photo file.',
+  DeliveryPhotoCaptureStatus.failed =>
+    'The photo was not captured. Retake it or choose a photo file.',
+  DeliveryPhotoCaptureStatus.captured =>
+    'The captured photo could not be opened. Retake it or choose a photo file.',
+};

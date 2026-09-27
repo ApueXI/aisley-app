@@ -5,6 +5,7 @@ import '../features/auth/presentation/controllers/auth_controller.dart';
 import '../features/auth/presentation/blocked_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/registration_screen.dart';
+import '../features/batch/presentation/controllers/final_mile_batch_controller.dart';
 import '../features/chat/presentation/controllers/chat_controller.dart';
 import '../features/dashboard/presentation/controllers/dashboard_preview_controller.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
@@ -14,18 +15,21 @@ import '../features/notification/presentation/controllers/notification_controlle
 import '../features/policy/presentation/controllers/policy_controller.dart';
 import '../features/policy/presentation/policy_screen.dart';
 import '../features/pickup/presentation/controllers/pickup_controller.dart';
+import '../features/support/presentation/controllers/support_ticket_controller.dart';
 import '../features/vehicle/presentation/controllers/vehicle_controller.dart';
 
 class CourierApp extends StatelessWidget {
   const CourierApp({
     required this.authController,
     this.accountController,
+    this.batchController,
     this.policyController,
     this.pickupController,
     this.deliveryController,
     this.historyController,
     this.notificationController,
     this.chatController,
+    this.supportTicketController,
     this.dashboardPreviewController,
     this.vehicleController,
     super.key,
@@ -33,12 +37,14 @@ class CourierApp extends StatelessWidget {
 
   final AuthController authController;
   final AccountController? accountController;
+  final FinalMileBatchController? batchController;
   final PolicyController? policyController;
   final PickupController? pickupController;
   final DeliveryController? deliveryController;
   final HistoryController? historyController;
   final NotificationController? notificationController;
   final ChatController? chatController;
+  final SupportTicketController? supportTicketController;
   final DashboardPreviewController? dashboardPreviewController;
   final VehicleController? vehicleController;
 
@@ -52,12 +58,14 @@ class CourierApp extends StatelessWidget {
       home: AuthGate(
         authController: authController,
         accountController: accountController,
+        batchController: batchController,
         policyController: policyController,
         pickupController: pickupController,
         deliveryController: deliveryController,
         historyController: historyController,
         notificationController: notificationController,
         chatController: chatController,
+        supportTicketController: supportTicketController,
         dashboardPreviewController: dashboardPreviewController,
         vehicleController: vehicleController,
       ),
@@ -69,12 +77,14 @@ class AuthGate extends StatefulWidget {
   const AuthGate({
     required this.authController,
     this.accountController,
+    this.batchController,
     this.policyController,
     this.pickupController,
     this.deliveryController,
     this.historyController,
     this.notificationController,
     this.chatController,
+    this.supportTicketController,
     this.dashboardPreviewController,
     this.vehicleController,
     super.key,
@@ -82,12 +92,14 @@ class AuthGate extends StatefulWidget {
 
   final AuthController authController;
   final AccountController? accountController;
+  final FinalMileBatchController? batchController;
   final PolicyController? policyController;
   final PickupController? pickupController;
   final DeliveryController? deliveryController;
   final HistoryController? historyController;
   final NotificationController? notificationController;
   final ChatController? chatController;
+  final SupportTicketController? supportTicketController;
   final DashboardPreviewController? dashboardPreviewController;
   final VehicleController? vehicleController;
 
@@ -124,12 +136,14 @@ class _AuthGateState extends State<AuthGate> {
             key: const ValueKey('dashboard'),
             authController: authController,
             accountController: widget.accountController,
+            batchController: widget.batchController,
             policyController: widget.policyController,
             pickupController: widget.pickupController,
             deliveryController: widget.deliveryController,
             historyController: widget.historyController,
             notificationController: widget.notificationController,
             chatController: widget.chatController,
+            supportTicketController: widget.supportTicketController,
             dashboardPreviewController: widget.dashboardPreviewController,
             vehicleController: widget.vehicleController,
           ),
