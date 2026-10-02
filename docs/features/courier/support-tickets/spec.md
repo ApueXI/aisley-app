@@ -9,12 +9,12 @@ implementation_status: Five protected requester routes, Flutter requester flow, 
 canonical: true
 file_state: copied_read_only
 canonical_source: docs/features/courier/support-tickets/spec.md
-copied_backend_checkout: ca1487c
+copied_backend_checkout: d7df220
 role: Courier
 scope: Laravel API and external Flutter mobile application
 backend_contract_commit: 40c68de
 backend_contract_version: courier-support-tickets-v1
-source_coverage: docs/features/admin/chat-messaging/spec.md, docs/schema.md, docs/domain/Courier.md
+source_coverage: docs/features/admin/support-ticket-system/spec.md, docs/schema.md, docs/domain/Courier.md
 ---
 
 # Courier Support Tickets

@@ -5,7 +5,7 @@ type: Client Architecture
 platform: Flutter / Dart
 role: Courier / Rider
 status: Flutter inbox, support tickets, dashboard previews, final-mile batch acceptance, photo-POD/COD intent, and Logistics/Seller chat implemented; live acceptance remains open
-backend_contract_commit: ca1487c (copied Laravel documentation baseline; Flutter adoption varies by feature)
+backend_contract_commit: d7df220 (copied Laravel documentation baseline; Flutter adoption varies by feature)
 ---
 
 # Scope

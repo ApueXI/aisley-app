@@ -9,7 +9,7 @@ status: First-mile acceptance and final-mile dispatch batch acceptance implement
 implementation_status: First-mile listing/acceptance, atomic final-mile batch acceptance, and exceptional single-task reject/re-offer are implemented
 flutter_status: Atomic 1–15 parcel dispatch-batch list, detail, acceptance, and uncertain-result reconciliation implemented; live API acceptance unverified
 canonical: true
-copied_backend_checkout: ca1487c
+copied_backend_checkout: d7df220
 scope: External Flutter mobile client and Laravel Courier API
 backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378
 backend_contract_version: courier-first-and-final-mile-accept-v1
