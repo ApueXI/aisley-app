@@ -33,6 +33,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     widget.authController.addListener(_clearDraftOnSessionChange);
+    widget.controller.addListener(_clearDraftOnScopeChange);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       if (widget.thread case final thread?) {
@@ -48,24 +49,33 @@ class _ChatThreadScreenState extends State<ChatThreadScreen>
               widget.controller.activeTask?.counterpartyRole) {
         _text.text = attempt.body;
       }
-      widget.controller.startPollingThread();
+      if (_isVisible()) {
+        widget.controller.startPollingThread(isVisible: _isVisible);
+      }
     });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      if (!_isVisible()) return;
       unawaited(widget.controller.refreshActive());
-      widget.controller.startPollingThread();
+      widget.controller.startPollingThread(isVisible: _isVisible);
     } else {
       widget.controller.stopPolling();
     }
   }
 
+  bool _isVisible() =>
+      mounted &&
+      WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed &&
+      ModalRoute.of(context)?.isCurrent == true;
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     widget.authController.removeListener(_clearDraftOnSessionChange);
+    widget.controller.removeListener(_clearDraftOnScopeChange);
     widget.controller.stopPolling();
     _text.dispose();
     super.dispose();
@@ -78,6 +88,10 @@ class _ChatThreadScreenState extends State<ChatThreadScreen>
         if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
       });
     }
+  }
+
+  void _clearDraftOnScopeChange() {
+    if (widget.controller.activeTask == null) _text.clear();
   }
 
   Future<void> _send() async {
@@ -148,7 +162,8 @@ class _ChatThreadScreenState extends State<ChatThreadScreen>
                   '${task?.leg == 'first_mile' ? 'First mile' : 'Final mile'} · ${thread?.taskReference ?? task?.reference ?? thread?.orderReference ?? 'Task'}',
                 ),
               ),
-              if (thread?.sendAllowed == false || task?.canCompose == false)
+              if ((thread != null && thread.sendAllowed != true) ||
+                  task?.canCompose == false)
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16),
                   child: Text(

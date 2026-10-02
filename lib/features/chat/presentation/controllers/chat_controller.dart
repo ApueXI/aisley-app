@@ -8,6 +8,9 @@ import '../../../../core/networking/api_contract_exception.dart';
 import '../../../../core/security/token_storage.dart';
 import '../../data/chat_repository.dart';
 import '../../domain/chat_models.dart';
+import '../../domain/chat_task_context.dart';
+
+export '../../domain/chat_task_context.dart';
 
 part 'chat_controller_reads.dart';
 part 'chat_controller_sends.dart';
@@ -38,24 +41,6 @@ enum ChatSendStatus {
   validation,
   conflict,
   failed,
-}
-
-class ChatTaskContext {
-  const ChatTaskContext({
-    required this.leg,
-    required this.taskId,
-    this.counterpartyRole = 'logistics',
-    this.reference,
-  });
-
-  final String leg;
-  final String taskId;
-  final String counterpartyRole;
-  final String? reference;
-
-  bool get canCompose =>
-      counterpartyRole == 'logistics' ||
-      (counterpartyRole == 'seller' && leg == 'first_mile');
 }
 
 class ChatSendAttempt {
@@ -116,20 +101,22 @@ class ChatController extends ChangeNotifier {
   bool get canLoadMoreInbox => nextInboxCursor != null && !loadingMoreInbox;
   bool get canLoadOlder => nextMessageCursor != null && !loadingOlder;
 
-  void startPollingInbox() {
+  void startPollingInbox({bool Function()? isVisible}) {
     stopPolling();
     _pollTimer = Timer.periodic(pollInterval, (_) {
-      if (inboxStatus != ChatLoadStatus.offline &&
+      if ((isVisible == null || isVisible()) &&
+          inboxStatus != ChatLoadStatus.offline &&
           inboxStatus != ChatLoadStatus.timeout) {
         unawaited(loadInbox(silent: true));
       }
     });
   }
 
-  void startPollingThread() {
+  void startPollingThread({bool Function()? isVisible}) {
     stopPolling();
     _pollTimer = Timer.periodic(pollInterval, (_) {
-      if (threadStatus != ChatLoadStatus.offline &&
+      if ((isVisible == null || isVisible()) &&
+          threadStatus != ChatLoadStatus.offline &&
           threadStatus != ChatLoadStatus.timeout) {
         unawaited(refreshActive(silent: true));
       }

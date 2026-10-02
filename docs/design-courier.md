@@ -4,7 +4,7 @@ system: AISLEY
 type: Design Guide
 platform: Flutter / Dart
 role: Courier / Rider
-status: Active inbox/dashboard previews; photo/COD intent, private POD review, and Logistics/Seller chat flows implemented locally
+status: Active inbox/dashboard previews; photo/COD intent, private POD review, and Logistics/Seller/Buyer chat flows implemented locally
 ---
 
 # Courier Flutter Design Guide
@@ -13,7 +13,7 @@ status: Active inbox/dashboard previews; photo/COD intent, private POD review, a
 
 This guide applies to the external Flutter Courier application on Android and to local browser testing of that same app through Flutter `web-server`. It does not define the separate webapp's Customer storefront or React Admin, Seller, or Logistics dashboards. Laravel remains authoritative for identity, approval, ownership, and operational state.
 
-The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, account management, policy consent, notifications, support tickets, first-mile identifier pickup, task-bound final-mile hub handoff, batch routes, final-mile movement, private photo POD, Logistics-reviewed completion, delivered history, and task-scoped chat with Logistics, Seller, and Buyer. Flutter implements the notification inbox, private support-ticket flow, separate read-only first-/final-mile dashboard task previews, atomic final-mile batch acceptance, Android/web QR/Code 128 candidates, Android rear-camera POD plus browser file fallback, photo upload and completion intent with COD cash confirmation, authenticated in-memory POD review for active/rejected/history detail, and Logistics/Seller task chat. Buyer chat remains read-only; batch-route rendering, failed-attempt submission, and linehaul trip screens remain unadopted. Authenticated support-ticket/batch API and COD/Logistics validation, live chat exchange, and installed-device/browser acceptance remain unverified. The Laravel dashboard aggregate remains unavailable. Background push, live route telemetry, signature proof, earnings, and offline mutations remain deferred.
+The current API supports Logistics discovery, Courier registration, approval-gated login, `me`, logout, generic password-recovery acknowledgement, account management, policy consent, notifications, support tickets, first-mile identifier pickup, task-bound final-mile hub handoff, batch routes, final-mile movement, private photo POD, Logistics-reviewed completion, delivered history, and task-scoped chat with Logistics, Seller, and Buyer. Flutter implements the notification inbox, private support-ticket flow, separate read-only first-/final-mile dashboard task previews, atomic final-mile batch acceptance, Android/web QR/Code 128 candidates, Android rear-camera POD plus browser file fallback, photo upload and completion intent with COD cash confirmation, authenticated in-memory POD review for active/rejected/history detail, and Logistics/Seller/Buyer task chat. Batch-route rendering, failed-attempt submission, and linehaul trip screens remain unadopted. Authenticated support-ticket/batch API and COD/Logistics validation, live chat exchange, and installed-device/browser acceptance remain unverified. The Laravel dashboard aggregate remains unavailable. Background push, live route telemetry, signature proof, earnings, and offline mutations remain deferred.
 
 ## Frontend authority
 
@@ -142,7 +142,7 @@ Apply Jakob's Law by retaining recognizable platform interactions and consistent
 
 ### Operational messaging (live exchange not yet verified)
 
-- The implemented client offers **Message Logistics** on an eligible active offered/accepted task and **Message Seller** only while a first-mile task is accepted. Buyer threads remain read-only. Seller production release still requires a verified counterpart reply screen and live exchange under the chat spec; Laravel rechecks eligibility on every call.
+- The implemented client offers **Message Logistics** on an eligible active offered/accepted task, **Message Seller** only while a first-mile task is accepted, and **Message Buyer** on an accepted nonterminal final-mile task. These remain secondary Material actions beside the task's operational next step. Existing threads require current server `send_allowed: true`; Buyer starts refresh the exact final-mile task. Seller and Customer web counterparts are implemented, but authenticated live exchange remains unverified; Laravel rechecks eligibility on every call.
 - Keep the task reference, leg, and safe counterpart label visible in a private thread. Render messages as plain text, show unread/read-only states, and offer explicit retry without claiming an uncertain send succeeded.
 - Poll only while the inbox/thread is foregrounded, clear private message state on logout or affiliation loss, and keep a failed draft and its UUID idempotency key for exact retry. Do not queue offline sends or treat chat text as a delivery/status action.
 

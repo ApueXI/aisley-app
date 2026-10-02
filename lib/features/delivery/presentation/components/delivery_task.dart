@@ -83,9 +83,16 @@ class _DeliveryTaskScreenState extends State<DeliveryTaskScreen>
                         task.status == PickupTaskStatus.inTransit ||
                         task.status == PickupTaskStatus.outForDelivery))
                   OutlinedButton.icon(
-                    onPressed: () => _openLogisticsChat(task),
+                    onPressed: () => _openChat(task, 'logistics'),
                     icon: const Icon(Icons.chat_bubble_outline),
                     label: const Text('Message Logistics'),
+                  ),
+                if (widget.chatController != null &&
+                    ChatTaskContext.canMessageBuyer(task))
+                  OutlinedButton.icon(
+                    onPressed: () => _openChat(task, 'customer'),
+                    icon: const Icon(Icons.person_outline),
+                    label: const Text('Message Buyer'),
                   ),
                 _DeliveryContextCard(
                   contextData: deliveryContext,
@@ -105,7 +112,7 @@ class _DeliveryTaskScreenState extends State<DeliveryTaskScreen>
     );
   }
 
-  Future<void> _openLogisticsChat(PickupTask task) async {
+  Future<void> _openChat(PickupTask task, String counterpartyRole) async {
     final controller = widget.chatController;
     if (controller == null) return;
     await Navigator.of(context).push(
@@ -116,6 +123,7 @@ class _DeliveryTaskScreenState extends State<DeliveryTaskScreen>
           task: ChatTaskContext(
             leg: 'final_mile',
             taskId: task.id,
+            counterpartyRole: counterpartyRole,
             reference: task.order?.reference,
           ),
         ),

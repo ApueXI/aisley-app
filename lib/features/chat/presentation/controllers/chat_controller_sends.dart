@@ -5,13 +5,13 @@ extension ChatControllerSends on ChatController {
     final task = activeTask;
     final thread = activeThread;
     final body = text.trim();
+    if (sendStatus == ChatSendStatus.conflict) return false;
     if (task == null ||
         body.isEmpty ||
         body.length > 2000 ||
         !task.canCompose ||
         (threadStatus != ChatLoadStatus.loaded &&
             threadStatus != ChatLoadStatus.empty) ||
-        sendStatus == ChatSendStatus.conflict ||
         (thread != null &&
             (thread.counterpartyRole != task.counterpartyRole ||
                 thread.sendAllowed != true))) {
@@ -24,6 +24,7 @@ extension ChatControllerSends on ChatController {
     var attempt = pendingAttempt;
     if (attempt != null &&
         (attempt.body != body ||
+            attempt.leg != task.leg ||
             attempt.taskId != task.taskId ||
             attempt.counterpartyRole != task.counterpartyRole ||
             (attempt.threadId != null && attempt.threadId != thread?.id))) {
@@ -47,6 +48,25 @@ extension ChatControllerSends on ChatController {
     _notify();
     final epoch = _epoch;
     try {
+      if (attempt.threadId != null && task.counterpartyRole == 'customer') {
+        final current = await repository.detail(attempt.threadId!);
+        if (epoch != _epoch) return false;
+        if (current.id != attempt.threadId ||
+            current.taskId != attempt.taskId ||
+            current.leg != attempt.leg ||
+            current.counterpartyRole != attempt.counterpartyRole) {
+          throw const ApiContractException('chat.send.context');
+        }
+        _replaceThread(current);
+        if (current.sendAllowed != true) {
+          pendingAttempt = null;
+          sendStatus = ChatSendStatus.conflict;
+          sendError =
+              'This conversation is read-only. Replies are unavailable.';
+          _notify();
+          return false;
+        }
+      }
       final result = attempt.threadId == null
           ? await repository.start(
               leg: attempt.leg,
@@ -82,6 +102,12 @@ extension ChatControllerSends on ChatController {
         await _authorizationFailure(error);
         return false;
       }
+      if (error.statusCode == 404) {
+        pendingAttempt = null;
+        sendStatus = ChatSendStatus.failed;
+        await _readFailure(error, inbox: false);
+        return false;
+      }
       if (error.statusCode == 422) {
         pendingAttempt = null;
         sendStatus = ChatSendStatus.validation;
@@ -89,7 +115,11 @@ extension ChatControllerSends on ChatController {
       } else if (error.statusCode == 409) {
         sendStatus = ChatSendStatus.conflict;
         threadStatus = ChatLoadStatus.stale;
-        sendError = 'This conversation changed. Refresh before sending again.';
+        sendError =
+            error.code == 'TASK_NOT_ACTIVE' ||
+                error.code == 'CONVERSATION_READ_ONLY'
+            ? 'This task no longer permits replies. Refresh to check its current state.'
+            : 'This conversation changed. Refresh before sending again.';
         unawaited(refreshActive());
       } else {
         sendStatus = ChatSendStatus.uncertain;

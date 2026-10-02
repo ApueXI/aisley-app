@@ -31,6 +31,12 @@ extension ChatControllerErrors on ChatController {
         nextInboxCursor = null;
         unreadCount = null;
       } else {
+        final unavailableId = activeThread?.id;
+        threads = threads
+            .where((thread) => thread.id != unavailableId)
+            .toList(growable: false);
+        pendingAttempt = null;
+        stopPolling();
         activeThread = null;
         activeTask = null;
         messages = const [];

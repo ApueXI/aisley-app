@@ -317,7 +317,9 @@ void main() {
     auth.dispose();
   });
 
-  testWidgets('Buyer thread remains read-only in this rollout', (tester) async {
+  testWidgets('Buyer thread shows a composer when the server allows sends', (
+    tester,
+  ) async {
     final buyer = ChatThread.fromJson({
       ..._threadJson,
       'leg': 'final_mile',
@@ -341,8 +343,9 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.textContaining('Read-only conversation'), findsOneWidget);
-    expect(find.byType(TextField), findsNothing);
+    expect(find.textContaining('Read-only conversation'), findsNothing);
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('Message Buyer'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     chat.dispose();
     auth.dispose();
