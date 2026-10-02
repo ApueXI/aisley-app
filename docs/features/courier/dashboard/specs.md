@@ -10,7 +10,7 @@ flutter_status: Scaffold validation, inbox badge, feature/chat links, and separa
 canonical: true
 role: Courier / Rider
 scope: External Flutter mobile client and Laravel read API scaffold
-copied_backend_checkout: ca1487c
+copied_backend_checkout: d7df220
 backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378
 backend_contract_version: courier-dashboard-scaffold-v1
 source_coverage: docs/requirements.md, docs/workspace.md, docs/schema.md, docs/domain/Courier.md, docs/domain/Logistics.md, docs/features/shared/shipment-fulfillment/spec.md
@@ -109,11 +109,11 @@ approved Courier session
 - [x] The scaffold's guest, wrong-role, pending-account, privacy, and no-operational-data behavior is covered by API tests.
 - [x] A bounded, tenant-scoped Courier notification API returns safe inbox DTOs, unread counts, detail, and idempotent read state.
 - [x] Flutter consumes the separate inbox API and shows its unread badge without interpreting the scaffold notification section as live.
-- [x] Flutter dashboard links to the task-chat inbox; its limited Logistics messaging adoption is not a dashboard chat aggregate.
+- [x] Flutter dashboard links to the task-chat inbox; its Logistics/Seller messaging adoption is not a dashboard chat aggregate, and Buyer threads remain read-only.
 - [x] The current Flutter handoff records partial task-bound hub pickup/photo POD adoption; installed-device and end-to-end Logistics validation remain unverified.
 - [x] Flutter shows read-only first-/final-mile previews from their separate authorized list APIs, each with source labels, independent states, and safe navigation/refetch.
 - [x] Preview tests prove page-limited first-mile reads, unpaginated final-mile reads, unknown-status handling, partial failure, logout clearing, and no action or fabricated count.
-- [ ] Adopt the documented empty-body, state-idempotent final-mile batch action with its exact projection/errors; do not reactivate normal per-task acceptance or loop task calls.
+- [x] Flutter locally adopts the documented empty-body, state-idempotent final-mile batch action and reconciliation; live acceptance remains open. Do not reactivate normal per-task acceptance or loop task calls.
 - [ ] A versioned operational dashboard API returns safe available/active summaries with explicit freshness and count semantics; the current scaffold does not.
 - [x] Partial preview rows identify their explicit leg/status and show only authorized list fields; distance/ETA is displayed only if the source DTO includes it.
 - [x] Rejected offers remain visible with safe reason/time; Logistics can re-offer the same task from the dedicated Dispatch page without changing the Order or duplicating task/waybill history.
@@ -178,7 +178,7 @@ approved Courier session
 - Seller confirms `ready_for_pickup`; selected Logistics creates and offers the first-mile task. The partial preview reads it only from the authorized first-mile list.
 - A first-mile Courier accepts through Accept Delivery Requests, then Pick Up Order confirms `picked_up_from_seller`.
 - Logistics receives and sorts the parcel at its sole hub, then one dispatch schedule creates 1–15 separate final-mile offers for one Courier; a task-list preview cannot claim schedule-wide acceptance.
-- Normal final-mile acceptance is an atomic schedule action; each parcel retains its own task and evidence. The contract is now complete, but Flutter adoption and tests remain pending; read-only dashboard navigation is unaffected.
+- Normal final-mile acceptance is an atomic schedule action; each parcel retains its own task and evidence. The contract and local Flutter batch adoption/tests are recorded; live authenticated acceptance remains unverified. Read-only dashboard navigation is unaffected.
 - Final-mile pickup submits evidence with HTTP 202; only Logistics validation establishes `picked_up_from_hub`. Deliver Order owns movement, and completion intent likewise waits for Logistics finalization.
 - Final-mile hub handoff sends task revision without QR/reference; delivery proof uses private photo POD, not the first-mile scanner. Dashboard cards must not replay either mutation.
 - Dashboard refreshes independent task previews after returning from an owning feature; it never predicts a transition from a tap or local timer.

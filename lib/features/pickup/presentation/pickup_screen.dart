@@ -8,6 +8,7 @@ import '../../chat/presentation/chat_thread_screen.dart';
 import '../../policy/presentation/controllers/policy_controller.dart';
 import '../../policy/presentation/policy_screen.dart';
 import '../domain/pickup_models.dart';
+import 'components/pickup_schedule_filter.dart';
 import 'controllers/pickup_controller.dart';
 
 part 'components/pickup_list.dart';

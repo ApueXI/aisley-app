@@ -44,16 +44,19 @@ class _PickupLoadingState extends StatelessWidget {
 }
 
 class _PickupEmptyState extends StatelessWidget {
-  const _PickupEmptyState({required this.title});
+  const _PickupEmptyState({required this.title, this.message});
 
   final String title;
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
-        child: Text('No ${title.toLowerCase()} are assigned right now.'),
+        child: Text(
+          message ?? 'No ${title.toLowerCase()} are assigned right now.',
+        ),
       ),
     );
   }

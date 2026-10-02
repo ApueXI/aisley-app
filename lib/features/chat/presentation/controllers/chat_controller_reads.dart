@@ -111,6 +111,7 @@ extension ChatControllerReads on ChatController {
   }
 
   Future<void> _findTaskThread(ChatTaskContext task) async {
+    if (!canRetry) return;
     final epoch = _epoch;
     final requestId = ++_threadRequestId;
     loadingOlder = false;
@@ -125,6 +126,7 @@ extension ChatControllerReads on ChatController {
         if (epoch != _epoch || requestId != _threadRequestId) return;
         for (final thread in page.items) {
           if (thread.taskId == task.taskId &&
+              thread.leg == task.leg &&
               thread.counterpartyRole == task.counterpartyRole) {
             activeThread = thread;
             await refreshActive();
@@ -158,13 +160,13 @@ extension ChatControllerReads on ChatController {
   }
 
   Future<void> refreshActive({bool silent = false}) async {
+    if (!canRetry) return;
     final thread = activeThread;
     if (thread == null) {
       final task = activeTask;
       if (task != null) await _findTaskThread(task);
       return;
     }
-    if (!canRetry) return;
     final epoch = _epoch;
     final requestId = ++_threadRequestId;
     loadingOlder = false;
@@ -173,6 +175,13 @@ extension ChatControllerReads on ChatController {
     _notify();
     try {
       final detail = await repository.detail(thread.id);
+      final task = activeTask;
+      if (detail.id != thread.id ||
+          detail.taskId != task?.taskId ||
+          detail.leg != task?.leg ||
+          detail.counterpartyRole != task?.counterpartyRole) {
+        throw const ApiContractException('chat.thread.context');
+      }
       final page = await repository.messages(thread.id);
       if (epoch != _epoch ||
           requestId != _threadRequestId ||
@@ -248,6 +257,12 @@ extension ChatControllerReads on ChatController {
           requestId != _threadRequestId ||
           activeThread?.id != thread.id) {
         return;
+      }
+      if (updated.id != thread.id ||
+          updated.taskId != thread.taskId ||
+          updated.leg != thread.leg ||
+          updated.counterpartyRole != thread.counterpartyRole) {
+        throw const ApiContractException('chat.read.context');
       }
       _replaceThread(updated);
       _notify();

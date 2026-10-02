@@ -83,29 +83,35 @@ void main() {
     expect(controller.vehicle?.revision, 5);
   });
 
-  test('refreshes the vehicle after a stale revision conflict', () async {
-    final repository = _FakeVehicleRepository()
-      ..updateOutcomes.add(
-        const ApiException(
-          statusCode: 409,
-          code: 'VEHICLE_REVISION_CONFLICT',
-          message: 'stale revision',
-        ),
+  test(
+    'truck edit refreshes the vehicle after a stale revision conflict',
+    () async {
+      final repository = _FakeVehicleRepository()
+        ..updateOutcomes.add(
+          const ApiException(
+            statusCode: 409,
+            code: 'VEHICLE_REVISION_CONFLICT',
+            message: 'stale revision',
+          ),
+        );
+      final controller = VehicleController(vehicleRepository: repository);
+      await controller.load();
+      repository.vehicle = _vehicle(revision: 6, plateNumber: 'SERVER-PLATE');
+
+      final saved = await controller.updateVehicle(
+        changes: const <String, Object?>{'vehicle_type': 'truck'},
       );
-    final controller = VehicleController(vehicleRepository: repository);
-    await controller.load();
-    repository.vehicle = _vehicle(revision: 6, plateNumber: 'SERVER-PLATE');
 
-    final saved = await controller.updateVehicle(
-      changes: const <String, Object?>{'plate_number': 'LOCAL-PLATE'},
-    );
-
-    expect(saved, isFalse);
-    expect(repository.updateCalls.single.expectedRevision, 4);
-    expect(controller.updateStatus, VehicleActionStatus.conflict);
-    expect(controller.vehicle?.revision, 6);
-    expect(controller.vehicle?.plateNumber, 'SERVER-PLATE');
-  });
+      expect(saved, isFalse);
+      expect(repository.updateCalls.single.expectedRevision, 4);
+      expect(repository.updateCalls.single.changes, <String, Object?>{
+        'vehicle_type': 'truck',
+      });
+      expect(controller.updateStatus, VehicleActionStatus.conflict);
+      expect(controller.vehicle?.revision, 6);
+      expect(controller.vehicle?.plateNumber, 'SERVER-PLATE');
+    },
+  );
 
   test(
     'hands a document upload to the exact document action independently',

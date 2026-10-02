@@ -81,7 +81,12 @@ class CourierVehicle {
       json['vehicle_type'],
       'vehicle.vehicle_type',
     );
-    if (!const <String>{'motorcycle', 'car', 'van'}.contains(vehicleType)) {
+    if (!const <String>{
+      'motorcycle',
+      'car',
+      'van',
+      'truck',
+    }.contains(vehicleType)) {
       throw const ApiContractException('vehicle.vehicle_type');
     }
     return CourierVehicle(

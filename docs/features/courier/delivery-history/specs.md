@@ -8,7 +8,7 @@ status: Implemented read-only final-mile history API; advanced filters deferred
 implementation_status: Courier-scoped delivered task list/detail APIs are implemented; Flutter list/detail is reported implemented; cursor/date filters remain deferred
 flutter_status: Delivered-history list/detail and account-scoped in-memory private photo preview are implemented locally; authenticated API and device/browser acceptance remain unverified
 canonical: true
-copied_backend_checkout: ca1487c
+copied_backend_checkout: d7df220
 role: Courier
 scope: Laravel API and external Flutter application
 backend_contract_commit: d1abeee73d0141e1fd7dda4bea0ee3fead370378

@@ -31,19 +31,27 @@ class _ChatInboxScreenState extends State<ChatInboxScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       unawaited(widget.controller.loadInbox());
-      widget.controller.startPollingInbox();
+      if (_isVisible()) {
+        widget.controller.startPollingInbox(isVisible: _isVisible);
+      }
     });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      if (!_isVisible()) return;
       unawaited(widget.controller.loadInbox());
-      widget.controller.startPollingInbox();
+      widget.controller.startPollingInbox(isVisible: _isVisible);
     } else {
       widget.controller.stopPolling();
     }
   }
+
+  bool _isVisible() =>
+      mounted &&
+      WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed &&
+      ModalRoute.of(context)?.isCurrent == true;
 
   @override
   void dispose() {
@@ -75,7 +83,9 @@ class _ChatInboxScreenState extends State<ChatInboxScreen>
       return;
     }
     unawaited(widget.controller.loadInbox());
-    widget.controller.startPollingInbox();
+    if (_isVisible()) {
+      widget.controller.startPollingInbox(isVisible: _isVisible);
+    }
   }
 
   @override

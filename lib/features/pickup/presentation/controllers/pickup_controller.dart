@@ -10,6 +10,7 @@ import '../../data/pickup_repository.dart';
 import '../../domain/pickup_models.dart';
 
 part 'pickup_controller_reads.dart';
+part 'pickup_controller_schedule_filter.dart';
 part 'pickup_controller_actions.dart';
 part 'pickup_controller_errors.dart';
 part 'pickup_controller_state.dart';
@@ -67,6 +68,15 @@ class PickupController extends ChangeNotifier {
   String? firstMileErrorMessage;
   String? finalMileErrorMessage;
   Duration? retryAfter;
+  String? _firstMileScheduleId;
+  final Map<String, String> _firstMileScheduleOptions = <String, String>{};
+  int _firstMileRequestId = 0;
+
+  String? get firstMileScheduleId => _firstMileScheduleId;
+
+  /// Only schedules discovered on the latest unfiltered, authorized task page.
+  Map<String, String> get firstMileScheduleOptions =>
+      Map<String, String>.unmodifiable(_firstMileScheduleOptions);
 
   WaybillResolution? lastWaybillResolution;
   String? waybillResolutionError;
@@ -155,6 +165,7 @@ class PickupController extends ChangeNotifier {
     firstMileTasks = const <PickupTask>[];
     finalMileTasks = const <PickupTask>[];
     firstMilePage = null;
+    _clearFirstMileScheduleFilter();
     firstMileErrorMessage = null;
     finalMileErrorMessage = null;
     lastWaybillResolution = null;
@@ -177,6 +188,8 @@ class PickupController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _loadEpoch++;
+    _firstMileRequestId++;
     _retryTimer?.cancel();
     super.dispose();
   }

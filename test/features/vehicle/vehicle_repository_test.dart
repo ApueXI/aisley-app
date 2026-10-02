@@ -8,11 +8,68 @@ import 'package:http/testing.dart';
 
 import 'package:aisley_app/core/config/app_config.dart';
 import 'package:aisley_app/core/networking/api_client.dart';
+import 'package:aisley_app/core/networking/api_contract_exception.dart';
 import 'package:aisley_app/core/security/token_storage.dart';
 import 'package:aisley_app/features/vehicle/data/vehicle_repository.dart';
 import 'package:aisley_app/features/vehicle/domain/vehicle_models.dart';
 
 void main() {
+  test(
+    'reads a truck vehicle with its revision and independent documents',
+    () async {
+      final repository = _repository((_) async {
+        return http.Response(jsonEncode(_truckResponse), 200);
+      });
+
+      final vehicle = await repository.fetchVehicle();
+
+      expect(vehicle.id, 'vehicle-1');
+      expect(vehicle.vehicleType, 'truck');
+      expect(vehicle.revision, 4);
+      expect(vehicle.officialReceipt?.id, 'or-1');
+      expect(vehicle.certificateOfRegistration, isNull);
+    },
+  );
+
+  test('still rejects undocumented vehicle types', () {
+    expect(
+      () => CourierVehicle.fromJson(<String, dynamic>{
+        ..._vehicleResponse['data'] as Map<String, dynamic>,
+        'vehicle_type': 'bus',
+      }),
+      throwsA(isA<ApiContractException>()),
+    );
+  });
+
+  test(
+    'truck edits send only the type, current revision, and UUID key',
+    () async {
+      late http.Request request;
+      final repository = _repository((incoming) async {
+        request = incoming;
+        return http.Response(jsonEncode(_truckResponse), 200);
+      });
+
+      final vehicle = await repository.updateVehicle(
+        changes: const <String, Object?>{'vehicle_type': 'truck'},
+        expectedRevision: 4,
+        idempotencyKey: '11111111-1111-4111-8111-111111111111',
+      );
+
+      expect(request.method, 'PATCH');
+      expect(request.url.path, '/api/v1/courier/vehicle');
+      expect(
+        request.headers['idempotency-key'],
+        '11111111-1111-4111-8111-111111111111',
+      );
+      expect(jsonDecode(request.body), <String, dynamic>{
+        'vehicle_type': 'truck',
+        'expected_revision': 4,
+      });
+      expect(vehicle.vehicleType, 'truck');
+    },
+  );
+
   test('reads the sole Courier vehicle projection', () async {
     late http.Request request;
     final repository = _repository((incoming) async {
@@ -180,5 +237,12 @@ const _vehicleResponse = <String, dynamic>{
       'url': '/api/v1/courier/vehicle/documents/official_receipt',
     },
     'certificate_of_registration': null,
+  },
+};
+
+final _truckResponse = <String, dynamic>{
+  'data': <String, dynamic>{
+    ..._vehicleResponse['data'] as Map<String, dynamic>,
+    'vehicle_type': 'truck',
   },
 };

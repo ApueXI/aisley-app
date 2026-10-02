@@ -36,6 +36,34 @@ void main() {
     expect(page.tasks.single.schedule?.startsAt, isNotNull);
   });
 
+  test(
+    'clearing the schedule omits the filter without changing the route',
+    () async {
+      final requests = <http.Request>[];
+      final repository = _repository((request) async {
+        requests.add(request);
+        return http.Response(jsonEncode(_firstMileListResponse), 200);
+      });
+
+      await repository.fetchFirstMileTasks(pickupScheduleId: ' schedule-1 ');
+      await repository.fetchFirstMileTasks();
+      await repository.fetchFirstMileTasks(pickupScheduleId: ' ');
+
+      expect(requests.first.url.queryParameters, {
+        'pickup_schedule_id': 'schedule-1',
+        'per_page': '50',
+      });
+      for (final request in requests.skip(1)) {
+        expect(request.method, 'GET');
+        expect(request.url.path, '/api/v1/courier/first-mile-tasks');
+        expect(request.url.queryParameters, {'per_page': '50'});
+        expect(request.headers['authorization'], 'Bearer pickup-token');
+        expect(request.headers.containsKey('idempotency-key'), isFalse);
+        expect(request.body, isEmpty);
+      }
+    },
+  );
+
   test('accepts a first-mile task without client ownership fields', () async {
     late http.Request request;
     final repository = _repository((incoming) async {

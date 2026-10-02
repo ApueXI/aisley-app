@@ -3,6 +3,8 @@ import 'dart:convert';
 import '../../../core/networking/api_client.dart';
 import '../../../core/networking/api_contract_exception.dart';
 import '../domain/chat_models.dart';
+import '../domain/chat_task_context.dart';
+import '../../pickup/domain/pickup_models.dart';
 
 abstract interface class ChatRepository {
   Future<ChatPage<ChatThread>> list({
@@ -101,6 +103,32 @@ class ApiChatRepository implements ChatRepository {
   }) async {
     if (!chatLegs.contains(leg) || !chatRoles.contains(counterpartyRole)) {
       throw ArgumentError('Invalid chat context');
+    }
+    if (counterpartyRole == 'customer') {
+      if (leg != 'final_mile') throw ArgumentError('Invalid Buyer chat leg');
+      final taskResponse = await _client.get(
+        '/courier/final-mile-tasks/${_segment(taskId)}',
+        authenticated: true,
+      );
+      final data = _decode(taskResponse.body, 'chat.buyer_task')['data'];
+      if (data is! Map) {
+        throw const ApiContractException('chat.buyer_task.data');
+      }
+      final task = PickupTask.fromJson(
+        Map<String, dynamic>.from(data),
+        defaultLeg: PickupTaskLeg.finalMile,
+      );
+      if (task.id != taskId) {
+        throw const ApiContractException('chat.buyer_task.task_id');
+      }
+      if (!ChatTaskContext.canMessageBuyer(task)) {
+        throw const ApiException(
+          statusCode: 409,
+          code: 'TASK_NOT_ACTIVE',
+          message:
+              'Buyer messaging requires an active accepted final-mile task.',
+        );
+      }
     }
     final response = await _client.postJson(
       _base,
