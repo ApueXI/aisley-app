@@ -27,39 +27,6 @@ extension PickupControllerReads on PickupController {
     }
   }
 
-  Future<void> _loadFirstMile(int epoch) async {
-    try {
-      final page = await pickupRepository.fetchFirstMileTasks();
-      if (epoch != _loadEpoch) {
-        return;
-      }
-      firstMilePage = page;
-      firstMileTasks = List<PickupTask>.unmodifiable(page.tasks);
-      firstMileStatus = page.tasks.isEmpty
-          ? PickupSectionStatus.empty
-          : PickupSectionStatus.loaded;
-      firstMileErrorMessage = null;
-      _notifyPickupListeners();
-    } on ApiException catch (error) {
-      await _setSectionError(firstMile: true, error: error, epoch: epoch);
-    } on TokenStorageException {
-      if (epoch != _loadEpoch) {
-        return;
-      }
-      firstMileStatus = PickupSectionStatus.secureStorageFailure;
-      firstMileErrorMessage = 'Secure session storage is unavailable. Pickup work cannot be loaded.';
-      _notifyPickupListeners();
-    } on ApiContractException {
-      if (epoch != _loadEpoch) {
-        return;
-      }
-      firstMileStatus = PickupSectionStatus.failed;
-      firstMileErrorMessage =
-          'The pickup service returned an unexpected response. Please retry.';
-      _notifyPickupListeners();
-    }
-  }
-
   Future<void> _loadFinalMile(int epoch) async {
     try {
       final tasks = await pickupRepository.fetchFinalMileTasks();

@@ -44,9 +44,15 @@ class _PickupListBody extends StatelessWidget {
           errorMessage: controller.firstMileErrorMessage,
           tasks: controller.firstMileTasks,
           page: controller.firstMilePage,
+          filter: PickupScheduleFilter(
+            selectedId: controller.firstMileScheduleId,
+            options: controller.firstMileScheduleOptions,
+            onChanged: controller.selectFirstMileSchedule,
+          ),
+          emptyMessage: controller.firstMileScheduleId == null ? null : 'No Seller pickups were returned for the selected schedule. Clear the filter to view unfiltered work.',
           onOpenTask: onOpenTask,
           onOpenRoute: onOpenRoute,
-          onRetry: controller.load,
+          onRetry: controller.reloadFirstMile,
           onOpenPolicies: onOpenPolicies,
           showPolicyAction: policyController != null,
         ),
@@ -91,6 +97,8 @@ class _PickupSection extends StatelessWidget {
     required this.onOpenPolicies,
     required this.showPolicyAction,
     this.page,
+    this.filter,
+    this.emptyMessage,
   });
 
   final String title;
@@ -100,6 +108,8 @@ class _PickupSection extends StatelessWidget {
   final String? errorMessage;
   final List<PickupTask> tasks;
   final FirstMileTaskPage? page;
+  final Widget? filter;
+  final String? emptyMessage;
   final ValueChanged<PickupTask> onOpenTask;
   final ValueChanged<PickupTask>? onOpenRoute;
   final VoidCallback onRetry;
@@ -139,6 +149,7 @@ class _PickupSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
+        if (filter != null) ...[filter!, const SizedBox(height: 12)],
         if (status == PickupSectionStatus.loading && tasks.isEmpty)
           const _PickupLoadingState()
         else if (_isBlockingStatus(status) && tasks.isEmpty)
@@ -150,7 +161,7 @@ class _PickupSection extends StatelessWidget {
             showPolicyAction: showPolicyAction,
           )
         else if (status == PickupSectionStatus.empty || tasks.isEmpty)
-          _PickupEmptyState(title: title)
+          _PickupEmptyState(title: title, message: emptyMessage)
         else ...[
           for (final group in groupedTasks) ...[
             _ScheduleGroupHeader(
@@ -289,26 +300,37 @@ class _ScheduleGroupHeader extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(
-          child: Text(
-            [
-              if (scheduleLabel != null) 'Schedule $scheduleLabel',
-              ?window,
-            ].join(' • '),
-            style: Theme.of(context).textTheme.bodySmall
-                ?.copyWith(fontWeight: FontWeight.w700),
-          ),
-        ),
-        if (onOpenRoute != null)
-          TextButton.icon(
+    final label = Text(
+      [
+        if (scheduleLabel != null) 'Schedule $scheduleLabel',
+        ?window,
+      ].join(' • '),
+      style: Theme.of(context).textTheme.bodySmall
+          ?.copyWith(fontWeight: FontWeight.w700),
+    );
+    final route = onOpenRoute == null
+        ? null
+        : TextButton.icon(
             onPressed: onOpenRoute,
             icon: const Icon(Icons.route_outlined),
             label: const Text('Route order'),
-          ),
-      ],
+          );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 400 ||
+            MediaQuery.textScalerOf(context).scale(14) > 21) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [label, ?route],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: label),
+            ?route,
+          ],
+        );
+      },
     );
   }
 }

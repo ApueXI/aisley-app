@@ -12,6 +12,16 @@ extension PickupControllerErrors on PickupController {
 
     final state = _sectionStateFor(error);
     final message = _messageForError(error);
+    final authorizationLost =
+        error.statusCode == 401 ||
+        (error.statusCode == 403 && error.code != 'POLICY_CONSENT_REQUIRED');
+    if (authorizationLost) {
+      _clearFirstMileScheduleFilter();
+      firstMileTasks = const <PickupTask>[];
+      firstMilePage = null;
+      firstMileStatus = state;
+      firstMileErrorMessage = message;
+    }
     if (firstMile) {
       firstMileStatus = state;
       firstMileErrorMessage = message;
@@ -24,7 +34,7 @@ extension PickupControllerErrors on PickupController {
     }
     _notifyPickupListeners();
 
-    if (error.statusCode == 401) {
+    if (authorizationLost) {
       await _notifyAuthFailure(error);
     }
   }
