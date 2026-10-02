@@ -225,6 +225,10 @@ extension _RegistrationForm on _RegistrationScreenState {
                           ),
                           DropdownMenuItem(value: 'car', child: Text('Car')),
                           DropdownMenuItem(value: 'van', child: Text('Van')),
+                          DropdownMenuItem(
+                            value: 'truck',
+                            child: Text('Truck'),
+                          ),
                         ],
                         onChanged: _isSubmitting
                             ? null

@@ -19,6 +19,38 @@ import 'package:aisley_app/features/policy/domain/policy_models.dart';
 import 'package:aisley_app/features/policy/presentation/controllers/policy_controller.dart';
 
 void main() {
+  testWidgets('registration allows Truck and retains the selected value', (
+    WidgetTester tester,
+  ) async {
+    final controller = AuthController(
+      authRepository: _FakeAuthRepository(),
+      dashboardRepository: _FakeDashboardRepository(),
+    );
+    await controller.initialize();
+    await tester.pumpWidget(CourierApp(authController: controller));
+    await tester.tap(find.text('New Courier? Register here'));
+    await _pumpUntilFound(tester, find.text('Logistics organization'));
+
+    final dropdown = find.byWidgetPredicate(
+      (widget) =>
+          widget is DropdownButtonFormField<String> &&
+          widget.decoration.labelText == 'Vehicle type',
+    );
+    await tester.ensureVisible(dropdown);
+    await tester.pump();
+    await tester.tap(dropdown);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Truck').last);
+    await tester.pumpAndSettle();
+
+    final selected = tester.widget<DropdownButtonFormField<String>>(dropdown);
+    expect(selected.initialValue, 'truck');
+    expect(
+      find.byKey(const ValueKey<String?>('vehicle-truck')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('Courier can open the registration form from sign in', (
     WidgetTester tester,
   ) async {
@@ -100,13 +132,14 @@ void main() {
   testWidgets('dashboard contract failure is not shown as empty work', (
     WidgetTester tester,
   ) async {
-    final authController = AuthController(
-      authRepository: _FakeAuthRepository(),
-      dashboardRepository: _FakeDashboardRepository()
-        ..error = const ApiContractException('dashboard.sections'),
-    )
-      ..status = AuthStatus.authenticated
-      ..courier = _FakeAuthRepository().courier;
+    final authController =
+        AuthController(
+            authRepository: _FakeAuthRepository(),
+            dashboardRepository: _FakeDashboardRepository()
+              ..error = const ApiContractException('dashboard.sections'),
+          )
+          ..status = AuthStatus.authenticated
+          ..courier = _FakeAuthRepository().courier;
 
     await tester.pumpWidget(
       MaterialApp(home: DashboardScreen(authController: authController)),

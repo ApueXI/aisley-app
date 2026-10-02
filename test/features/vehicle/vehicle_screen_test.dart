@@ -14,6 +14,73 @@ import 'package:aisley_app/features/vehicle/presentation/controllers/vehicle_con
 import 'package:aisley_app/features/vehicle/presentation/vehicle_screen.dart';
 
 void main() {
+  testWidgets('loads an existing truck vehicle without a dropdown assertion', (
+    WidgetTester tester,
+  ) async {
+    final controller = VehicleController(
+      vehicleRepository: _FakeVehicleRepository(vehicleType: 'truck'),
+    );
+    final auth = AuthController(
+      authRepository: _FakeAuthRepository(),
+      dashboardRepository: _FakeDashboardRepository(),
+    )..status = AuthStatus.authenticated;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: VehicleScreen(
+          authController: auth,
+          vehicleController: controller,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey<String>('truck')), findsOneWidget);
+    expect(controller.vehicle?.vehicleType, 'truck');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('selects Truck and saves only the revision-checked type edit', (
+    WidgetTester tester,
+  ) async {
+    final repository = _FakeVehicleRepository();
+    final controller = VehicleController(vehicleRepository: repository);
+    final auth = AuthController(
+      authRepository: _FakeAuthRepository(),
+      dashboardRepository: _FakeDashboardRepository(),
+    )..status = AuthStatus.authenticated;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: VehicleScreen(
+          authController: auth,
+          vehicleController: controller,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final dropdown = find.byType(DropdownButtonFormField<String>);
+    await tester.ensureVisible(dropdown);
+    await tester.tap(dropdown);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Truck').last);
+    await tester.pumpAndSettle();
+    final save = find.widgetWithText(FilledButton, 'Save vehicle details');
+    await tester.ensureVisible(save);
+    await tester.pumpAndSettle();
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+
+    expect(repository.savedChanges, <String, Object?>{'vehicle_type': 'truck'});
+    expect(repository.savedRevision, 4);
+    expect(controller.vehicle?.id, 'vehicle-1');
+    expect(controller.vehicle?.vehicleType, 'truck');
+    expect(controller.vehicle?.revision, 5);
+    expect(controller.vehicle?.officialReceipt?.id, 'or-1');
+    expect(controller.vehicle?.certificateOfRegistration, isNull);
+    await tester.drag(find.byType(ListView), const Offset(0, 1000));
+    await tester.pumpAndSettle();
+    expect(find.text('Your vehicle details were updated.'), findsOneWidget);
+  });
+
   testWidgets('shows independently managed vehicle details and documents', (
     WidgetTester tester,
   ) async {
@@ -48,15 +115,22 @@ void main() {
 }
 
 class _FakeVehicleRepository implements VehicleRepository {
+  _FakeVehicleRepository({this.vehicleType = 'motorcycle'});
+
+  String vehicleType;
+  int revision = 4;
+  Map<String, Object?>? savedChanges;
+  int? savedRevision;
+
   @override
-  Future<CourierVehicle> fetchVehicle() async => const CourierVehicle(
+  Future<CourierVehicle> fetchVehicle() async => CourierVehicle(
     id: 'vehicle-1',
-    vehicleType: 'motorcycle',
+    vehicleType: vehicleType,
     plateNumber: 'ABC-1234',
     make: 'Honda',
     model: 'Click',
-    revision: 4,
-    officialReceipt: VehicleDocumentReference(
+    revision: revision,
+    officialReceipt: const VehicleDocumentReference(
       id: 'or-1',
       url: '/api/v1/courier/vehicle/documents/official_receipt',
     ),
@@ -67,7 +141,13 @@ class _FakeVehicleRepository implements VehicleRepository {
     required Map<String, Object?> changes,
     required int expectedRevision,
     required String idempotencyKey,
-  }) async => fetchVehicle();
+  }) async {
+    savedChanges = Map<String, Object?>.from(changes);
+    savedRevision = expectedRevision;
+    vehicleType = changes['vehicle_type'] as String? ?? vehicleType;
+    revision++;
+    return fetchVehicle();
+  }
 
   @override
   Future<CourierVehicle> uploadDocument({

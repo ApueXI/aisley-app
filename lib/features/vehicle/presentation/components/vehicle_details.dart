@@ -153,6 +153,7 @@ extension _VehicleScreenDetails on _VehicleScreenState {
                       ),
                       DropdownMenuItem(value: 'car', child: Text('Car')),
                       DropdownMenuItem(value: 'van', child: Text('Van')),
+                      DropdownMenuItem(value: 'truck', child: Text('Truck')),
                     ],
                     onChanged: updateBusy
                         ? null

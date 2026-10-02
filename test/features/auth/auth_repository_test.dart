@@ -68,7 +68,7 @@ void main() {
     expect(options.single.businessName, 'Aisley Express');
   });
 
-  test('registration uses exact multipart fields and does not send authority fields', () async {
+  test('truck registration preserves combined evidence and sends no authority fields', () async {
     final temporaryDirectory = await Directory.systemTemp.createTemp(
       'aisley_registration_test_',
     );
@@ -112,7 +112,7 @@ void main() {
         password: 'Password123',
         passwordConfirmation: 'Password123',
         logisticsOrganizationId: 'logistics-1',
-        vehicleType: 'motorcycle',
+        vehicleType: 'truck',
         plateNumber: 'ABC 1234',
         addressLine1: '1 Main Street',
         addressLine2: 'Unit 2',
@@ -144,6 +144,9 @@ void main() {
     expect(body, contains('name="address[address_line_2]"'));
     expect(body, contains('name="government_id"'));
     expect(body, contains('name="vehicle_registration"'));
+    expect(body, contains('name="vehicle_type"\r\n\r\ntruck\r\n'));
+    expect(body, isNot(contains('name="official_receipt"')));
+    expect(body, isNot(contains('name="certificate_of_registration"')));
     expect(body, contains('name="logistics_organization_id"'));
     expect(body, isNot(contains('name="role"')));
     expect(body, isNot(contains('name="hub_id"')));
